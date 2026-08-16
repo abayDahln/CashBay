@@ -2,13 +2,6 @@
 
 CashBay adalah aplikasi pencatatan keuangan pribadi berbasis Flutter yang berjalan sepenuhnya offline. Semua data disimpan di SQLite lokal dan tidak membutuhkan server. Aplikasi ini mencatat pemasukan, pengeluaran, transfer antar dompet, serta tagihan utang dan piutang. Nilai transaksi ditampilkan dalam Rupiah.
 
-## Dukungan Platform
-
-* **Android**
-* **iOS** (Beta)
-
-
-
 ## Fitur
 
 - Dashboard menampilkan total saldo, ringkasan pemasukan dan pengeluaran, saldo tagihan (saya dan orang), serta transaksi terbaru.
@@ -34,6 +27,7 @@ Layar Laporan (grafik arus kas) dan Chat AI sudah disiapkan di dalam kode, tetap
 
 Tema antarmuka memakai Material 3 dengan warna monokrom dan font SF Pro.
 
+
 ## Instalasi
 
 Pastikan Flutter telah terpasang, lalu jalankan perintah berikut.
@@ -47,8 +41,13 @@ flutter run
 
 ```
 flutter test
-flutter test integration_test/ -d windows
+flutter test integration_test/ -d android
 ```
+
+## Platform
+
+* **Android**
+* **iOS** (Beta)
 
 ## Struktur Proyek
 
