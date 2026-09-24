@@ -9,6 +9,12 @@ class AppTheme {
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color cardBackground = Colors.white;
 
+// Transaction type colors
+  static const Color expense = Color(0xFFFF3D3D);
+  static const Color income = Color(0xFF34C759);
+  static const Color tagihan = Color(0xFFFFAB00);
+  static const Color transfer = Color(0xFF2196F3);
+
   // Semantic (monochrome)
   static const Color textPrimary = Color(0xFF1A1A1A);
   static const Color textSecondary = Color(0xFF757575);

@@ -129,6 +129,3 @@ flutter:
           weight: 500
         - asset: public/font/SFPRODISPLAYBOLD.OTF
           weight: 700
-        - asset: public/font/SFPRODISPLAYSEMIBOLDITALIC.OTF
-          weight: 600
-          style: italic

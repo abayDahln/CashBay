@@ -124,9 +124,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   Color get _typeColor {
-    if (_isIncome || _transaction.isPenerimaanTagihan) return AppTheme.black;
-    if (_isTransfer) return AppTheme.textSecondary;
-    return AppTheme.black;
+    if (_transaction.isTagihanRelated) return AppTheme.tagihan;
+    if (_isTransfer) return AppTheme.transfer;
+    if (_isIncome) return AppTheme.income;
+    return AppTheme.expense;
   }
 
   String get _paymentMethodLabel =>

@@ -305,7 +305,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
                 color: AppTheme.black.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppTheme.black, size: 20),
+              child: Icon(icon, color: AppTheme.tagihan, size: 20),
             ),
             const Spacer(),
             Text(
@@ -324,7 +324,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
           style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
+            color: AppTheme.tagihan,
           ),
           formatter: CurrencyFormatter.formatMedium,
           maxLines: 1,

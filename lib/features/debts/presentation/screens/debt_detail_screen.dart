@@ -66,7 +66,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
   @override
   Widget build(BuildContext context) {
     final isDebt = _debt.type == 'debt';
-    final color = isDebt ? AppTheme.black : AppTheme.darkGray;
+    final color = AppTheme.tagihan;
 
     return Scaffold(
       appBar: CashBayAppBar(

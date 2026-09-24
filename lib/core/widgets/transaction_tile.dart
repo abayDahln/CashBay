@@ -5,6 +5,13 @@ import '../utils/formatters.dart';
 import 'press_card.dart';
 import 'animated_balance.dart';
 
+final Map<String, Color> _typeColors = {
+    'expense': AppTheme.expense,
+    'income': AppTheme.income,
+    'tagihan': AppTheme.tagihan,
+    'transfer': AppTheme.transfer,
+};
+
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
@@ -31,31 +38,46 @@ class TransactionTile extends StatelessWidget {
     final desc = transaction.description?.trim() ?? '';
     final note = transaction.note?.trim() ?? '';
 
+    final typeColor = _typeColors[transaction.type] ?? AppTheme.black;
+
+    // Warna nominal mengikuti tipe: pengeluaran merah, pemasukan hijau,
+    // tagihan (saya/orang) kuning, dan transfer biru.
+    final Color nominalColor;
+    if (isTagihan) {
+      nominalColor = AppTheme.tagihan;
+    } else if (isTransfer) {
+      nominalColor = AppTheme.transfer;
+    } else if (isIncome) {
+      nominalColor = AppTheme.income;
+    } else {
+      nominalColor = AppTheme.expense;
+    }
+
     if (isTagihan) {
       if (transaction.isTagihan) {
         icon = Icons.receipt_long;
-        color = AppTheme.black;
+        color = typeColor;
         label = transaction.description ?? 'Tagihan';
       } else if (transaction.isPembayaranTagihan) {
         icon = Icons.check_circle_outline;
-        color = AppTheme.black;
+        color = typeColor;
         label = transaction.description ?? 'Pembayaran';
       } else {
         icon = Icons.file_download;
-        color = AppTheme.black;
+        color = typeColor;
         label = transaction.description ?? 'Penerimaan';
       }
     } else if (isTransfer) {
       icon = Icons.swap_horiz;
-      color = AppTheme.black;
+      color = typeColor;
       label = desc.isNotEmpty ? desc : 'Transfer';
     } else if (isIncome) {
       icon = Icons.arrow_downward;
-      color = AppTheme.black;
+      color = typeColor;
       label = desc.isNotEmpty ? desc : (note.isNotEmpty ? note : 'Pendapatan');
     } else {
       icon = Icons.arrow_upward;
-      color = AppTheme.black;
+      color = typeColor;
       label = desc.isNotEmpty ? desc : (note.isNotEmpty ? note : 'Pengeluaran');
     }
 
@@ -121,7 +143,7 @@ class TransactionTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: color,
+                color: nominalColor,
               ),
               formatter: (v) =>
                   CurrencyFormatter.formatWithSign(v, showPlus: isIncome || isTagihan || isTransfer),

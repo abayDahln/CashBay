@@ -19,9 +19,10 @@ class AppBottomNav extends StatelessWidget {
       backgroundColor: Colors.white,
       selectedItemColor: AppTheme.black,
       unselectedItemColor: AppTheme.textSecondary,
+      type: BottomNavigationBarType.fixed,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: ''),
-        BottomNavigationBarItem(icon: Icon(Icons.history), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
       ],
     );
   }
