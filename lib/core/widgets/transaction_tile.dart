@@ -4,8 +4,8 @@ import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import 'animated_balance.dart';
 
-/// M3 two-line list item for a transaction: tonal avatar (income / expense /
-/// transfer container), title + supporting text, trailing amount.
+/// M3 two-line list item for a transaction: primary-tinted avatar,
+/// title + supporting text, trailing amount.
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
@@ -59,11 +59,6 @@ class TransactionTile extends StatelessWidget {
 
     final finance = FinanceColors.of(context);
     final text = Theme.of(context).textTheme;
-    final (container, onContainer) = isTransfer
-        ? (finance.transferContainer, finance.onTransferContainer)
-        : isIncome
-        ? (finance.incomeContainer, finance.onIncomeContainer)
-        : (finance.expenseContainer, finance.onExpenseContainer);
     final nominalColor = isTransfer
         ? finance.transfer
         : isIncome
@@ -75,8 +70,8 @@ class TransactionTile extends StatelessWidget {
       minTileHeight: 72,
       leading: CircleAvatar(
         radius: 20,
-        backgroundColor: container,
-        foregroundColor: onContainer,
+        backgroundColor: scheme.primaryContainer,
+        foregroundColor: scheme.onPrimaryContainer,
         child: Icon(icon, size: 20),
       ),
       title: Text(

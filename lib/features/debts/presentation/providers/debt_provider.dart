@@ -165,8 +165,8 @@ class DebtProvider extends ChangeNotifier {
           date: payment.date,
           createdAt: DateTime.now(),
           description: debt.type == 'debt'
-              ? 'Pembayaran ${debt.billName ?? debt.personName}'
-              : 'Penerimaan ${debt.billName ?? debt.personName}',
+              ? 'Pembayaran ${debt.personName}'
+              : 'Penerimaan ${debt.personName}',
           paymentMethod: debt.paymentMethod,
         );
         await txnRepo.insertTransaction(transaction);

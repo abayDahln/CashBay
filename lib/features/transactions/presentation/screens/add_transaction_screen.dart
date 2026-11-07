@@ -70,11 +70,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String get _destinationWallet =>
       _paymentMethod == 'cash' ? 'ewallet' : 'cash';
 
-  /// Expense and transfer spend from the source wallet, so the amount is
-  /// capped by its balance.
-  bool get _spendsFromWallet =>
-      _transactionType == 'expense' || _transactionType == 'transfer';
-
   static String _walletLabel(String type) =>
       type == 'cash' ? 'Cash' : 'E-Wallet';
 
@@ -123,21 +118,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Wallet? _walletOfType(List<Wallet> wallets, String type) =>
       wallets.where((w) => w.type == type).firstOrNull;
 
-  String? _validateAmount(String? v) {
-    if (!_spendsFromWallet) return InputValidation.amountInRange(v);
-    final wallet = _walletOfType(
-      context.read<WalletProvider>().wallets,
-      _paymentMethod,
-    );
-    if (wallet == null) return InputValidation.amountInRange(v);
-    final balance = wallet.balance < 0 ? 0.0 : wallet.balance;
-    return InputValidation.amountInRange(
-      v,
-      max: balance,
-      maxMessage:
-          'Saldo ${wallet.name} tidak cukup (sisa ${CurrencyFormatter.format(balance)})',
-    );
-  }
+  String? _validateAmount(String? v) => InputValidation.amountInRange(v);
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +144,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       children: [
                         _buildAnimatedField(0, _buildTypeSelector()),
                         const SizedBox(height: 16),
-                        _buildAnimatedField(0, _buildAmountField(wallets)),
+                        _buildAnimatedField(0, _buildAmountField()),
                         const SizedBox(height: 24),
                         _buildInsetGroup('Detail utama', [
                           if (_isTagihan) ...[
@@ -175,7 +156,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             const SizedBox(height: 8),
                             _buildDueDatePresets(),
                           ] else if (_isTransfer) ...[
-                            _buildTransferSelector(wallets),
+                            _buildTransferSelector(),
                             const SizedBox(height: 16),
                             _buildDescriptionField(),
                           ] else ...[
@@ -318,131 +299,67 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildAmountField(List<Wallet> wallets) {
+  Widget _buildAmountField() {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final hasValue = _amountValue > 0;
-    const quickAmounts = <int>[10000, 20000, 50000, 100000];
-    final display = _amountController.text.isEmpty
-        ? '0'
-        : _amountController.text;
-    final amountStyle = text.displaySmall?.copyWith(
-      color: hasValue ? scheme.onSurface : scheme.onSurfaceVariant,
-      fontWeight: FontWeight.w600,
-    );
-    final source = _spendsFromWallet
-        ? _walletOfType(wallets, _paymentMethod)
-        : null;
+    const quickAmounts = <int>[10000, 20000, 50000, 100000, 200000];
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       child: Column(
         children: [
-          Text(
-            'Nominal transaksi',
-            style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Balances the clear button so the amount stays centred.
-              const SizedBox(width: 48),
-              Expanded(
-                // The TextFormField stays transparent and handles input /
-                // validation; the visible Text is auto-scaled to avoid wrap.
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    IgnorePointer(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              'Rp',
-                              style: text.titleLarge?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(display, style: amountStyle),
-                          ],
-                        ),
-                      ),
-                    ),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.next,
-                      inputFormatters: [RupiahInputFormatter()],
-                      onChanged: (_) => setState(() {}),
-                      textAlign: TextAlign.center,
-                      cursorHeight: 32,
-                      style: amountStyle?.copyWith(color: Colors.transparent),
-                      decoration: const InputDecoration(
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        focusedErrorBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
-                        errorMaxLines: 2,
-                      ),
-                      validator: _validateAmount,
-                    ),
-                  ],
-                ),
+          TextFormField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            inputFormatters: [RupiahInputFormatter()],
+            onChanged: (_) => setState(() {}),
+            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              labelText: 'Nominal transaksi',
+              prefixText: 'Rp ',
+              prefixStyle: text.headlineSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
               ),
-              SizedBox(
-                width: 48,
-                child: hasValue
-                    ? IconButton(
-                        tooltip: 'Kosongkan nominal',
-                        icon: Icon(
-                          Icons.cancel,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        onPressed: () => _setAmount(0),
-                      )
-                    : null,
-              ),
-            ],
-          ),
-          if (source != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Saldo ${source.name}: ${CurrencyFormatter.format(source.balance)}',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              suffixIcon: hasValue
+                  ? IconButton(
+                      tooltip: 'Kosongkan nominal',
+                      icon: const Icon(Icons.cancel),
+                      onPressed: () => _setAmount(0),
+                    )
+                  : null,
+              errorMaxLines: 2,
             ),
-          ],
+            validator: _validateAmount,
+          ),
           const SizedBox(height: 12),
-          Wrap(
+          Row(
             spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
             children: [
               for (final amount in quickAmounts)
-                ActionChip(
-                  avatar: const Icon(Icons.add, size: 18),
-                  label: Text(CurrencyFormatter.formatShort(amount.toDouble())),
-                  tooltip:
-                      'Tambah ${CurrencyFormatter.format(amount.toDouble())}',
-                  onPressed: () => _setAmount(_amountValue + amount),
-                ),
+                Expanded(child: _quickAmountChip(amount)),
             ],
           ),
         ],
       ),
     );
   }
+
+  Widget _quickAmountChip(int amount) => ChoiceChip(
+    label: Text(
+      '+${CurrencyFormatter.formatShort(amount.toDouble())}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    ),
+    visualDensity: VisualDensity.compact,
+    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    labelPadding: EdgeInsets.zero,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    tooltip: 'Tambah ${CurrencyFormatter.format(amount.toDouble())}',
+    selected: false,
+    onSelected: (_) => _setAmount(_amountValue + amount),
+  );
 
   Widget _buildDescriptionField() {
     final isIncome = _transactionType == 'income';
@@ -478,12 +395,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildTransferSelector(List<Wallet> wallets) {
+  Widget _buildTransferSelector() {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
     Widget walletTile(String caption, String type, CrossAxisAlignment align) {
-      final wallet = _walletOfType(wallets, type);
       return Column(
         crossAxisAlignment: align,
         children: [
@@ -511,13 +427,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ],
           ),
-          if (wallet != null)
-            Text(
-              CurrencyFormatter.format(wallet.balance),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
         ],
       );
     }
@@ -895,7 +804,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         date: _selectedDate,
         createdAt: DateTime.now(),
         description:
-            '${debtType == 'debt' ? 'Tagihan Saya' : 'Tagihan Orang'} - ${_billNameController.text.trim()}',
+            '${debtType == 'debt' ? 'Tagihan Saya' : 'Tagihan Orang'} - ${_personNameController.text.trim()}',
         paymentMethod: _paymentMethod,
         attachmentPath: _attachmentPath,
       );

@@ -163,27 +163,14 @@ class _DashboardHomeState extends State<_DashboardHome> {
   }
 
   Widget _buildMonthSummary() {
-    final finance = FinanceColors.of(context);
     return Row(
       children: [
         Expanded(
-          child: _SummaryTile(
-            label: 'Pendapatan',
-            amount: _monthIncome,
-            icon: Icons.south,
-            container: finance.incomeContainer,
-            onContainer: finance.onIncomeContainer,
-          ),
+          child: _SummaryTile(label: 'Pendapatan', amount: _monthIncome),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _SummaryTile(
-            label: 'Pengeluaran',
-            amount: _monthExpense,
-            icon: Icons.north,
-            container: finance.expenseContainer,
-            onContainer: finance.onExpenseContainer,
-          ),
+          child: _SummaryTile(label: 'Pengeluaran', amount: _monthExpense),
         ),
       ],
     );
@@ -434,44 +421,26 @@ class _WalletBreakdown extends StatelessWidget {
 class _SummaryTile extends StatelessWidget {
   final String label;
   final double amount;
-  final IconData icon;
-  final Color container;
-  final Color onContainer;
-  const _SummaryTile({
-    required this.label,
-    required this.amount,
-    required this.icon,
-    required this.container,
-    required this.onContainer,
-  });
+  const _SummaryTile({required this.label, required this.amount});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return AppCard(
-      color: container,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: onContainer),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.labelLarge?.copyWith(color: onContainer),
-                ),
-              ),
-            ],
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           AnimatedBalance(
             value: amount,
             style: text.titleMedium?.copyWith(
-              color: onContainer,
               fontWeight: FontWeight.w600,
             ),
             formatter: CurrencyFormatter.formatMedium,

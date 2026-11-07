@@ -78,9 +78,6 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
-    final title = _debt.billName?.isNotEmpty == true
-        ? _debt.billName!
-        : _debt.personName;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -102,7 +99,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  title,
+                  _debt.personName,
                   style: textTheme.titleLarge,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -224,8 +221,6 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          if (_debt.billName?.isNotEmpty == true && _debt.personName.isNotEmpty)
-            _buildInfoRow(Icons.person_outline, 'Nama', _debt.personName),
           _buildInfoRow(
             Icons.calendar_today_outlined,
             'Tanggal',

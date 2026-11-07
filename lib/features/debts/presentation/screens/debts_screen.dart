@@ -414,9 +414,7 @@ class _DebtsScreenState extends State<DebtsScreen>
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
-    final hasBillName = debt.billName?.isNotEmpty == true;
     final subtitle = [
-      if (hasBillName && debt.personName.isNotEmpty) debt.personName,
       DateFormatter.formatDate(debt.date),
       if (!isPaid && debt.dueDate != null)
         'Jatuh tempo ${DateFormatter.formatDate(debt.dueDate!)}',
@@ -452,7 +450,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      hasBillName ? debt.billName! : debt.personName,
+                      debt.personName,
                       style: textTheme.titleMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
