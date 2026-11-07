@@ -46,9 +46,6 @@ class _ReportScreenState extends State<ReportScreen> {
     final text = Theme.of(context).textTheme;
     return Consumer<ReportProvider>(
       builder: (context, report, _) {
-        final hasCategories =
-            report.expenseCategories.isNotEmpty ||
-            report.incomeCategories.isNotEmpty;
         return RefreshIndicator(
           onRefresh: report.loadChartData,
           child: CustomScrollView(
@@ -107,10 +104,6 @@ class _ReportScreenState extends State<ReportScreen> {
                             subtitle: 'Belum ada transaksi pada periode ini',
                           ),
                         ),
-                      if (hasCategories) ...[
-                        const SizedBox(height: 8),
-                        _categoryBreakdown(report),
-                      ],
                       if (report.recentTransactions.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         const _SectionHeader('Transaksi Terbaru'),
@@ -501,32 +494,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _categoryBreakdown(ReportProvider report) {
-    final finance = FinanceColors.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (report.expenseCategories.isNotEmpty) ...[
-          const _SectionHeader('Pengeluaran per Kategori'),
-          _CategoryCard(
-            items: report.expenseCategories,
-            color: finance.expense,
-            trackColor: finance.expenseContainer,
-          ),
-        ],
-        if (report.incomeCategories.isNotEmpty) ...[
-          if (report.expenseCategories.isNotEmpty) const SizedBox(height: 8),
-          const _SectionHeader('Pendapatan per Kategori'),
-          _CategoryCard(
-            items: report.incomeCategories,
-            color: finance.income,
-            trackColor: finance.incomeContainer,
-          ),
-        ],
-      ],
-    );
-  }
-
   static double _niceStep(double range) {
     final magnitude = math
         .pow(10, (math.log(range) / math.ln10).floor())
@@ -613,79 +580,6 @@ class _SummaryTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Category share rows: name, amount, percentage and a progress bar.
-class _CategoryCard extends StatelessWidget {
-  final List<CategorySummary> items;
-  final Color color;
-  final Color trackColor;
-  const _CategoryCard({
-    required this.items,
-    required this.color,
-    required this.trackColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    return AppCard(
-      variant: AppCardVariant.outlined,
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    items[i].name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.bodyLarge,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  CurrencyFormatter.formatMedium(items[i].amount),
-                  style: text.labelLarge?.copyWith(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: (items[i].percentage / 100).clamp(0.0, 1.0),
-                    minHeight: 8,
-                    color: color,
-                    backgroundColor: trackColor,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 44,
-                  child: Text(
-                    '${items[i].percentage.toStringAsFixed(0)}%',
-                    textAlign: TextAlign.end,
-                    style: text.labelMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
