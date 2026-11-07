@@ -1,196 +1,99 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens shared by every screen. Dark values are taken verbatim from
-/// the UI mockups in `ui/`; light values are the closest iOS-style counterpart.
-class AppColors {
-  // Semantic — expense / income
-  static const Color expense = Color(0xFFFF5447);
-  static const Color income = Color(0xFF34C759);
-  static const Color transfer = Color(0xFF3E90FF);
+/// Finance-specific colour roles, following M3 role pairing
+/// (`x` for text/icons, `xContainer` + `onXContainer` for tonal fills).
+@immutable
+class FinanceColors extends ThemeExtension<FinanceColors> {
+  final Color income;
+  final Color incomeContainer;
+  final Color onIncomeContainer;
+  final Color expense;
+  final Color expenseContainer;
+  final Color onExpenseContainer;
+  final Color transfer;
+  final Color transferContainer;
+  final Color onTransferContainer;
 
-  final Color background;
-  final Color surface;
-  final Color surfaceContainerLowest;
-  final Color surfaceContainerLow;
-  final Color surfaceContainer;
-  final Color surfaceContainerHigh;
-  final Color surfaceContainerHighest;
-  final Color surfaceBright;
-  final Color onSurface;
-  final Color onSurfaceVariant;
-  final Color outline;
-  final Color outlineVariant;
-  final Color primary;
-  final Color primaryContainer;
-  final Color onPrimaryContainer;
-  final Color secondary;
-  final Color secondaryContainer;
-  final Color onSecondaryContainer;
-  final Color tertiary;
-  final Color tertiaryContainer;
-  final Color error;
-  final Color errorContainer;
-  final Color onErrorContainer;
-
-  const AppColors({
-    required this.background,
-    required this.surface,
-    required this.surfaceContainerLowest,
-    required this.surfaceContainerLow,
-    required this.surfaceContainer,
-    required this.surfaceContainerHigh,
-    required this.surfaceContainerHighest,
-    required this.surfaceBright,
-    required this.onSurface,
-    required this.onSurfaceVariant,
-    required this.outline,
-    required this.outlineVariant,
-    required this.primary,
-    required this.primaryContainer,
-    required this.onPrimaryContainer,
-    required this.secondary,
-    required this.secondaryContainer,
-    required this.onSecondaryContainer,
-    required this.tertiary,
-    required this.tertiaryContainer,
-    required this.error,
-    required this.errorContainer,
-    required this.onErrorContainer,
+  const FinanceColors({
+    required this.income,
+    required this.incomeContainer,
+    required this.onIncomeContainer,
+    required this.expense,
+    required this.expenseContainer,
+    required this.onExpenseContainer,
+    required this.transfer,
+    required this.transferContainer,
+    required this.onTransferContainer,
   });
 
-  /// Palette from the `ui/*.html` mockups.
-  static const AppColors dark = AppColors(
-    background: Color(0xFF121317),
-    surface: Color(0xFF121317),
-    surfaceContainerLowest: Color(0xFF0D0E12),
-    surfaceContainerLow: Color(0xFF1A1B1F),
-    surfaceContainer: Color(0xFF1E1F23),
-    surfaceContainerHigh: Color(0xFF292A2E),
-    surfaceContainerHighest: Color(0xFF343539),
-    surfaceBright: Color(0xFF38393D),
-    onSurface: Color(0xFFE3E2E7),
-    onSurfaceVariant: Color(0xFFC0C6D6),
-    outline: Color(0xFF8B91A0),
-    outlineVariant: Color(0xFF414754),
-    primary: Color(0xFFAAC7FF),
-    primaryContainer: Color(0xFF3E90FF),
-    onPrimaryContainer: Color(0xFF002957),
-    secondary: Color(0xFF47E266),
-    secondaryContainer: Color(0xFF09BF49),
-    onSecondaryContainer: Color(0xFF004615),
-    tertiary: Color(0xFFFFB4AA),
-    tertiaryContainer: Color(0xFFFF5447),
-    error: Color(0xFFFFB4AB),
-    errorContainer: Color(0xFF93000A),
-    onErrorContainer: Color(0xFFFFDAD6),
+  static const light = FinanceColors(
+    income: Color(0xFF146C2E),
+    incomeContainer: Color(0xFFB7F1BC),
+    onIncomeContainer: Color(0xFF002109),
+    expense: Color(0xFFBA1A1A),
+    expenseContainer: Color(0xFFFFDAD6),
+    onExpenseContainer: Color(0xFF410002),
+    transfer: Color(0xFF00629E),
+    transferContainer: Color(0xFFCFE5FF),
+    onTransferContainer: Color(0xFF001D34),
   );
 
-  /// Light counterpart keeping the same roles / iOS feel.
-  static const AppColors light = AppColors(
-    background: Color(0xFFF7F8FA),
-    surface: Color(0xFFF7F8FA),
-    surfaceContainerLowest: Color(0xFFFFFFFF),
-    surfaceContainerLow: Color(0xFFFFFFFF),
-    surfaceContainer: Color(0xFFFFFFFF),
-    surfaceContainerHigh: Color(0xFFF0F1F4),
-    surfaceContainerHighest: Color(0xFFE7E8EC),
-    surfaceBright: Color(0xFFF0F1F4),
-    onSurface: Color(0xFF1A1B1F),
-    onSurfaceVariant: Color(0xFF5A5F6B),
-    outline: Color(0xFF8B91A0),
-    outlineVariant: Color(0xFFD9DBE1),
-    primary: Color(0xFF2E6BD6),
-    primaryContainer: Color(0xFF2E6BD6),
-    onPrimaryContainer: Color(0xFFD6E3FF),
-    secondary: Color(0xFF14913C),
-    secondaryContainer: Color(0xFF47E266),
-    onSecondaryContainer: Color(0xFF002106),
-    tertiary: Color(0xFFD33F36),
-    tertiaryContainer: Color(0xFFFF5447),
-    error: Color(0xFFBA1A1A),
-    errorContainer: Color(0xFFFFDAD6),
-    onErrorContainer: Color(0xFF410002),
+  static const dark = FinanceColors(
+    income: Color(0xFF7DDC8B),
+    incomeContainer: Color(0xFF005320),
+    onIncomeContainer: Color(0xFFB7F1BC),
+    expense: Color(0xFFFFB4AB),
+    expenseContainer: Color(0xFF93000A),
+    onExpenseContainer: Color(0xFFFFDAD6),
+    transfer: Color(0xFF99CBFF),
+    transferContainer: Color(0xFF004A78),
+    onTransferContainer: Color(0xFFCFE5FF),
   );
 
-  static AppColors of(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? dark : light;
+  static FinanceColors forBrightness(Brightness b) =>
+      b == Brightness.dark ? dark : light;
+
+  static FinanceColors of(BuildContext context) =>
+      Theme.of(context).extension<FinanceColors>() ??
+      forBrightness(Theme.of(context).brightness);
+
+  /// Colour for an amount of the given transaction type
+  /// (`income`, `expense`, `transfer`).
+  Color forType(String type) => switch (type) {
+    'income' => income,
+    'transfer' => transfer,
+    _ => expense,
+  };
+
+  @override
+  FinanceColors copyWith() => this;
+
+  @override
+  FinanceColors lerp(FinanceColors? other, double t) {
+    if (other == null) return this;
+    return FinanceColors(
+      income: Color.lerp(income, other.income, t)!,
+      incomeContainer: Color.lerp(incomeContainer, other.incomeContainer, t)!,
+      onIncomeContainer:
+          Color.lerp(onIncomeContainer, other.onIncomeContainer, t)!,
+      expense: Color.lerp(expense, other.expense, t)!,
+      expenseContainer:
+          Color.lerp(expenseContainer, other.expenseContainer, t)!,
+      onExpenseContainer:
+          Color.lerp(onExpenseContainer, other.onExpenseContainer, t)!,
+      transfer: Color.lerp(transfer, other.transfer, t)!,
+      transferContainer:
+          Color.lerp(transferContainer, other.transferContainer, t)!,
+      onTransferContainer:
+          Color.lerp(onTransferContainer, other.onTransferContainer, t)!,
+    );
+  }
 }
 
-/// iOS-flavoured type scale from the mockups (headline / body / caption …).
+/// Brand typeface. Sizes/weights come from the M3 type scale in
+/// `Theme.of(context).textTheme`.
 class AppTypography {
   const AppTypography._();
 
   static const String family = 'SF Pro Display';
-
-  static const TextStyle largeTitle = TextStyle(
-    fontFamily: family,
-    fontSize: 34,
-    height: 41 / 34,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.5,
-  );
-  static const TextStyle headlineLargeMobile = TextStyle(
-    fontFamily: family,
-    fontSize: 24,
-    height: 30 / 24,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.4,
-  );
-  static const TextStyle title1 = TextStyle(
-    fontFamily: family,
-    fontSize: 22,
-    height: 28 / 22,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.3,
-  );
-  static const TextStyle title2 = TextStyle(
-    fontFamily: family,
-    fontSize: 20,
-    height: 25 / 20,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.2,
-  );
-  static const TextStyle headline = TextStyle(
-    fontFamily: family,
-    fontSize: 17,
-    height: 22 / 17,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.2,
-  );
-  static const TextStyle body = TextStyle(
-    fontFamily: family,
-    fontSize: 17,
-    height: 22 / 17,
-    fontWeight: FontWeight.w400,
-  );
-  static const TextStyle callout = TextStyle(
-    fontFamily: family,
-    fontSize: 16,
-    height: 21 / 16,
-    fontWeight: FontWeight.w400,
-  );
-  static const TextStyle subheadline = TextStyle(
-    fontFamily: family,
-    fontSize: 15,
-    height: 20 / 15,
-    fontWeight: FontWeight.w400,
-  );
-  static const TextStyle footnote = TextStyle(
-    fontFamily: family,
-    fontSize: 13,
-    height: 18 / 13,
-    fontWeight: FontWeight.w400,
-  );
-  static const TextStyle caption1 = TextStyle(
-    fontFamily: family,
-    fontSize: 12,
-    height: 16 / 12,
-    fontWeight: FontWeight.w400,
-  );
-  static const TextStyle caption2 = TextStyle(
-    fontFamily: family,
-    fontSize: 11,
-    height: 13 / 11,
-    fontWeight: FontWeight.w500,
-  );
 }

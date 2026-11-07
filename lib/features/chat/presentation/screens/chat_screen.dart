@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -41,10 +42,11 @@ class _ChatScreenState extends State<ChatScreen> {
           itemBuilder: (context, index) => _buildBubble(_messages[index]),
         ),
       ),
+      const Divider(height: 1),
       SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
           child: Row(
             children: [
               Expanded(
@@ -76,19 +78,31 @@ class _ChatScreenState extends State<ChatScreen> {
     final foreground = message.isMe
         ? scheme.onPrimaryContainer
         : scheme.onSurface;
+    const big = Radius.circular(AppTheme.radiusLg);
+    const small = Radius.circular(AppTheme.radiusXs);
     return Align(
       alignment: message.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.75,
         ),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.only(
+            topLeft: big,
+            topRight: big,
+            bottomLeft: message.isMe ? big : small,
+            bottomRight: message.isMe ? small : big,
+          ),
         ),
-        child: Text(message.text, style: TextStyle(color: foreground)),
+        child: Text(
+          message.text,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: foreground),
+        ),
       ),
     );
   }

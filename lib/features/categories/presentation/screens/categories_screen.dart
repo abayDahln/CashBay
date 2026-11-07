@@ -1,9 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart' show InputValidation;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/category.dart';
 import '../providers/category_provider.dart';
+
+const _incomeIcons = ['salary', 'business', 'gift', 'investment', 'other'];
+const _expenseIcons = [
+  'food',
+  'transport',
+  'shopping',
+  'health',
+  'education',
+  'entertainment',
+  'other',
+];
+
+IconData _categoryIcon(String? iconName) => switch (iconName) {
+  'salary' => Icons.work_outline,
+  'business' => Icons.business_center_outlined,
+  'gift' => Icons.card_giftcard,
+  'investment' => Icons.trending_up,
+  'food' => Icons.restaurant,
+  'transport' => Icons.directions_car_outlined,
+  'shopping' => Icons.shopping_bag_outlined,
+  'health' => Icons.local_hospital_outlined,
+  'education' => Icons.school_outlined,
+  'entertainment' => Icons.movie_outlined,
+  _ => Icons.category_outlined,
+};
+
+String _iconLabel(String iconName) => switch (iconName) {
+  'salary' => 'Gaji',
+  'business' => 'Bisnis',
+  'gift' => 'Hadiah',
+  'investment' => 'Investasi',
+  'food' => 'Makanan',
+  'transport' => 'Transportasi',
+  'shopping' => 'Belanja',
+  'health' => 'Kesehatan',
+  'education' => 'Pendidikan',
+  'entertainment' => 'Hiburan',
+  _ => 'Lainnya',
+};
+
+String _typeLabel(String type) =>
+    type == 'income' ? 'pendapatan' : 'pengeluaran';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -33,24 +76,28 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     await context.read<CategoryProvider>().loadCategories();
   }
 
+  String get _currentType => _tabController.index == 0 ? 'income' : 'expense';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CashBayAppBar(
         title: 'Kategori',
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Pendapatan'),
-              Tab(text: 'Pengeluaran'),
-            ],
-          ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Pendapatan'),
+            Tab(text: 'Pengeluaran'),
+          ],
         ),
       ),
       body: Consumer<CategoryProvider>(
         builder: (context, provider, _) {
+          if (provider.isLoading &&
+              provider.incomeCategories.isEmpty &&
+              provider.expenseCategories.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
           return TabBarView(
             controller: _tabController,
             children: [
@@ -62,7 +109,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Tambah kategori',
-        onPressed: _showAddCategoryDialog,
+        onPressed: () => _showCategorySheet(initialType: _currentType),
         child: const Icon(Icons.add),
       ),
     );
@@ -70,180 +117,184 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
   Widget _buildCategoryList(List<Category> categories, String type) {
     if (categories.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 64,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Belum ada kategori ${type == 'income' ? 'pendapatan' : 'pengeluaran'}',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tambah kategori untuk mengelompokkan transaksi',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _showAddCategoryDialog(initialType: type),
-              icon: const Icon(Icons.add),
-              label: const Text('Tambah Kategori'),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
+        message: 'Belum ada kategori ${_typeLabel(type)}',
+        subtitle: 'Tambah kategori untuk mengelompokkan transaksi',
+        buttonLabel: 'Tambah Kategori',
+        onButtonTap: () => _showCategorySheet(initialType: type),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: categories.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        return AnimatedListItem(
+    return RefreshIndicator(
+      onRefresh: _loadCategories,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        // Bottom padding keeps the last row clear of the FAB.
+        padding: const EdgeInsets.only(top: 8, bottom: 88),
+        itemCount: categories.length,
+        itemBuilder: (context, index) => AnimatedListItem(
           index: index,
           child: _buildCategoryTile(categories[index], type),
-        );
-      },
+        ),
+      ),
     );
   }
 
   Widget _buildCategoryTile(Category category, String type) {
-    final color = Theme.of(context).colorScheme.primary;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          foregroundColor: color,
-          child: Icon(_getCategoryIcon(category.icon)),
-        ),
-        title: Text(category.name),
-        trailing: PopupMenuButton<String>(
-          tooltip: 'Opsi kategori',
-          onSelected: (value) {
-            if (value == 'edit') {
-              _showEditCategoryDialog(category);
-            } else if (value == 'delete') {
-              _deleteCategory(category);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.edit),
-                title: Text('Edit'),
-              ),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.delete,
-                  color: Theme.of(context).colorScheme.error,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final finance = FinanceColors.of(context);
+    final isIncome = type == 'income';
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: isIncome
+            ? finance.incomeContainer
+            : finance.expenseContainer,
+        foregroundColor: isIncome
+            ? finance.onIncomeContainer
+            : finance.onExpenseContainer,
+        child: Icon(_categoryIcon(category.icon)),
+      ),
+      title: Text(category.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: category.isDefault
+          ? Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                title: Text(
-                  'Hapus',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                child: Text(
+                  'Bawaan',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSecondaryContainer,
+                  ),
                 ),
               ),
+            )
+          : null,
+      onTap: () => _showCategorySheet(category: category),
+      trailing: PopupMenuButton<String>(
+        tooltip: 'Opsi kategori',
+        onSelected: (value) {
+          if (value == 'edit') {
+            _showCategorySheet(category: category);
+          } else if (value == 'delete') {
+            _deleteCategory(category);
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'edit',
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.edit_outlined),
+              title: Text('Edit'),
             ),
-          ],
-        ),
+          ),
+          PopupMenuItem(
+            value: 'delete',
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              iconColor: scheme.error,
+              textColor: scheme.error,
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Hapus'),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  IconData _getCategoryIcon(String? iconName) {
-    switch (iconName) {
-      case 'salary':
-        return Icons.work;
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'other':
-      default:
-        return Icons.category;
+  /// Add (when [category] is null) or edit a category in a bottom sheet.
+  Future<void> _showCategorySheet({
+    Category? category,
+    String initialType = 'expense',
+  }) async {
+    final provider = context.read<CategoryProvider>();
+    final isEdit = category != null;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) => _CategorySheet(
+        category: category,
+        initialType: category?.type ?? initialType,
+        onSubmit: (name, type, icon) async {
+          if (!isEdit) {
+            final id = await provider.addCategory(
+              name: name,
+              type: type,
+              icon: icon,
+            );
+            return id != null;
+          }
+          final ok = await provider.updateCategory(
+            category.copyWith(name: name, type: type, icon: icon),
+          );
+          // The provider only patches the list matching the new type, so a
+          // type change needs a full reload to move the row between tabs.
+          if (ok && type != category.type) await provider.loadCategories();
+          return ok;
+        },
+      ),
+    );
+
+    if (saved == true && mounted) {
+      ToastWidget.success(
+        context,
+        isEdit ? 'Kategori diperbarui' : 'Kategori ditambahkan',
+      );
     }
   }
 
-  void _showAddCategoryDialog({String initialType = 'expense'}) {
-    final messenger = ScaffoldMessenger.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => _CategoryDialog(
-        initialType: initialType,
-        onSubmit: (name, type, icon) async {
-          final provider = context.read<CategoryProvider>();
-          await provider.addCategory(name: name, type: type, icon: icon);
-          if (mounted) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Kategori ditambahkan')),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  void _showEditCategoryDialog(Category category) {
-    final messenger = ScaffoldMessenger.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => _CategoryDialog(
-        initialName: category.name,
-        initialType: category.type,
-        initialIcon: category.icon,
-        onSubmit: (name, type, icon) async {
-          final provider = context.read<CategoryProvider>();
-          await provider.updateCategory(
-            category.copyWith(name: name, type: type, icon: icon),
-          );
-          if (mounted) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Kategori diperbarui')),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  void _deleteCategory(Category category) async {
+  Future<void> _deleteCategory(Category category) async {
     final provider = context.read<CategoryProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    try {
+      if (await provider.isCategoryInUse(category.id!)) {
+        if (mounted) {
+          ToastWidget.error(
+            context,
+            'Kategori "${category.name}" masih digunakan transaksi',
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      if (mounted) ToastWidget.error(context, 'Gagal memeriksa kategori: $e');
+      return;
+    }
+    if (!mounted) return;
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.delete_outline, color: scheme.error),
         title: const Text('Hapus Kategori?'),
-        content: Text('Kategori "${category.name}" akan dihapus permanen.'),
+        content: Text(
+          category.isDefault
+              ? 'Kategori bawaan "${category.name}" akan dihapus permanen.'
+              : 'Kategori "${category.name}" akan dihapus permanen.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Batal'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
             ),
             child: const Text('Hapus'),
           ),
@@ -251,69 +302,57 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       ),
     );
 
-    if (confirm == true) {
+    if (confirm != true || !mounted) return;
+    try {
       final success = await provider.deleteCategory(category.id!);
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Kategori dihapus'
-                  : 'Kategori tidak bisa dihapus (masih digunakan)',
-            ),
-          ),
+      if (!mounted) return;
+      if (success) {
+        ToastWidget.success(context, 'Kategori dihapus');
+      } else {
+        ToastWidget.error(
+          context,
+          'Kategori tidak bisa dihapus (masih digunakan)',
         );
       }
+    } catch (e) {
+      if (mounted) ToastWidget.error(context, 'Gagal menghapus kategori: $e');
     }
   }
 }
 
-class _CategoryDialog extends StatefulWidget {
+class _CategorySheet extends StatefulWidget {
+  final Category? category;
   final String initialType;
-  final String? initialName;
-  final String? initialIcon;
-  final Function(String name, String type, String? icon) onSubmit;
 
-  const _CategoryDialog({
+  /// Persists the category; returns false when the save did not succeed.
+  final Future<bool> Function(String name, String type, String? icon) onSubmit;
+
+  const _CategorySheet({
+    required this.category,
     required this.initialType,
-    this.initialName,
-    this.initialIcon,
     required this.onSubmit,
   });
 
   @override
-  State<_CategoryDialog> createState() => _CategoryDialogState();
+  State<_CategorySheet> createState() => _CategorySheetState();
 }
 
-class _CategoryDialogState extends State<_CategoryDialog> {
+class _CategorySheetState extends State<_CategorySheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  late final TextEditingController _nameController;
   late String _selectedType;
   String? _selectedIcon;
+  bool _submitted = false;
+  bool _saving = false;
 
-  final List<String> _incomeIcons = [
-    'salary',
-    'business',
-    'gift',
-    'investment',
-    'other',
-  ];
-  final List<String> _expenseIcons = [
-    'food',
-    'transport',
-    'shopping',
-    'health',
-    'education',
-    'entertainment',
-    'other',
-  ];
+  bool get _isEdit => widget.category != null;
 
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.initialName ?? '';
+    _nameController = TextEditingController(text: widget.category?.name ?? '');
     _selectedType = widget.initialType;
-    _selectedIcon = widget.initialIcon;
+    _selectedIcon = widget.category?.icon;
   }
 
   @override
@@ -322,122 +361,174 @@ class _CategoryDialogState extends State<_CategoryDialog> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final icons = _selectedType == 'income' ? _incomeIcons : _expenseIcons;
-    return AlertDialog(
-      title: Text(
-        widget.initialName == null ? 'Tambah Kategori' : 'Edit Kategori',
-      ),
-      content: SizedBox(
-        width: 420,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'income',
-                      label: Text('Pendapatan'),
-                      icon: Icon(Icons.arrow_downward),
-                    ),
-                    ButtonSegment(
-                      value: 'expense',
-                      label: Text('Pengeluaran'),
-                      icon: Icon(Icons.arrow_upward),
-                    ),
-                  ],
-                  selected: {_selectedType},
-                  onSelectionChanged: (selection) {
-                    setState(() => _selectedType = selection.first);
-                  },
-                  showSelectedIcon: false,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  maxLength: InputValidation.maxCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama Kategori',
-                    hintText: 'Contoh: Gaji, Makan, Transport',
-                  ),
-                  validator: (value) =>
-                      InputValidation.required(value, 'Nama Kategori'),
-                ),
-                const SizedBox(height: 16),
-                Text('Ikon', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: icons.map((iconName) {
-                    return FilterChip(
-                      avatar: Icon(_getIconData(iconName), size: 18),
-                      label: Text(_formatIconName(iconName)),
-                      selected: _selectedIcon == iconName,
-                      onSelected: (selected) {
-                        if (selected) setState(() => _selectedIcon = iconName);
-                      },
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(widget.initialName == null ? 'Tambah' : 'Simpan'),
-        ),
-      ],
+  String? _validateName(String? value) {
+    final base = InputValidation.name(
+      value,
+      'Nama kategori',
+      max: InputValidation.maxCategory,
     );
+    if (base != null) return base;
+
+    final name = value!.trim().toLowerCase();
+    final provider = context.read<CategoryProvider>();
+    final sameType = _selectedType == 'income'
+        ? provider.incomeCategories
+        : provider.expenseCategories;
+    final duplicate = sameType.any(
+      (c) =>
+          c.id != widget.category?.id && c.name.trim().toLowerCase() == name,
+    );
+    if (duplicate) {
+      return 'Kategori ${_typeLabel(_selectedType)} dengan nama ini sudah ada';
+    }
+    return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_saving) return;
+    setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
-    widget.onSubmit(_nameController.text.trim(), _selectedType, _selectedIcon);
-    Navigator.pop(context);
-  }
 
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'salary':
-        return Icons.work;
-      case 'business':
-        return Icons.business;
-      case 'gift':
-        return Icons.card_giftcard;
-      case 'investment':
-        return Icons.trending_up;
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'health':
-        return Icons.local_hospital;
-      case 'education':
-        return Icons.school;
-      case 'entertainment':
-        return Icons.movie;
-      case 'other':
-      default:
-        return Icons.category;
+    setState(() => _saving = true);
+    try {
+      final ok = await widget.onSubmit(
+        _nameController.text.trim(),
+        _selectedType,
+        _selectedIcon,
+      );
+      if (!mounted) return;
+      if (ok) {
+        Navigator.pop(context, true);
+      } else {
+        ToastWidget.error(context, 'Gagal menyimpan kategori');
+      }
+    } catch (e) {
+      if (mounted) ToastWidget.error(context, 'Gagal menyimpan kategori: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  String _formatIconName(String iconName) {
-    return iconName[0].toUpperCase() + iconName.substring(1);
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final icons = _selectedType == 'income' ? _incomeIcons : _expenseIcons;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: _submitted
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _isEdit ? 'Edit Kategori' : 'Tambah Kategori',
+                style: textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'income',
+                    label: Text('Pendapatan'),
+                    icon: Icon(Icons.arrow_downward),
+                  ),
+                  ButtonSegment(
+                    value: 'expense',
+                    label: Text('Pengeluaran'),
+                    icon: Icon(Icons.arrow_upward),
+                  ),
+                ],
+                selected: {_selectedType},
+                onSelectionChanged: _saving
+                    ? null
+                    : (selection) {
+                        setState(() {
+                          _selectedType = selection.first;
+                          final available = _selectedType == 'income'
+                              ? _incomeIcons
+                              : _expenseIcons;
+                          if (!available.contains(_selectedIcon)) {
+                            _selectedIcon = null;
+                          }
+                        });
+                        // Duplicate check depends on the type.
+                        if (_submitted) _formKey.currentState?.validate();
+                      },
+                showSelectedIcon: false,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                enabled: !_saving,
+                autofocus: !_isEdit,
+                maxLength: InputValidation.maxCategory,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Kategori',
+                  hintText: 'Contoh: Gaji, Makan, Transport',
+                ),
+                validator: _validateName,
+                onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 8),
+              Text('Ikon', style: textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final iconName in icons)
+                    ChoiceChip(
+                      avatar: Icon(_categoryIcon(iconName), size: 18),
+                      label: Text(_iconLabel(iconName)),
+                      selected: _selectedIcon == iconName,
+                      showCheckmark: false,
+                      onSelected: _saving
+                          ? null
+                          : (selected) => setState(
+                              () => _selectedIcon = selected ? iconName : null,
+                            ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _saving ? null : () => Navigator.pop(context),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving ? null : _submit,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(_isEdit ? 'Simpan' : 'Tambah'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -3,10 +3,33 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_preferences_provider.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../categories/presentation/screens/categories_screen.dart';
+import '../../../dashboard/presentation/providers/wallet_provider.dart';
+import '../../../debts/presentation/providers/debt_provider.dart';
+import '../../../report/presentation/providers/report_provider.dart';
+import '../../../transactions/presentation/providers/transaction_provider.dart';
+
+/// Fixed list of accent seed colours offered in the swatch row.
+const _seedSwatches = <({Color color, String label})>[
+  (color: Color(0xFF2196F3), label: 'Biru'),
+  (color: Color(0xFF2E7D32), label: 'Hijau'),
+  (color: Color(0xFFD32F2F), label: 'Merah'),
+  (color: Color(0xFF6750A4), label: 'Ungu'),
+  (color: Color(0xFFEF6C00), label: 'Oranye'),
+  (color: Color(0xFF00897B), label: 'Teal'),
+];
+
+const _backupTables = [
+  'wallets',
+  'categories',
+  'transactions',
+  'debts',
+  'debt_payments',
+];
 
 class SettingsScreen extends StatefulWidget {
   /// When true the screen renders as a tab body (no Scaffold / AppBar).
@@ -21,6 +44,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
+  bool _isDeleting = false;
+
+  bool get _isBusy => _isExporting || _isImporting || _isDeleting;
 
   Future<void> _setMode(ThemeMode mode) =>
       context.read<ThemePreferencesProvider>().setThemeMode(mode);
@@ -38,94 +64,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (color != null) await _setSeed(color);
   }
 
+  /// Providers don't observe the database, so reload everything after a
+  /// bulk change (delete-all / import).
+  Future<void> _reloadProviders() async {
+    final wallets = context.read<WalletProvider>();
+    final transactions = context.read<TransactionProvider>();
+    final debts = context.read<DebtProvider>();
+    final categories = context.read<CategoryProvider>();
+    final report = context.read<ReportProvider>();
+    await Future.wait([
+      wallets.loadWallets(),
+      transactions.loadTransactions(),
+      debts.loadAllDebts(),
+      debts.loadActiveDebts(),
+      categories.loadCategories(),
+      report.loadChartData(),
+    ]);
+  }
+
   Future<void> _deleteAllData() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Semua Data?'),
-        content: const Text(
-          'Semua data transaksi, dompet, kategori, dan tagihan akan dihapus. Tindakan ini tidak dapat dibatalkan.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: const Text('Hapus Semua'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _DeleteAllDialog(),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
+    setState(() => _isDeleting = true);
     try {
       final db = await AppDatabase().database;
-      await db.delete('debt_payments');
-      await db.delete('debts');
-      await db.delete('transactions');
-      await db.delete('categories');
-      await db.delete('wallets');
+      await db.transaction((txn) async {
+        await txn.delete('debt_payments');
+        await txn.delete('debts');
+        await txn.delete('transactions');
+        await txn.delete('categories');
+        await txn.delete('wallets');
 
-      await db.insert('wallets', {
-        'name': 'Cash',
-        'type': 'cash',
-        'balance': 0.0,
-      });
-      await db.insert('wallets', {
-        'name': 'E-Wallet',
-        'type': 'ewallet',
-        'balance': 0.0,
-      });
-
-      final incomeCategories = [
-        'Gaji',
-        'Freelance/Proyek',
-        'Bonus',
-        'Investasi',
-        'Hadiah',
-      ];
-      for (final name in incomeCategories) {
-        await db.insert('categories', {
-          'name': name,
-          'type': 'income',
-          'is_default': 1,
+        await txn.insert('wallets', {
+          'name': 'Cash',
+          'type': 'cash',
+          'balance': 0.0,
         });
-      }
-      final expenseCategories = [
-        'Makanan & Minuman',
-        'Transportasi',
-        'Belanja',
-        'Hiburan',
-        'Kesehatan',
-        'Pendidikan',
-        'Tagihan',
-      ];
-      for (final name in expenseCategories) {
-        await db.insert('categories', {
-          'name': name,
-          'type': 'expense',
-          'is_default': 1,
+        await txn.insert('wallets', {
+          'name': 'E-Wallet',
+          'type': 'ewallet',
+          'balance': 0.0,
         });
-      }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Semua data berhasil dihapus')),
-        );
-      }
+        const incomeCategories = [
+          'Gaji',
+          'Freelance/Proyek',
+          'Bonus',
+          'Investasi',
+          'Hadiah',
+        ];
+        for (final name in incomeCategories) {
+          await txn.insert('categories', {
+            'name': name,
+            'type': 'income',
+            'is_default': 1,
+          });
+        }
+        const expenseCategories = [
+          'Makanan & Minuman',
+          'Transportasi',
+          'Belanja',
+          'Hiburan',
+          'Kesehatan',
+          'Pendidikan',
+          'Tagihan',
+        ];
+        for (final name in expenseCategories) {
+          await txn.insert('categories', {
+            'name': name,
+            'type': 'expense',
+            'is_default': 1,
+          });
+        }
+      });
+
+      if (!mounted) return;
+      await _reloadProviders();
+      if (mounted) ToastWidget.success(context, 'Semua data berhasil dihapus');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal: $e')));
-      }
+      if (mounted) ToastWidget.error(context, 'Gagal menghapus data: $e');
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
@@ -156,221 +180,220 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Data berhasil diexport ke ${file.path}')),
-        );
+        ToastWidget.success(context, 'Data berhasil diexport ke ${file.path}');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal export: $e')));
-      }
+      if (mounted) ToastWidget.error(context, 'Gagal export: $e');
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
   }
 
   Future<void> _importData() async {
-    setState(() => _isImporting = true);
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/cashbay_backup.json');
       if (!await file.exists()) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('File backup tidak ditemukan')),
-          );
-        }
+        if (mounted) ToastWidget.error(context, 'File backup tidak ditemukan');
         return;
       }
 
       final jsonStr = await file.readAsString();
-      final data = json.decode(jsonStr) as Map<String, dynamic>;
+      final Map<String, dynamic> data;
+      try {
+        data = json.decode(jsonStr) as Map<String, dynamic>;
+        for (final table in _backupTables) {
+          if (data[table] is! List) throw const FormatException();
+        }
+      } catch (_) {
+        if (mounted) {
+          ToastWidget.error(context, 'Format file backup tidak valid');
+        }
+        return;
+      }
 
+      if (!mounted) return;
+      final exportedAt = DateTime.tryParse('${data['exported_at']}');
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => _ImportConfirmDialog(exportedAt: exportedAt),
+      );
+      if (confirm != true || !mounted) return;
+
+      setState(() => _isImporting = true);
       final db = await AppDatabase().database;
+      await db.transaction((txn) async {
+        await txn.delete('debt_payments');
+        await txn.delete('debts');
+        await txn.delete('transactions');
+        await txn.delete('categories');
+        await txn.delete('wallets');
 
-      await db.delete('debt_payments');
-      await db.delete('debts');
-      await db.delete('transactions');
-      await db.delete('categories');
-      await db.delete('wallets');
+        for (final table in _backupTables) {
+          for (final row in data[table] as List) {
+            await txn.insert(table, row as Map<String, dynamic>);
+          }
+        }
+      });
 
-      for (final w in data['wallets'] as List) {
-        await db.insert('wallets', w as Map<String, dynamic>);
-      }
-      for (final c in data['categories'] as List) {
-        await db.insert('categories', c as Map<String, dynamic>);
-      }
-      for (final t in data['transactions'] as List) {
-        await db.insert('transactions', t as Map<String, dynamic>);
-      }
-      for (final d in data['debts'] as List) {
-        await db.insert('debts', d as Map<String, dynamic>);
-      }
-      for (final p in data['debt_payments'] as List) {
-        await db.insert('debt_payments', p as Map<String, dynamic>);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Data berhasil diimport')));
-      }
+      if (!mounted) return;
+      await _reloadProviders();
+      if (mounted) ToastWidget.success(context, 'Data berhasil diimport');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal import: $e')));
-      }
+      if (mounted) ToastWidget.error(context, 'Gagal import: $e');
     } finally {
       if (mounted) setState(() => _isImporting = false);
     }
   }
 
+  void _openCategories() {
+    Navigator.of(context).push(fadeSlideRoute(const CategoriesScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final prefs = context.watch<ThemePreferencesProvider>();
+    final seed = prefs.seedColor.toARGB32();
+    final isCustomSeed = !_seedSwatches.any(
+      (s) => s.color.toARGB32() == seed,
+    );
+
     final body = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      padding: EdgeInsets.only(top: widget.embedded ? 8 : 0, bottom: 24),
       children: [
-        Text(
-          'Pengaturan',
-          style: AppTypography.largeTitle.copyWith(color: scheme.onSurface),
-        ),
-        const SizedBox(height: 24),
-        const _SectionHeader('TAMPILAN & TEMA'),
-        _iosGroup(
-          scheme,
-          children: [
-            _settingRow(
-              scheme,
-              icon: Icons.palette_outlined,
-              iconColor: scheme.primary,
-              title: 'Mode Tema',
-              subtitle: _modeLabel(context),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: Icon(Icons.light_mode_outlined),
-                    label: Text('Terang'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: Icon(Icons.dark_mode_outlined),
-                    label: Text('Gelap'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    icon: Icon(Icons.brightness_auto_outlined),
-                    label: Text('Sistem'),
-                  ),
-                ],
-                selected: {
-                  context.watch<ThemePreferencesProvider>().themeMode,
-                },
-                onSelectionChanged: (value) => _setMode(value.first),
-                showSelectedIcon: false,
+        if (widget.embedded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(
+              'Pengaturan',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: scheme.onSurface,
               ),
             ),
-            _divider(scheme),
-            _settingRow(
-              scheme,
-              icon: Icons.color_lens_outlined,
-              iconColor: scheme.primary,
-              title: 'Warna Aksen',
-              subtitle: 'Biru, hijau, merah, atau warna khusus',
-              trailing: Wrap(
-                spacing: 8,
-                children: [
-                  _ColorSwatch(
-                    color: const Color(0xFF2196F3),
-                    onTap: () => _setSeed(const Color(0xFF2196F3)),
-                  ),
-                  _ColorSwatch(
-                    color: const Color(0xFF2E7D32),
-                    onTap: () => _setSeed(const Color(0xFF2E7D32)),
-                  ),
-                  _ColorSwatch(
-                    color: const Color(0xFFD32F2F),
-                    onTap: () => _setSeed(const Color(0xFFD32F2F)),
-                  ),
-                  IconButton(
-                    tooltip: 'Pilih warna khusus',
-                    onPressed: _showColorPicker,
-                    icon: const Icon(Icons.palette_outlined),
-                  ),
-                ],
+          ),
+        const _SectionHeader('Tampilan & Tema'),
+        ListTile(
+          leading: const Icon(Icons.brightness_6_outlined),
+          title: const Text('Mode Tema'),
+          subtitle: Text(_modeLabel(prefs.themeMode)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  label: Text('Sistem'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('Terang'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('Gelap'),
+                ),
+              ],
+              selected: {prefs.themeMode},
+              onSelectionChanged: (value) => _setMode(value.first),
+              showSelectedIcon: false,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ListTile(
+          leading: const Icon(Icons.palette_outlined),
+          title: const Text('Warna Aksen'),
+          subtitle: Text(
+            isCustomSeed
+                ? 'Warna khusus'
+                : _seedSwatches
+                      .firstWhere((s) => s.color.toARGB32() == seed)
+                      .label,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              for (final s in _seedSwatches)
+                _ColorSwatch(
+                  color: s.color,
+                  label: s.label,
+                  selected: s.color.toARGB32() == seed,
+                  onTap: () => _setSeed(s.color),
+                ),
+              _ColorSwatch(
+                color: isCustomSeed ? prefs.seedColor : null,
+                label: 'Pilih warna khusus',
+                selected: isCustomSeed,
+                onTap: _showColorPicker,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
-        const _SectionHeader('MANAJEMEN DATA'),
-        _iosGroup(
-          scheme,
-          children: [
-            _settingRow(
-              scheme,
-              icon: Icons.upload_outlined,
-              iconColor: scheme.primary,
-              title: 'Export Data',
-              subtitle: 'Simpan backup ke file JSON',
-              trailing: _isExporting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : _chevron(scheme),
-              onTap: _isExporting ? null : _exportData,
-            ),
-            _divider(scheme),
-            _settingRow(
-              scheme,
-              icon: Icons.download_outlined,
-              iconColor: scheme.primary,
-              title: 'Import Data',
-              subtitle: 'Restore dari file backup',
-              trailing: _isImporting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : _chevron(scheme),
-              onTap: _isImporting ? null : _importData,
-            ),
-            _divider(scheme),
-            _settingRow(
-              scheme,
-              icon: Icons.delete_forever_outlined,
-              iconColor: scheme.error,
-              title: 'Hapus Semua Data',
-              titleColor: scheme.error,
-              subtitle: 'Reset aplikasi ke kondisi awal',
-              trailing: Icon(Icons.warning_amber_rounded, color: scheme.error),
-              onTap: _deleteAllData,
-            ),
-          ],
+        const Divider(),
+        const _SectionHeader('Manajemen Data'),
+        ListTile(
+          leading: const Icon(Icons.category_outlined),
+          title: const Text('Kelola Kategori'),
+          subtitle: const Text('Tambah, ubah, atau hapus kategori'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openCategories,
         ),
-        const SizedBox(height: 24),
-        const _SectionHeader('TENTANG'),
-        _iosGroup(
-          scheme,
-          children: [
-            _settingRow(
-              scheme,
-              icon: Icons.info_outline,
-              iconColor: scheme.primary,
-              title: 'CashBay',
-              subtitle: 'v1.0.0 — Personal Finance App',
-            ),
-          ],
+        ListTile(
+          leading: const Icon(Icons.upload_outlined),
+          title: const Text('Export Data'),
+          subtitle: const Text('Simpan backup ke file JSON'),
+          trailing: _isExporting
+              ? const _BusyIndicator()
+              : const Icon(Icons.chevron_right),
+          enabled: !_isBusy,
+          onTap: _exportData,
+        ),
+        ListTile(
+          leading: const Icon(Icons.download_outlined),
+          title: const Text('Import Data'),
+          subtitle: const Text('Pulihkan dari file backup'),
+          trailing: _isImporting
+              ? const _BusyIndicator()
+              : const Icon(Icons.chevron_right),
+          enabled: !_isBusy,
+          onTap: _importData,
+        ),
+        ListTile(
+          iconColor: scheme.error,
+          textColor: scheme.error,
+          leading: const Icon(Icons.delete_forever_outlined),
+          title: const Text('Hapus Semua Data'),
+          subtitle: Text(
+            'Reset aplikasi ke kondisi awal',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+          trailing: _isDeleting ? const _BusyIndicator() : null,
+          enabled: !_isBusy,
+          onTap: _deleteAllData,
+        ),
+        if (_isBusy)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: LinearProgressIndicator(),
+          ),
+        const Divider(),
+        const _SectionHeader('Tentang'),
+        const ListTile(
+          leading: Icon(Icons.info_outline),
+          title: Text('CashBay'),
+          subtitle: Text('v1.0.0 — Personal Finance App'),
         ),
       ],
     );
@@ -384,117 +407,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  String _modeLabel(BuildContext context) {
-    final mode = context.watch<ThemePreferencesProvider>().themeMode;
-    return switch (mode) {
-      ThemeMode.light => 'Terang',
-      ThemeMode.dark => 'Gelap',
-      ThemeMode.system => 'System (Otomatis)',
-    };
-  }
+  String _modeLabel(ThemeMode mode) => switch (mode) {
+    ThemeMode.light => 'Terang',
+    ThemeMode.dark => 'Gelap',
+    ThemeMode.system => 'Ikuti sistem',
+  };
 }
 
-Widget _iosGroup(ColorScheme scheme, {required List<Widget> children}) {
-  return Container(
-    decoration: BoxDecoration(
-      color: scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
+class _BusyIndicator extends StatelessWidget {
+  const _BusyIndicator();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+    width: 24,
+    height: 24,
+    child: CircularProgressIndicator(strokeWidth: 3),
   );
 }
 
-Widget _divider(ColorScheme scheme) => Divider(
-  height: 0.5,
-  thickness: 0.5,
-  indent: 56,
-  color: scheme.outlineVariant.withValues(alpha: 0.35),
-);
-
-Widget _chevron(ColorScheme scheme) =>
-    Icon(Icons.chevron_right, size: 20, color: scheme.outline);
-
-Widget _settingRow(
-  ColorScheme scheme, {
-  required IconData icon,
-  required Color iconColor,
-  required String title,
-  String? subtitle,
-  Color? titleColor,
-  Widget? trailing,
-  VoidCallback? onTap,
-}) {
-  return InkWell(
-    onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 20, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.body.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: titleColor ?? scheme.onSurface,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle,
-                    style: AppTypography.caption1.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          ?trailing,
-        ],
-      ),
-    ),
-  );
-}
-
+/// Circular seed swatch with a 48dp touch target. A null [color] renders the
+/// "custom colour" entry (palette icon on a neutral container).
 class _ColorSwatch extends StatelessWidget {
-  final Color color;
+  final Color? color;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
-  const _ColorSwatch({required this.color, required this.onTap});
+
+  const _ColorSwatch({
+    required this.color,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final selected =
-        context.watch<ThemePreferencesProvider>().seedColor.toARGB32() ==
-        color.toARGB32();
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.outline,
-            width: selected ? 3 : 1,
+    final scheme = Theme.of(context).colorScheme;
+    final fill = color ?? scheme.surfaceContainerHighest;
+    final onFill = color == null
+        ? scheme.onSurfaceVariant
+        : (ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+              ? Colors.white
+              : Colors.black);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 24,
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Center(
+              child: AnimatedContainer(
+                duration: Durations.short4,
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? scheme.primary : scheme.outlineVariant,
+                    width: selected ? 2 : 1,
+                  ),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+                  child: selected
+                      ? Icon(Icons.check, size: 18, color: onFill)
+                      : color == null
+                      ? Icon(Icons.colorize, size: 18, color: onFill)
+                      : null,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -510,34 +501,55 @@ class _ColorPickerDialog extends StatefulWidget {
 }
 
 class _ColorPickerDialogState extends State<_ColorPickerDialog> {
-  late Color color = widget.initialColor;
+  late HSVColor _hsv;
 
-  HSVColor get hsv => HSVColor.fromColor(color);
+  Color get _color => _hsv.toColor();
+
+  @override
+  void initState() {
+    super.initState();
+    final hsv = HSVColor.fromColor(widget.initialColor);
+    _hsv = hsv.value < 0.2 ? hsv.withValue(0.2) : hsv;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return AlertDialog(
       title: const Text('Pilih Warna Aksen'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ColorPickerPreview(color),
-          const SizedBox(height: 12),
-          Slider(
-            value: hsv.hue,
-            onChanged: (hue) => setState(
-              () => color = HSVColor.fromAHSV(
-                1,
-                hue,
-                hsv.saturation,
-                hsv.value,
-              ).toColor(),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColorPickerPreview(_color),
+            const SizedBox(height: 8),
+            Text(
+              '#${_color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+              style: textTheme.labelLarge,
+              textAlign: TextAlign.center,
             ),
-          ),
-          Text(
-            '#${color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-          ),
-        ],
+            const SizedBox(height: 16),
+            Text('Rona', style: textTheme.labelLarge),
+            Slider(
+              value: _hsv.hue,
+              max: 360,
+              label: _hsv.hue.round().toString(),
+              onChanged: (hue) => setState(() => _hsv = _hsv.withHue(hue)),
+            ),
+            Text('Saturasi', style: textTheme.labelLarge),
+            Slider(
+              value: _hsv.saturation,
+              onChanged: (s) => setState(() => _hsv = _hsv.withSaturation(s)),
+            ),
+            Text('Kecerahan', style: textTheme.labelLarge),
+            Slider(
+              value: _hsv.value,
+              min: 0.2,
+              onChanged: (v) => setState(() => _hsv = _hsv.withValue(v)),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -545,7 +557,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           child: const Text('Batal'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, color),
+          onPressed: () => Navigator.pop(context, _color.withValues(alpha: 1)),
           child: const Text('Simpan'),
         ),
       ],
@@ -558,7 +570,6 @@ class ColorPickerPreview extends StatelessWidget {
   const ColorPickerPreview(this.color, {super.key});
   @override
   Widget build(BuildContext context) => Container(
-    width: 180,
     height: 80,
     decoration: BoxDecoration(
       color: color,
@@ -567,20 +578,129 @@ class ColorPickerPreview extends StatelessWidget {
   );
 }
 
+/// Destructive confirmation: the delete button only enables once the user
+/// types "HAPUS".
+class _DeleteAllDialog extends StatefulWidget {
+  const _DeleteAllDialog();
+
+  @override
+  State<_DeleteAllDialog> createState() => _DeleteAllDialogState();
+}
+
+class _DeleteAllDialogState extends State<_DeleteAllDialog> {
+  static const _keyword = 'HAPUS';
+  final _controller = TextEditingController();
+
+  bool get _confirmed => _controller.text.trim().toUpperCase() == _keyword;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      icon: Icon(Icons.warning_amber_rounded, color: scheme.error),
+      title: const Text('Hapus Semua Data?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Semua data transaksi, dompet, kategori, dan tagihan akan dihapus. '
+              'Tindakan ini tidak dapat dibatalkan.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Ketik HAPUS untuk konfirmasi',
+              ),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) {
+                if (_confirmed) Navigator.pop(context, true);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _confirmed ? () => Navigator.pop(context, true) : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
+          child: const Text('Hapus Semua'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImportConfirmDialog extends StatelessWidget {
+  final DateTime? exportedAt;
+  const _ImportConfirmDialog({this.exportedAt});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final when = exportedAt == null
+        ? ''
+        : ' (backup ${MaterialLocalizations.of(context).formatMediumDate(exportedAt!)})';
+    return AlertDialog(
+      icon: const Icon(Icons.restore),
+      title: const Text('Import Data?'),
+      content: Text(
+        'Data saat ini akan diganti dengan isi file backup$when. '
+        'Tindakan ini tidak dapat dibatalkan.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
+          child: const Text('Ganti Data'),
+        ),
+      ],
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader(this.title);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        title,
-        style: AppTypography.caption1.copyWith(
-          color: Theme.of(context).colorScheme.outline,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Semantics(
+        header: true,
+        child: Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: theme.colorScheme.primary,
+          ),
         ),
       ),
     );

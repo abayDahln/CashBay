@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/widgets.dart';
 import 'history_detail_screen.dart';
 import '../../data/models/transaction.dart';
@@ -16,6 +15,14 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class HistoryScreenState extends State<HistoryScreen> {
+  static const _filters = <(String, String)>[
+    ('Semua', 'all'),
+    ('Pendapatan', 'income'),
+    ('Pengeluaran', 'expense'),
+    ('Tagihan', 'tagihan'),
+    ('Transfer', 'transfer'),
+  ];
+
   String _typeFilter = 'all';
   final _searchController = TextEditingController();
   String _searchQuery = '';
@@ -47,8 +54,10 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   List<Transaction> _applySearch(List<Transaction> transactions) {
-    if (_searchQuery.isEmpty) return transactions;
-    final query = _searchQuery.toLowerCase();
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return transactions;
+    // "15.000" / "Rp 15000" should match an amount of 15000.
+    final digits = query.replaceAll(RegExp(r'[^0-9]'), '');
     final categoryProvider = context.read<CategoryProvider>();
     final categories = {
       for (final category in [
@@ -60,7 +69,8 @@ class HistoryScreenState extends State<HistoryScreen> {
     return transactions.where((transaction) {
       return transaction.description?.toLowerCase().contains(query) == true ||
           transaction.note?.toLowerCase().contains(query) == true ||
-          transaction.amount.toString().contains(query) ||
+          (digits.isNotEmpty &&
+              transaction.amount.toInt().toString().contains(digits)) ||
           (transaction.categoryId != null &&
               categories[transaction.categoryId]?.contains(query) == true);
     }).toList();
@@ -102,53 +112,50 @@ class HistoryScreenState extends State<HistoryScreen> {
     }).toList();
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return SafeArea(
       bottom: false,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Riwayat',
-                  style: AppTypography.largeTitle.copyWith(
-                    color: scheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  style: AppTypography.subheadline.copyWith(
-                    color: scheme.onSurface,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Cari transaksi...',
-                    prefixIcon: Icon(Icons.search, color: scheme.outline),
-                    fillColor: scheme.surfaceContainer,
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            tooltip: 'Hapus pencarian',
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                            icon: Icon(Icons.close, color: scheme.outline),
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildSegmentedControl(scheme),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Text(
+              'Riwayat',
+              style: text.headlineMedium?.copyWith(color: scheme.onSurface),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: SearchBar(
+              controller: _searchController,
+              hintText: 'Cari transaksi...',
+              elevation: const WidgetStatePropertyAll(0),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 16),
+              ),
+              textInputAction: TextInputAction.search,
+              leading: Icon(Icons.search, color: scheme.onSurfaceVariant),
+              trailing: [
+                if (_searchQuery.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Hapus pencarian',
+                    onPressed: _clearSearch,
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+          _buildFilterChips(),
           Expanded(
             child: Consumer<TransactionProvider>(
               builder: (context, provider, _) {
@@ -159,10 +166,43 @@ class HistoryScreenState extends State<HistoryScreen> {
                   _filtered(provider.transactions),
                 );
                 if (transactions.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.search_off,
-                    message: 'Tidak ditemukan',
-                    subtitle: 'Coba kata kunci lain',
+                  final noData = provider.transactions.isEmpty;
+                  final hasQuery = _searchQuery.trim().isNotEmpty;
+                  return RefreshIndicator(
+                    onRefresh: _loadTransactions,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: EmptyState(
+                            icon: noData
+                                ? Icons.receipt_long_outlined
+                                : Icons.search_off,
+                            message: noData
+                                ? 'Belum ada transaksi'
+                                : 'Tidak ditemukan',
+                            subtitle: noData
+                                ? 'Transaksi yang kamu catat akan muncul di sini'
+                                : hasQuery
+                                ? 'Coba kata kunci lain'
+                                : 'Tidak ada transaksi untuk filter ini',
+                            buttonLabel:
+                                !noData && (hasQuery || _typeFilter != 'all')
+                                ? 'Reset filter'
+                                : null,
+                            buttonIcon: Icons.filter_alt_off_outlined,
+                            onButtonTap: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                                _typeFilter = 'all';
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }
                 final categoryProvider = context.read<CategoryProvider>();
@@ -173,56 +213,52 @@ class HistoryScreenState extends State<HistoryScreen> {
                   ])
                     if (category.id != null) category.id!: category.name,
                 };
+                final sections = _buildSections(transactions);
                 return RefreshIndicator(
                   onRefresh: _loadTransactions,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    children: [
-                      for (final section in _buildSections(transactions)) ...[
-                        _SectionHeader(label: section.label, date: section.date),
-                        AppCard(
-                          showBorder: true,
-                          padding: EdgeInsets.zero,
-                          child: Column(
-                            children: [
-                              for (
-                                var i = 0;
-                                i < section.transactions.length;
-                                i++
-                              ) ...[
-                                if (i > 0)
-                                  Divider(
-                                    height: 0.5,
-                                    thickness: 0.5,
-                                    indent: 70,
-                                    color: scheme.outlineVariant.withValues(
-                                      alpha: 0.15,
-                                    ),
-                                  ),
-                                TransactionTile(
-                                  transaction: section.transactions[i],
-                                  categoryName:
-                                      section.transactions[i].categoryId == null
-                                      ? null
-                                      : categoryNames[section
-                                            .transactions[i]
-                                            .categoryId],
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    fadeSlideRoute(
-                                      HistoryDetailScreen(
-                                        transaction: section.transactions[i],
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    itemCount: sections.length,
+                    itemBuilder: (context, index) {
+                      final section = sections[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _SectionHeader(
+                              label: section.label,
+                              date: section.date,
+                            ),
+                            AppCard(
+                              variant: AppCardVariant.outlined,
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < section.transactions.length;
+                                    i++
+                                  ) ...[
+                                    if (i > 0)
+                                      Divider(
+                                        height: 1,
+                                        indent: 72,
+                                        color: scheme.outlineVariant,
                                       ),
+                                    _tile(
+                                      section.transactions[i],
+                                      categoryNames,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                      ],
-                    ],
+                      );
+                    },
                   ),
                 );
               },
@@ -233,47 +269,32 @@ class HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildSegmentedControl(ColorScheme scheme) {
-    const filters = <(String, String)>[
-      ('Semua', 'all'),
-      ('Pengeluaran', 'expense'),
-      ('Pendapatan', 'income'),
-      ('Tagihan', 'tagihan'),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+  Widget _tile(Transaction transaction, Map<int, String> categoryNames) {
+    return TransactionTile(
+      transaction: transaction,
+      categoryName: transaction.categoryId == null
+          ? null
+          : categoryNames[transaction.categoryId],
+      onTap: () => Navigator.push(
+        context,
+        fadeSlideRoute(HistoryDetailScreen(transaction: transaction)),
       ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
       child: Row(
         children: [
-          for (final (label, value) in filters)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _typeFilter = value),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  decoration: BoxDecoration(
-                    color: _typeFilter == value
-                        ? scheme.surfaceContainerHighest
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.footnote.copyWith(
-                      color: _typeFilter == value
-                          ? scheme.onSurface
-                          : scheme.onSurfaceVariant,
-                      fontWeight: _typeFilter == value
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
-                  ),
-                ),
+          for (final (label, value) in _filters)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(label),
+                selected: _typeFilter == value,
+                onSelected: (_) => setState(() => _typeFilter = value),
               ),
             ),
         ],
@@ -298,11 +319,8 @@ class HistoryScreenState extends State<HistoryScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _chip('Semua', 'all', sheetContext),
-                  _chip('Pendapatan', 'income', sheetContext),
-                  _chip('Pengeluaran', 'expense', sheetContext),
-                  _chip('Tagihan', 'tagihan', sheetContext),
-                  _chip('Transfer', 'transfer', sheetContext),
+                  for (final (label, value) in _filters)
+                    _chip(label, value, sheetContext),
                 ],
               ),
             ],
@@ -338,27 +356,28 @@ class _SectionHeader extends StatelessWidget {
   final DateTime date;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label.toUpperCase(),
-            style: AppTypography.caption1.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.titleSmall?.copyWith(color: scheme.primary),
             ),
           ),
-        ),
-        Text(
-          DateFormat('dd MMM yyyy', 'id_ID').format(date),
-          style: AppTypography.caption1.copyWith(
-            color: Theme.of(context).colorScheme.outline,
+          const SizedBox(width: 8),
+          Text(
+            DateFormat('dd MMM yyyy', 'id_ID').format(date),
+            style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }

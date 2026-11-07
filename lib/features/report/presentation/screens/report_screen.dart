@@ -4,14 +4,25 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/report_provider.dart';
-import '../../../transactions/data/models/transaction.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
-import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/widgets.dart';
 
-const _posColor = AppTheme.income;
-const _negColor = AppTheme.expense;
+const _monthLabels = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+];
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -31,180 +42,172 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Consumer<ReportProvider>(
-        builder: (context, report, _) {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-            children: [
-              Text(
-                'Analytics',
-                style: AppTypography.largeTitle.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Consumer<ReportProvider>(
+      builder: (context, report, _) {
+        final hasCategories =
+            report.expenseCategories.isNotEmpty ||
+            report.incomeCategories.isNotEmpty;
+        return RefreshIndicator(
+          onRefresh: report.loadChartData,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              const SliverAppBar.medium(title: Text('Analytics')),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                sliver: SliverList.list(
+                  children: [
+                    _modeSelector(report),
+                    const SizedBox(height: 16),
+                    _filterRow(report),
+                    const SizedBox(height: 16),
+                    if (report.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else ...[
+                      if (report.error != null) ...[
+                        AppCard(
+                          color: scheme.errorContainer,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: scheme.onErrorContainer,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Error: ${report.error}',
+                                  style: text.bodyMedium?.copyWith(
+                                    color: scheme.onErrorContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _summaryCards(report),
+                      const SizedBox(height: 8),
+                      const _SectionHeader('Grafik Arus Kas'),
+                      if (report.chartData.isNotEmpty)
+                        _divergingChart(report)
+                      else
+                        const AppCard(
+                          variant: AppCardVariant.outlined,
+                          padding: EdgeInsets.zero,
+                          child: EmptyState(
+                            icon: Icons.bar_chart_outlined,
+                            message: 'Tidak ada data',
+                            subtitle: 'Belum ada transaksi pada periode ini',
+                          ),
+                        ),
+                      if (hasCategories) ...[
+                        const SizedBox(height: 8),
+                        _categoryBreakdown(report),
+                      ],
+                      if (report.recentTransactions.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const _SectionHeader('Transaksi Terbaru'),
+                        AppCard(
+                          variant: AppCardVariant.outlined,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            children: [
+                              for (
+                                var i = 0;
+                                i < report.recentTransactions.length;
+                                i++
+                              ) ...[
+                                if (i > 0)
+                                  const Divider(height: 1, indent: 72),
+                                TransactionTile(
+                                  transaction: report.recentTransactions[i],
+                                  showChevron: false,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              _modeChips(report),
-              const SizedBox(height: 8),
-              _filterRow(report),
-              const SizedBox(height: 16),
-              if (report.isLoading)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              _summaryCards(report),
-              const SizedBox(height: 20),
-              _sectionHeader('Grafik Arus Kas'),
-              const SizedBox(height: 12),
-              if (report.chartData.isNotEmpty)
-                _divergingChart(report)
-              else
-                _emptyChart(),
-              if (report.recentTransactions.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _sectionHeader('Transaksi Terbaru'),
-                const SizedBox(height: 8),
-                ...report.recentTransactions.map(_transactionTile),
-              ],
-              if (report.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(
-                    'Error: ${report.error}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
             ],
-          ],
+          ),
         );
       },
-      ),
     );
   }
 
-  Widget _modeChips(ReportProvider report) {
-    final scheme = Theme.of(context).colorScheme;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: ChartMode.values.map((m) {
-          final selected = report.chartMode == m;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => report.setChartMode(m),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? scheme.primaryContainer
-                      : scheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected
-                        ? scheme.primaryContainer
-                        : scheme.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Text(
-                  _modeLabel(m),
-                  style: AppTypography.footnote.copyWith(
-                    color: selected
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+  Widget _modeSelector(ReportProvider report) {
+    return SegmentedButton<ChartMode>(
+      showSelectedIcon: false,
+      segments: [
+        for (final m in ChartMode.values)
+          ButtonSegment(value: m, label: Text(_modeLabel(m))),
+      ],
+      selected: {report.chartMode},
+      onSelectionChanged: (s) => report.setChartMode(s.first),
     );
   }
 
   Widget _filterRow(ReportProvider report) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _dropdown<int>(
-            value: report.selectedYear,
-            items: report.availableYears,
-            labelBuilder: (y) => y.toString(),
-            onChanged: (v) {
-              if (v != null) report.setYear(v);
-            },
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _periodDropdown<int>(
+          label: 'Tahun',
+          icon: Icons.calendar_today_outlined,
+          value: report.selectedYear,
+          items: report.availableYears,
+          labelBuilder: (y) => y.toString(),
+          onSelected: report.setYear,
+        ),
+        if (report.chartMode == ChartMode.daily)
+          _periodDropdown<int>(
+            label: 'Bulan',
+            icon: Icons.date_range_outlined,
+            value: report.selectedMonth,
+            items: List.generate(12, (i) => i + 1),
+            labelBuilder: (m) => _monthLabels[m - 1],
+            onSelected: report.setMonth,
           ),
-          if (report.chartMode == ChartMode.daily) ...[
-            const SizedBox(width: 8),
-            _dropdown<int>(
-              value: report.selectedMonth,
-              items: List.generate(12, (i) => i + 1),
-              labelBuilder: (m) {
-                const months = [
-                  'Jan',
-                  'Feb',
-                  'Mar',
-                  'Apr',
-                  'Mei',
-                  'Jun',
-                  'Jul',
-                  'Agu',
-                  'Sep',
-                  'Okt',
-                  'Nov',
-                  'Des',
-                ];
-                return months[m - 1];
-              },
-              onChanged: (v) {
-                if (v != null) report.setMonth(v);
-              },
-            ),
-          ],
-        ],
-      ),
+      ],
     );
   }
 
-  Widget _dropdown<T>({
+  Widget _periodDropdown<T>({
+    required String label,
+    required IconData icon,
     required T value,
     required List<T> items,
     required String Function(T) labelBuilder,
-    required void Function(T?) onChanged,
+    required void Function(T) onSelected,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          items: items
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(labelBuilder(e), style: TextStyle(fontSize: 13)),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-          isDense: true,
-        ),
-      ),
+    return DropdownMenu<T>(
+      // Rebuild when the provider value changes so the field stays in sync.
+      key: ValueKey(value),
+      initialSelection: value,
+      width: 152,
+      label: Text(label),
+      leadingIcon: Icon(icon, size: 20),
+      requestFocusOnTap: false,
+      menuHeight: 320,
+      dropdownMenuEntries: [
+        for (final e in items)
+          DropdownMenuEntry(value: e, label: labelBuilder(e)),
+      ],
+      onSelected: (v) {
+        if (v != null) onSelected(v);
+      },
     );
   }
 
@@ -220,102 +223,80 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _summaryCards(ReportProvider report) {
-    final cards = [
-      _summaryCard(
-        'Pendapatan',
-        CurrencyFormatter.formatMedium(report.totalIncome),
-        Icons.trending_up,
-        _posColor,
-      ),
-      _summaryCard(
-        'Pengeluaran',
-        CurrencyFormatter.formatMedium(report.totalExpense),
-        Icons.trending_down,
-        _negColor,
-      ),
-      _summaryCard(
-        'Selisih',
-        CurrencyFormatter.formatMedium(report.balance),
-        Icons.balance,
-        report.balance >= 0 ? _posColor : _negColor,
-      ),
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) => GridView.count(
-        crossAxisCount: constraints.maxWidth >= 720 ? 3 : 1,
-        childAspectRatio: constraints.maxWidth >= 720 ? 2.2 : 4.2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: cards,
-      ),
-    );
-  }
-
-  Widget _summaryCard(String label, String amount, IconData icon, Color color) {
-    return AppCard(
-      showBorder: true,
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.12),
-            foregroundColor: color,
-            child: Icon(icon),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 4),
-                Text(
-                  amount,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: color),
-                ),
-              ],
+    final finance = FinanceColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final positive = report.balance >= 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _SummaryTile(
+                label: 'Pendapatan',
+                amount: report.totalIncome,
+                icon: Icons.trending_up,
+                container: finance.incomeContainer,
+                onContainer: finance.onIncomeContainer,
+              ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SummaryTile(
+                label: 'Pengeluaran',
+                amount: report.totalExpense,
+                icon: Icons.trending_down,
+                container: finance.expenseContainer,
+                onContainer: finance.onExpenseContainer,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        AppCard(
+          variant: AppCardVariant.outlined,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: positive
+                    ? finance.incomeContainer
+                    : finance.expenseContainer,
+                foregroundColor: positive
+                    ? finance.onIncomeContainer
+                    : finance.onExpenseContainer,
+                child: const Icon(Icons.balance, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Selisih',
+                  style: text.titleSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                flex: 2,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    CurrencyFormatter.formatMedium(report.balance),
+                    maxLines: 1,
+                    style: text.titleLarge?.copyWith(
+                      color: positive ? finance.income : finance.expense,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title) {
-    return Text(
-      title,
-      style: AppTypography.headline.copyWith(
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-    );
-  }
-
-  Widget _emptyChart() {
-    return Container(
-      height: 200,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
-      ),
-      child: Text(
-        'Tidak ada data',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontSize: 14,
-        ),
-      ),
+      ],
     );
   }
 
@@ -334,6 +315,10 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _divergingChart(ReportProvider report) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final finance = FinanceColors.of(context);
+    final axisStyle = text.labelSmall?.copyWith(color: scheme.onSurfaceVariant);
     final data = report.chartData;
     final mode = report.chartMode;
     final barGroups = <BarChartGroupData>[];
@@ -350,11 +335,15 @@ class _ReportScreenState extends State<ReportScreen> {
           barRods: [
             BarChartRodData(
               toY: v,
-              color: v >= 0 ? _posColor : _negColor,
-              width: 20,
+              color: v >= 0 ? finance.income : finance.expense,
+              width: 16,
               borderRadius: v >= 0
-                  ? const BorderRadius.vertical(top: Radius.circular(5))
-                  : const BorderRadius.vertical(bottom: Radius.circular(5)),
+                  ? const BorderRadius.vertical(
+                      top: Radius.circular(AppTheme.radiusXs),
+                    )
+                  : const BorderRadius.vertical(
+                      bottom: Radius.circular(AppTheme.radiusXs),
+                    ),
             ),
           ],
         ),
@@ -366,179 +355,174 @@ class _ReportScreenState extends State<ReportScreen> {
     final actualMax = ((maxVal / step).ceil() + 1) * step;
     final actualMin = ((minVal / step).floor() - 1) * step;
 
-    return Column(
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            height: 260,
-            width: (data.length * 40.0).clamp(
-              MediaQuery.of(context).size.width - 32,
-              double.infinity,
-            ),
-            padding: const EdgeInsets.fromLTRB(8, 24, 16, 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
-            ),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.start,
-                barGroups: barGroups,
-                maxY: actualMax,
-                minY: actualMin,
-                barTouchData: BarTouchData(
-                  enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
-                    tooltipRoundedRadius: 8,
-                    tooltipPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    getTooltipColor: (_) =>
-                        Theme.of(context).colorScheme.inverseSurface,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final d = data[group.x];
-                      return BarTooltipItem(
-                        '${_tooltipLabel(d, mode)}\n${CurrencyFormatter.formatShort(d.netBalance.abs())}',
-                        TextStyle(
-                          color: Theme.of(context).colorScheme.surface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      padding: const EdgeInsets.fromLTRB(8, 24, 16, 16),
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                height: 240,
+                width: math.max(constraints.maxWidth, data.length * 40.0),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    barGroups: barGroups,
+                    maxY: actualMax,
+                    minY: actualMin,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipRoundedRadius: AppTheme.radiusSm,
+                        tooltipPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                      );
-                    },
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (val, _) {
-                        final i = val.toInt();
-                        if (i < 0 || i >= data.length) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Text(
-                            data[i].label,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                        fitInsideHorizontally: true,
+                        fitInsideVertically: true,
+                        getTooltipColor: (_) => scheme.inverseSurface,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          final d = data[group.x];
+                          return BarTooltipItem(
+                            '${_tooltipLabel(d, mode)}\n',
+                            text.labelSmall!.copyWith(
+                              color: scheme.onInverseSurface,
                             ),
-                          ),
-                        );
-                      },
-                      reservedSize: 28,
-                      interval: 1,
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 50,
-                      interval: step,
-                      getTitlesWidget: (val, _) {
-                        if (val == 0) {
-                          return Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: Text(
-                              '0',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                            children: [
+                              TextSpan(
+                                text: CurrencyFormatter.formatWithSign(
+                                  d.netBalance,
+                                ),
+                                style: text.labelLarge?.copyWith(
+                                  color: scheme.onInverseSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
+                            ],
                           );
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Text(
-                            CurrencyFormatter.formatShort(val),
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 28,
+                          interval: 1,
+                          getTitlesWidget: (val, _) {
+                            final i = val.toInt();
+                            if (i < 0 || i >= data.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(data[i].label, style: axisStyle),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 48,
+                          interval: step,
+                          getTitlesWidget: (val, _) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              val == 0 ? '0' : CurrencyFormatter.formatShort(val),
+                              textAlign: TextAlign.right,
+                              style: axisStyle,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: step,
+                      getDrawingHorizontalLine: (val) => FlLine(
+                        color: val == 0 ? scheme.outline : scheme.outlineVariant,
+                        strokeWidth: 1,
+                        dashArray: val == 0 ? null : [4, 4],
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  duration: const Duration(milliseconds: 300),
                 ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (val) => FlLine(
-                    color: val == 0
-                        ? Theme.of(context).colorScheme.outline
-                        : Theme.of(context).colorScheme.outlineVariant,
-                    strokeWidth: val == 0 ? 1.5 : 1,
-                    dashArray: val == 0 ? null : [6, 4],
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
               ),
-              duration: const Duration(milliseconds: 300),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        _legend(),
-      ],
-    );
-  }
-
-  Widget _legend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _legendItem(_posColor, 'Surplus'),
-        const SizedBox(width: 24),
-        _legendItem(_negColor, 'Defisit'),
-      ],
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 24,
+            runSpacing: 8,
+            children: [
+              _legendItem(finance.income, 'Surplus'),
+              _legendItem(finance.expense, 'Defisit'),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _legendItem(Color color, String label) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
           height: 12,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXs),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _categoryBreakdown(ReportProvider report) {
+    final finance = FinanceColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (report.expenseCategories.isNotEmpty) ...[
+          const _SectionHeader('Pengeluaran per Kategori'),
+          _CategoryCard(
+            items: report.expenseCategories,
+            color: finance.expense,
+            trackColor: finance.expenseContainer,
+          ),
+        ],
+        if (report.incomeCategories.isNotEmpty) ...[
+          if (report.expenseCategories.isNotEmpty) const SizedBox(height: 8),
+          const _SectionHeader('Pendapatan per Kategori'),
+          _CategoryCard(
+            items: report.incomeCategories,
+            color: finance.income,
+            trackColor: finance.incomeContainer,
+          ),
+        ],
       ],
     );
   }
@@ -560,26 +544,149 @@ class _ReportScreenState extends State<ReportScreen> {
     }
     return nice * magnitude;
   }
+}
 
-  Widget _transactionTile(Transaction tx) {
-    final isIncome = tx.type == 'income';
-    final color = isIncome ? _posColor : _negColor;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(isIncome ? Icons.south : Icons.north, color: color),
-        title: Text(
-          tx.description ??
-              tx.note ??
-              (isIncome ? 'Pendapatan' : 'Pengeluaran'),
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium,
         ),
-        subtitle: Text(DateFormatter.formatDate(tx.date)),
-        trailing: Text(
-          '${isIncome ? '' : '-'}${CurrencyFormatter.formatMedium(tx.amount)}',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color),
-        ),
+      ),
+    );
+  }
+}
+
+class _SummaryTile extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color container;
+  final Color onContainer;
+  const _SummaryTile({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.container,
+    required this.onContainer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      color: container,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: onContainer),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.labelLarge?.copyWith(color: onContainer),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            CurrencyFormatter.formatMedium(amount),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.titleMedium?.copyWith(
+              color: onContainer,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Category share rows: name, amount, percentage and a progress bar.
+class _CategoryCard extends StatelessWidget {
+  final List<CategorySummary> items;
+  final Color color;
+  final Color trackColor;
+  const _CategoryCard({
+    required this.items,
+    required this.color,
+    required this.trackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    items[i].name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodyLarge,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  CurrencyFormatter.formatMedium(items[i].amount),
+                  style: text.labelLarge?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: (items[i].percentage / 100).clamp(0.0, 1.0),
+                    minHeight: 8,
+                    color: color,
+                    backgroundColor: trackColor,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    '${items[i].percentage.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.end,
+                    style: text.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

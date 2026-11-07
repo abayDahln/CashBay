@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/utils/formatters.dart'
-    show CurrencyFormatter, DateFormatter, InputValidation;
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
 import '../../data/models/debt_payment.dart';
 import '../../../dashboard/data/models/wallet.dart';
 import '../providers/debt_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
+import 'debts_screen.dart' show DebtStatusBadge;
 
 class DebtDetailScreen extends StatefulWidget {
   final Debt debt;
@@ -18,41 +19,23 @@ class DebtDetailScreen extends StatefulWidget {
   State<DebtDetailScreen> createState() => _DebtDetailScreenState();
 }
 
-class _DebtDetailScreenState extends State<DebtDetailScreen>
-    with SingleTickerProviderStateMixin {
+class _DebtDetailScreenState extends State<DebtDetailScreen> {
   late Debt _debt;
   List<DebtPayment> _payments = [];
-  late AnimationController _progressController;
-  late Animation<double> _progressAnimation;
+
+  bool get isDebt => _debt.type == 'debt';
+
+  double get _paidRatio => _debt.amount > 0
+      ? ((_debt.amount - _debt.remainingAmount) / _debt.amount).clamp(0.0, 1.0)
+      : 0.0;
 
   @override
   void initState() {
     super.initState();
     _debt = widget.debt;
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _progressAnimation =
-        Tween<double>(
-          begin: 0,
-          end: _debt.amount > 0
-              ? (_debt.amount - _debt.remainingAmount) / _debt.amount
-              : 0.0,
-        ).animate(
-          CurvedAnimation(
-            parent: _progressController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
-    _progressController.forward();
     _loadPayments();
-  }
-
-  @override
-  void dispose() {
-    _progressController.dispose();
-    super.dispose();
+    final walletProvider = context.read<WalletProvider>();
+    if (walletProvider.wallets.isEmpty) walletProvider.loadWallets();
   }
 
   Future<void> _loadPayments() async {
@@ -60,567 +43,615 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
     await provider.loadDebtPayments(_debt.id!);
     if (mounted) {
       setState(() {
-        _payments = provider.selectedDebtPayments;
+        _payments = List.of(provider.selectedDebtPayments);
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDebt = _debt.type == 'debt';
-    final color = Theme.of(context).colorScheme.primary;
-
     return Scaffold(
       appBar: CashBayAppBar(
         title: isDebt ? 'Detail Tagihan' : 'Detail Tagihan Orang',
-        actions: [
-          if (_debt.status == 'active')
-            IconButton(
-              tooltip: 'Edit tagihan',
-              icon: Icon(Icons.edit),
-              onPressed: _showEditDialog,
-            ),
-        ],
       ),
-      body: Container(
-        color: Colors.transparent,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedListItem(index: 0, child: _buildSummaryCard(color)),
-              const SizedBox(height: 16),
-              AnimatedListItem(index: 1, child: _buildInfoCard()),
-              const SizedBox(height: 16),
-              AnimatedListItem(index: 2, child: _buildPaymentSection()),
-            ],
-          ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedListItem(index: 0, child: _buildSummaryCard()),
+            const SizedBox(height: 16),
+            AnimatedListItem(index: 1, child: _buildInfoCard()),
+            const SizedBox(height: 16),
+            AnimatedListItem(index: 2, child: _buildPaymentSection()),
+          ],
         ),
       ),
       bottomNavigationBar: _debt.status == 'active'
-          ? _buildAddPaymentBar(color)
+          ? _buildAddPaymentBar()
           : null,
     );
   }
 
-  Widget _buildSummaryCard(Color color) {
+  Widget _buildSummaryCard() {
     final paid = _debt.amount - _debt.remainingAmount;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final finance = FinanceColors.of(context);
+    final title = _debt.billName?.isNotEmpty == true
+        ? _debt.billName!
+        : _debt.personName;
 
     return AppCard(
-      padding: const EdgeInsets.all(20),
-      showBorder: true,
+      variant: AppCardVariant.outlined,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      isDebt ? Icons.arrow_upward : Icons.arrow_downward,
-                      color: color,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _debt.personName,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              CircleAvatar(
+                backgroundColor: isDebt
+                    ? finance.expenseContainer
+                    : finance.incomeContainer,
+                foregroundColor: isDebt
+                    ? finance.onExpenseContainer
+                    : finance.onIncomeContainer,
+                child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _debt.status == 'active'
-                      ? color.withValues(alpha: 0.1)
-                      : Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              const SizedBox(width: 16),
+              Expanded(
                 child: Text(
-                  _debt.status == 'active' ? 'Aktif' : 'Lunas',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _debt.status == 'active'
-                        ? color
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  title,
+                  style: textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
+              DebtStatusBadge(isPaid: _debt.status == 'paid'),
             ],
           ),
           const SizedBox(height: 24),
+          Text(
+            'Sisa',
+            style: textTheme.labelLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              CurrencyFormatter.format(_debt.remainingAmount),
+              style: textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isDebt ? finance.expense : finance.income,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _paidRatio),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(
+                  value: value,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(4),
+                  semanticsLabel: 'Progres pembayaran',
+                  semanticsValue: '${(value * 100).round()}%',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(value * 100).toStringAsFixed(0)}% ${isDebt ? 'dibayar' : 'diterima'}',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: scheme.outlineVariant),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _buildSummaryItem(
                   'Total ${isDebt ? 'Tagihan' : 'Tagihan Orang'}',
                   CurrencyFormatter.format(_debt.amount),
-                  Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              Expanded(
-                child: _buildSummaryItem(
-                  'Sisa',
-                  CurrencyFormatter.format(_debt.remainingAmount),
-                  Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: _buildSummaryItem(
                   'Telah ${isDebt ? 'Dibayar' : 'Diterima'}',
                   CurrencyFormatter.format(paid),
-                  Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 20),
-          AnimatedBuilder(
-            animation: _progressAnimation,
-            builder: (context, child) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: _progressAnimation.value,
-                  backgroundColor: color.withValues(alpha: 0.1),
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                  minHeight: 10,
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          AnimatedBuilder(
-            animation: _progressAnimation,
-            builder: (context, child) {
-              return Text(
-                '${(_progressAnimation.value * 100).toStringAsFixed(0)}% ${isDebt ? 'dibayar' : 'diterima'}',
-                style: TextStyle(fontSize: 12, color: color),
-              );
-            },
           ),
         ],
       ),
     );
   }
 
-  bool get isDebt => _debt.type == 'debt';
-
-  Widget _buildSummaryItem(String label, String value, Color color) {
+  Widget _buildSummaryItem(String label, String value) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
+          style: textTheme.labelMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-          textAlign: TextAlign.center,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: textTheme.titleMedium),
         ),
       ],
     );
   }
 
   Widget _buildInfoCard() {
+    final wallet = context
+        .watch<WalletProvider>()
+        .wallets
+        .where((w) => w.id == _debt.walletId)
+        .firstOrNull;
+
     return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Informasi',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'Informasi',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ),
-          const SizedBox(height: 12),
-          _buildInfoRow('Tanggal', DateFormatter.formatDate(_debt.date)),
+          if (_debt.billName?.isNotEmpty == true && _debt.personName.isNotEmpty)
+            _buildInfoRow(Icons.person_outline, 'Nama', _debt.personName),
+          _buildInfoRow(
+            Icons.calendar_today_outlined,
+            'Tanggal',
+            DateFormatter.formatDate(_debt.date),
+          ),
+          if (_debt.dueDate != null)
+            _buildInfoRow(
+              Icons.event_outlined,
+              'Jatuh tempo',
+              DateFormatter.formatDate(_debt.dueDate!),
+            ),
+          if (wallet != null)
+            _buildInfoRow(
+              Icons.account_balance_wallet_outlined,
+              'Dompet',
+              wallet.name,
+            ),
           if (_debt.note?.isNotEmpty == true)
-            _buildInfoRow('Catatan', _debt.note!),
+            _buildInfoRow(Icons.notes, 'Catatan', _debt.note!),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: TextStyle(fontWeight: FontWeight.w500)),
-          ),
-        ],
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      dense: true,
+      leading: Icon(icon, color: scheme.onSurfaceVariant),
+      title: Text(
+        label,
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
       ),
+      subtitle: Text(value, style: Theme.of(context).textTheme.bodyLarge),
     );
   }
 
   Widget _buildPaymentSection() {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     if (_payments.isEmpty) {
       return AppCard(
         padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.history,
-                size: 48,
-                color: Theme.of(context).colorScheme.outline,
+        child: Column(
+          children: [
+            Icon(Icons.history, size: 40, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 8),
+            Text(
+              'Belum ada histori ${isDebt ? 'pembayaran' : 'penerimaan'}',
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Belum ada histori ${isDebt ? 'pembayaran' : 'penerimaan'}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
 
     return AppCard(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Histori ${isDebt ? 'Pembayaran' : 'Penerimaan'}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Text(
+                    'Histori ${isDebt ? 'Pembayaran' : 'Penerimaan'}',
+                    style: textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${_payments.length} transaksi',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-          ..._payments.asMap().entries.map(
-            (entry) => AnimatedListItem(
+          for (final entry in _payments.asMap().entries) ...[
+            if (entry.key > 0)
+              Divider(
+                height: 1,
+                indent: 72,
+                endIndent: 16,
+                color: scheme.outlineVariant,
+              ),
+            AnimatedListItem(
               index: entry.key,
               child: _buildPaymentTile(entry.value),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildPaymentTile(DebtPayment payment) {
-    final isDebt = _debt.type == 'debt';
+    final finance = FinanceColors.of(context);
+    final wallet = context
+        .read<WalletProvider>()
+        .wallets
+        .where((w) => w.id == payment.walletId)
+        .firstOrNull;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isDebt ? Icons.arrow_downward : Icons.arrow_upward,
-              color: Theme.of(context).colorScheme.primary,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              CurrencyFormatter.format(payment.amount),
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                DateFormatter.formatDate(payment.date),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ],
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: isDebt
+            ? finance.expenseContainer
+            : finance.incomeContainer,
+        foregroundColor: isDebt
+            ? finance.onExpenseContainer
+            : finance.onIncomeContainer,
+        child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
+      ),
+      title: Text(
+        CurrencyFormatter.format(payment.amount),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        [
+          DateFormatter.formatDate(payment.date),
+          if (wallet != null) wallet.name,
+        ].join(' • '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
-  Widget _buildAddPaymentBar(Color color) {
+  Widget _buildAddPaymentBar() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: FilledButton.icon(
           onPressed: _showAddPaymentDialog,
           icon: const Icon(Icons.add),
           label: Text(isDebt ? 'Bayar Cicilan' : 'Terima Cicilan'),
-          style: FilledButton.styleFrom(
-            backgroundColor: color,
-            minimumSize: const Size.fromHeight(48),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
         ),
       ),
     );
   }
 
-  void _showAddPaymentDialog() {
-    final color = isDebt
-        ? Theme.of(context).colorScheme.onSurface
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-    final amountController = TextEditingController();
-    final noteController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
-    Wallet? selectedWallet;
-
-    showModalBottomSheet(
+  Future<void> _showAddPaymentDialog() async {
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Consumer<WalletProvider>(
-            builder: (context, walletProvider, _) {
-              final wallets = walletProvider.wallets;
+      useSafeArea: true,
+      builder: (_) => _AddPaymentSheet(debt: _debt),
+    );
+    if (saved != true || !mounted) return;
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
+    final provider = context.read<DebtProvider>();
+    await _loadPayments();
+    if (!mounted) return;
+    final updated = [
+      ...provider.debts,
+      ...provider.receivables,
+    ].where((d) => d.id == _debt.id).firstOrNull;
+    if (updated != null) setState(() => _debt = updated);
+    ToastWidget.success(
+      context,
+      '${isDebt ? "Pembayaran" : "Penerimaan"} berhasil dicatat',
+    );
+  }
+}
+
+/// Bottom sheet form for recording an installment. Pops `true` on success.
+class _AddPaymentSheet extends StatefulWidget {
+  final Debt debt;
+  const _AddPaymentSheet({required this.debt});
+
+  @override
+  State<_AddPaymentSheet> createState() => _AddPaymentSheetState();
+}
+
+class _AddPaymentSheetState extends State<_AddPaymentSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  late DateTime _selectedDate;
+  int? _walletId;
+  bool _submitted = false;
+  bool _isSaving = false;
+
+  Debt get _debt => widget.debt;
+  bool get _isDebt => _debt.type == 'debt';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = DateTime.now();
+    // Preselect the wallet the debt was recorded with, if it still exists.
+    final wallets = context.read<WalletProvider>().wallets;
+    if (wallets.any((w) => w.id == _debt.walletId)) _walletId = _debt.walletId;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Wallet? _walletOf(List<Wallet> wallets) =>
+      wallets.where((w) => w.id == _walletId).firstOrNull;
+
+  String? _validateAmount(String? v, Wallet? wallet) {
+    final rangeError = InputValidation.amountInRange(
+      v,
+      max: _debt.remainingAmount,
+      maxMessage:
+          'Melebihi sisa tagihan (${CurrencyFormatter.format(_debt.remainingAmount)})',
+    );
+    if (rangeError != null) return rangeError;
+    // Paying a debt takes money out of the wallet: it must cover the amount.
+    if (_isDebt && wallet != null) {
+      final amount = InputValidation.parseAmount(v)!;
+      if (amount > wallet.balance) {
+        return 'Saldo ${wallet.name} tidak cukup (${CurrencyFormatter.format(wallet.balance)})';
+      }
+    }
+    return null;
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final debtDay = DateTime(_debt.date.year, _debt.date.month, _debt.date.day);
+    final first = debtDay.isAfter(today) ? today : debtDay;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(first) ? first : _selectedDate,
+      firstDate: first,
+      lastDate: now,
+      helpText: _isDebt ? 'Tanggal pembayaran' : 'Tanggal penerimaan',
+    );
+    if (date != null && mounted) setState(() => _selectedDate = date);
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _submitted = true);
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+    final provider = context.read<DebtProvider>();
+    final walletProvider = context.read<WalletProvider>();
+    final success = await provider.addPayment(
+      DebtPayment(
+        debtId: _debt.id!,
+        amount: InputValidation.parseAmount(_amountController.text)!,
+        walletId: _walletId!,
+        date: _selectedDate,
+      ),
+    );
+    if (!mounted) return;
+
+    if (success) {
+      await walletProvider.loadWallets();
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } else {
+      setState(() => _isSaving = false);
+      ToastWidget.error(
+        context,
+        'Gagal menyimpan: ${provider.error ?? 'terjadi kesalahan'}',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final finance = FinanceColors.of(context);
+    final wallets = context.watch<WalletProvider>().wallets;
+    final wallet = _walletOf(wallets);
+    final remaining = CurrencyFormatter.format(_debt.remainingAmount);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: _submitted
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: _isDebt
+                        ? finance.expenseContainer
+                        : finance.incomeContainer,
+                    foregroundColor: _isDebt
+                        ? finance.onExpenseContainer
+                        : finance.onIncomeContainer,
+                    child: Icon(
+                      _isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      _isDebt ? 'Bayar Cicilan' : 'Terima Cicilan',
+                      style: textTheme.titleLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _amountController,
+                autofocus: true,
+                enabled: !_isSaving,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [RupiahInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Jumlah',
+                  prefixText: 'Rp ',
+                  hintText: '0',
+                  helperText: 'Sisa tagihan $remaining',
+                  helperMaxLines: 2,
+                  errorMaxLines: 2,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            isDebt ? Icons.arrow_upward : Icons.arrow_downward,
-                            color: color,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          isDebt ? 'Bayar Cicilan' : 'Terima Cicilan',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: amountController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Jumlah',
-                        prefixText: 'Rp ',
-                        hintText: 'Masukkan nominal',
-                      ),
-                      validator: InputValidation.amount,
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<Wallet>(
-                      initialValue: selectedWallet,
-                      items: wallets
-                          .map(
-                            (w) =>
-                                DropdownMenuItem(value: w, child: Text(w.name)),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => selectedWallet = v),
-                      decoration: const InputDecoration(labelText: 'Dompet'),
-                      validator: (v) => v == null ? 'Pilih dompet' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: noteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Catatan (opsional)',
-                        hintText: 'Catatan cicilan',
-                      ),
-                      maxLines: 2,
-                      maxLength: InputValidation.maxNote,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
-                              );
-                              if (date != null) {
-                                selectedDate = date;
-                                setState(() {});
-                              }
-                            },
-                            icon: Icon(Icons.calendar_today),
-                            label: Text(
-                              DateFormatter.formatShortDate(selectedDate),
+                validator: (v) => _validateAmount(v, wallet),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ActionChip(
+                  avatar: const Icon(Icons.done_all),
+                  label: Text('Lunasi $remaining'),
+                  onPressed: _isSaving
+                      ? null
+                      : () => _amountController.text =
+                            RupiahInputFormatter.formatValue(
+                              _debt.remainingAmount,
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () async {
-                          if (amountController.text.isEmpty ||
-                              selectedWallet == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Isi jumlah dan pilih dompet'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          final amount = double.tryParse(amountController.text);
-                          if (amount == null || amount <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Nominal tidak valid'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          if (amount > _debt.remainingAmount) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Maksimal ${CurrencyFormatter.format(_debt.remainingAmount)}',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          Navigator.pop(ctx);
-
-                          final provider = context.read<DebtProvider>();
-                          final success = await provider.addPayment(
-                            DebtPayment(
-                              debtId: _debt.id!,
-                              amount: amount,
-                              walletId: selectedWallet!.id!,
-                              date: selectedDate,
-                            ),
-                          );
-
-                          if (success) {
-                            await _loadPayments();
-                            setState(() {
-                              _debt = provider.debts.firstWhere(
-                                (d) => d.id == _debt.id,
-                              );
-                            });
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${isDebt ? "Pembayaran" : "Penerimaan"} berhasil dicatat',
-                                ),
-                              ),
-                            );
-                          } else {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Gagal: ${provider.error}'),
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text('Simpan'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                initialValue: _walletId,
+                isExpanded: true,
+                items: [
+                  for (final w in wallets)
+                    DropdownMenuItem(
+                      value: w.id,
+                      child: Text(
+                        w.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: _isSaving
+                    ? null
+                    : (v) {
+                        setState(() => _walletId = v);
+                        // Re-check the amount against the new wallet balance.
+                        if (_submitted) _formKey.currentState?.validate();
+                      },
+                decoration: InputDecoration(
+                  labelText: _isDebt ? 'Bayar dari dompet' : 'Masuk ke dompet',
+                  prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                  helperText: wallet != null
+                      ? 'Saldo ${CurrencyFormatter.format(wallet.balance)}'
+                      : null,
+                ),
+                validator: (v) => v == null ? 'Pilih dompet' : null,
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _isSaving ? null : _pickDate,
+                borderRadius: BorderRadius.circular(12),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Tanggal',
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
+                    suffixIcon: Icon(
+                      Icons.arrow_drop_down,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  child: Text(
+                    DateFormatter.formatDate(_selectedDate),
+                    style: textTheme.bodyLarge,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isSaving ? null : _submit,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: _isSaving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Simpan'),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-
-  void _showEditDialog() {}
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
@@ -23,13 +22,15 @@ class _DebtsScreenState extends State<DebtsScreen>
   String _statusFilter = 'all';
   DateTimeRange? _dateRange;
 
+  bool get _hasFilter => _statusFilter != 'all' || _dateRange != null;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
       length: 2,
       vsync: this,
-      initialIndex: widget.initialTab,
+      initialIndex: widget.initialTab.clamp(0, 1),
     );
     _loadData();
   }
@@ -44,127 +45,119 @@ class _DebtsScreenState extends State<DebtsScreen>
     await context.read<DebtProvider>().loadAllDebts();
   }
 
+  void _resetFilter() => setState(() {
+    _statusFilter = 'all';
+    _dateRange = null;
+  });
+
   void _showFilterDialog() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: StatefulBuilder(
-            builder: (context, setSheetState) => Column(
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final textTheme = Theme.of(context).textTheme;
+          void update(VoidCallback fn) {
+            setSheetState(fn);
+            setState(() {});
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+                Text('Filter', style: textTheme.titleLarge),
                 const SizedBox(height: 16),
-                const Text(
-                  'Filter',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Status',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                Text('Status', style: textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    _buildFilterChip('Semua', 'all', _statusFilter, (v) {
-                      setSheetState(() => _statusFilter = v);
-                      setState(() {});
-                    }),
-                    _buildFilterChip('Aktif', 'active', _statusFilter, (v) {
-                      setSheetState(() => _statusFilter = v);
-                      setState(() {});
-                    }),
-                    _buildFilterChip('Lunas', 'paid', _statusFilter, (v) {
-                      setSheetState(() => _statusFilter = v);
-                      setState(() {});
-                    }),
+                    for (final option in const [
+                      ('Semua', 'all'),
+                      ('Aktif', 'active'),
+                      ('Lunas', 'paid'),
+                    ])
+                      ChoiceChip(
+                        label: Text(option.$1),
+                        selected: _statusFilter == option.$2,
+                        onSelected: (_) =>
+                            update(() => _statusFilter = option.$2),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Rentang Tanggal',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const SizedBox(height: 24),
+                Text('Rentang Tanggal', style: textTheme.titleSmall),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                      initialDateRange: _dateRange,
-                    );
-                    if (range != null) {
-                      setSheetState(() => _dateRange = range);
-                      setState(() {});
-                    }
-                  },
-                  icon: Icon(Icons.date_range, size: 18),
-                  label: Text(
-                    _dateRange != null
-                        ? '${DateFormat('dd/MM/yy').format(_dateRange!.start)} - ${DateFormat('dd/MM/yy').format(_dateRange!.end)}'
-                        : 'Pilih tanggal',
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final now = DateTime.now();
+                          final range = await showDateRangePicker(
+                            context: context,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(now.year + 10, 12, 31),
+                            initialDateRange: _dateRange,
+                            helpText: 'Pilih rentang tanggal',
+                          );
+                          if (range != null) {
+                            update(() => _dateRange = range);
+                          }
+                        },
+                        icon: const Icon(Icons.date_range),
+                        label: Text(
+                          _dateRange != null
+                              ? '${DateFormatter.formatShortDate(_dateRange!.start)} - ${DateFormatter.formatShortDate(_dateRange!.end)}'
+                              : 'Pilih tanggal',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    if (_dateRange != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Hapus filter tanggal',
+                        onPressed: () => update(() => _dateRange = null),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ],
                 ),
-                if (_dateRange != null) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      setSheetState(() => _dateRange = null);
-                      setState(() {});
-                    },
-                    child: Text('Hapus filter tanggal'),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text('Terapkan'),
-                  ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _hasFilter
+                            ? () => update(() {
+                                _statusFilter = 'all';
+                                _dateRange = null;
+                              })
+                            : null,
+                        child: const Text('Reset'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Terapkan'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(
-    String label,
-    String value,
-    String current,
-    Function(String) onSelected,
-  ) {
-    final selected = current == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(value),
-      selectedColor: Theme.of(
-        context,
-      ).colorScheme.onSurface.withValues(alpha: 0.15),
-      labelStyle: TextStyle(
-        color: selected ? Theme.of(context).colorScheme.onSurface : null,
-        fontWeight: selected ? FontWeight.w600 : null,
+          );
+        },
       ),
     );
   }
@@ -198,46 +191,37 @@ class _DebtsScreenState extends State<DebtsScreen>
         actions: [
           IconButton(
             tooltip: 'Filter tagihan',
-            icon: Icon(
-              Icons.filter_list,
-              color: _statusFilter != 'all' || _dateRange != null
-                  ? Theme.of(context).colorScheme.onSurface
-                  : null,
+            isSelected: _hasFilter,
+            icon: Badge(
+              isLabelVisible: _hasFilter,
+              child: const Icon(Icons.filter_list),
             ),
             onPressed: _showFilterDialog,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.arrow_upward), text: 'Tagihan Saya'),
+            Tab(icon: Icon(Icons.arrow_downward), text: 'Tagihan Orang'),
+          ],
+        ),
       ),
       body: Consumer<DebtProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading) {
+          if (provider.isLoading &&
+              provider.debts.isEmpty &&
+              provider.receivables.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-          return Column(
+          return TabBarView(
+            controller: _tabController,
             children: [
-              TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(icon: Icon(Icons.arrow_upward), text: 'Tagihan Saya'),
-                  Tab(icon: Icon(Icons.arrow_downward), text: 'Tagihan Orang'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildDebtList(
-                      _filterDebts(provider.debts),
-                      'debt',
-                      provider,
-                    ),
-                    _buildDebtList(
-                      _filterDebts(provider.receivables),
-                      'receivable',
-                      provider,
-                    ),
-                  ],
-                ),
+              _buildDebtList(provider.debts, 'debt', provider.totalActiveDebt),
+              _buildDebtList(
+                provider.receivables,
+                'receivable',
+                provider.totalActiveReceivable,
               ),
             ],
           );
@@ -251,31 +235,91 @@ class _DebtsScreenState extends State<DebtsScreen>
     );
   }
 
-  Widget _buildDebtList(List<Debt> debts, String type, DebtProvider provider) {
-    if (debts.isEmpty) {
-      return _buildEmptyState(type);
-    }
-
+  Widget _buildDebtList(List<Debt> all, String type, double totalActive) {
+    final debts = _filterDebts(all);
     final groups = _groupByDate(debts);
+    final activeCount = all.where((d) => d.status == 'active').length;
 
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        // Bottom padding keeps the last card clear of the FAB.
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          for (final group in groups) ...[
-            _buildSectionHeader(group.label, group.debts.length, type),
-            const SizedBox(height: 8),
-            ...group.debts.asMap().entries.map(
-              (entry) => Padding(
-                padding: EdgeInsets.only(
-                  bottom: entry.key < group.debts.length - 1 ? 8 : 0,
+          _buildSummaryCard(type, totalActive, activeCount),
+          const SizedBox(height: 16),
+          if (debts.isEmpty)
+            _buildEmptyState(type, filtered: all.isNotEmpty)
+          else
+            for (final group in groups) ...[
+              _buildSectionHeader(group.label, group.debts.length),
+              const SizedBox(height: 8),
+              for (final debt in group.debts) ...[
+                _buildDebtTile(debt),
+                const SizedBox(height: 8),
+              ],
+              const SizedBox(height: 16),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(String type, double total, int activeCount) {
+    final isDebt = type == 'debt';
+    final finance = FinanceColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    final container = isDebt
+        ? finance.expenseContainer
+        : finance.incomeContainer;
+    final onContainer = isDebt
+        ? finance.onExpenseContainer
+        : finance.onIncomeContainer;
+
+    return AppCard(
+      color: container,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 20,
+                color: onContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isDebt ? 'Sisa tagihan saya' : 'Sisa tagihan orang',
+                  style: textTheme.titleSmall?.copyWith(color: onContainer),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: _buildDebtTile(entry.value, type, provider),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              CurrencyFormatter.format(total),
+              style: textTheme.headlineMedium?.copyWith(
+                color: onContainer,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 24),
-          ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            activeCount == 0
+                ? 'Tidak ada tagihan aktif'
+                : '$activeCount tagihan aktif',
+            style: textTheme.bodyMedium?.copyWith(color: onContainer),
+          ),
         ],
       ),
     );
@@ -319,10 +363,20 @@ class _DebtsScreenState extends State<DebtsScreen>
     return groups;
   }
 
-  Widget _buildEmptyState(String type) {
+  Widget _buildEmptyState(String type, {required bool filtered}) {
+    if (filtered) {
+      return EmptyState(
+        icon: Icons.filter_list_off,
+        message: 'Tidak ada tagihan yang cocok',
+        subtitle: 'Coba ubah atau reset filter',
+        buttonLabel: 'Reset Filter',
+        buttonIcon: Icons.restart_alt,
+        onButtonTap: _resetFilter,
+      );
+    }
     final isDebt = type == 'debt';
     return EmptyState(
-      icon: isDebt ? Icons.account_balance_wallet : Icons.people,
+      icon: isDebt ? Icons.receipt_long_outlined : Icons.people_outline,
       message: isDebt ? 'Belum ada tagihan' : 'Belum ada tagihan orang',
       subtitle: isDebt
           ? 'Catat tagihan yang Anda pinjam dari orang lain'
@@ -332,64 +386,131 @@ class _DebtsScreenState extends State<DebtsScreen>
     );
   }
 
-  Widget _buildSectionHeader(String title, int count, String type) {
-    final isDebt = type == 'debt';
-    final color = isDebt
-        ? Theme.of(context).colorScheme.onSurface
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-
+  Widget _buildSectionHeader(String title, int count) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Text(
-          title,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Flexible(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '$count',
-            style: TextStyle(color: color, fontWeight: FontWeight.w600),
-          ),
+        Badge(
+          label: Text('$count'),
+          backgroundColor: scheme.secondaryContainer,
+          textColor: scheme.onSecondaryContainer,
         ),
       ],
     );
   }
 
-  Widget _buildDebtTile(Debt debt, String type, DebtProvider provider) {
-    final isDebt = type == 'debt';
+  Widget _buildDebtTile(Debt debt) {
+    final isDebt = debt.type == 'debt';
+    final isPaid = debt.status == 'paid';
     final scheme = Theme.of(context).colorScheme;
-    final subtitle =
-        debt.billName?.isNotEmpty == true && debt.personName.isNotEmpty
-        ? '${debt.personName} • ${DateFormatter.formatDate(debt.date)}'
-        : DateFormatter.formatDate(debt.date);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => DebtDetailScreen(debt: debt)),
-        ),
-        leading: CircleAvatar(
-          backgroundColor: scheme.primary.withValues(alpha: 0.12),
-          foregroundColor: scheme.primary,
-          child: Icon(isDebt ? Icons.receipt_long : Icons.file_download),
-        ),
-        title: Text(
-          debt.billName?.isNotEmpty == true ? debt.billName! : debt.personName,
-        ),
-        subtitle: Text(subtitle),
-        trailing: Text(
-          'Lunas',
-          style: TextStyle(
-            color: AppTheme.income,
-            fontWeight: FontWeight.w600,
+    final textTheme = Theme.of(context).textTheme;
+    final finance = FinanceColors.of(context);
+    final hasBillName = debt.billName?.isNotEmpty == true;
+    final subtitle = [
+      if (hasBillName && debt.personName.isNotEmpty) debt.personName,
+      DateFormatter.formatDate(debt.date),
+      if (!isPaid && debt.dueDate != null)
+        'Jatuh tempo ${DateFormatter.formatDate(debt.dueDate!)}',
+    ].join(' • ');
+    final paidRatio = debt.amount > 0
+        ? ((debt.amount - debt.remainingAmount) / debt.amount).clamp(0.0, 1.0)
+        : 0.0;
+
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      padding: const EdgeInsets.all(16),
+      onTap: () =>
+          Navigator.push(context, fadeSlideRoute(DebtDetailScreen(debt: debt))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: isDebt
+                    ? finance.expenseContainer
+                    : finance.incomeContainer,
+                foregroundColor: isDebt
+                    ? finance.onExpenseContainer
+                    : finance.onIncomeContainer,
+                child: Icon(
+                  isDebt ? Icons.receipt_long : Icons.file_download_outlined,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasBillName ? debt.billName! : debt.personName,
+                      style: textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        CurrencyFormatter.format(
+                          isPaid ? debt.amount : debt.remainingAmount,
+                        ),
+                        style: textTheme.titleSmall?.copyWith(
+                          color: isDebt ? finance.expense : finance.income,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    DebtStatusBadge(isPaid: isPaid),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
+          if (!isPaid && debt.amount > 0) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: paidRatio,
+              borderRadius: BorderRadius.circular(4),
+              semanticsLabel: 'Progres pembayaran',
+              semanticsValue: '${(paidRatio * 100).round()}%',
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(paidRatio * 100).round()}% ${isDebt ? 'dibayar' : 'diterima'} dari ${CurrencyFormatter.format(debt.amount)}',
+              style: textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -399,18 +520,37 @@ class _DebtsScreenState extends State<DebtsScreen>
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) => AddDebtScreen(
+      useSafeArea: true,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.92,
+        child: AddDebtScreen(
           initialType: _tabController.index == 0 ? 'debt' : 'receivable',
         ),
       ),
+    );
+  }
+}
+
+/// Tonal status label ("Lunas" / "Aktif") shared by the debt list and detail.
+class DebtStatusBadge extends StatelessWidget {
+  final bool isPaid;
+  const DebtStatusBadge({super.key, required this.isPaid});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final finance = FinanceColors.of(context);
+    return Badge(
+      label: Text(isPaid ? 'Lunas' : 'Aktif'),
+      largeSize: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      textStyle: Theme.of(context).textTheme.labelSmall,
+      backgroundColor: isPaid
+          ? finance.incomeContainer
+          : scheme.tertiaryContainer,
+      textColor: isPaid
+          ? finance.onIncomeContainer
+          : scheme.onTertiaryContainer,
     );
   }
 }

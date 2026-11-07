@@ -4,8 +4,8 @@ import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import 'animated_balance.dart';
 
-/// A single row inside an "inset grouped" list, matching the `ui/*.html`
-/// history rows: round tinted icon, title + subtitle, amount + chevron.
+/// M3 two-line list item for a transaction: tonal avatar (income / expense /
+/// transfer container), title + supporting text, trailing amount.
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
@@ -29,7 +29,6 @@ class TransactionTile extends StatelessWidget {
     final isPlainExpense = transaction.type == 'expense' && !isTagihan;
     final description = transaction.description?.trim() ?? '';
     final note = transaction.note?.trim() ?? '';
-    final nominalColor = isIncome ? AppColors.income : AppColors.expense;
     final (icon, label) = transaction.isTagihan
         ? (Icons.receipt_long, transaction.description ?? 'Tagihan')
         : transaction.isPembayaranTagihan
@@ -58,70 +57,66 @@ class TransactionTile extends StatelessWidget {
         ? '$categoryName • $dateText'
         : dateText;
 
-    return InkWell(
+    final finance = FinanceColors.of(context);
+    final text = Theme.of(context).textTheme;
+    final (container, onContainer) = isTransfer
+        ? (finance.transferContainer, finance.onTransferContainer)
+        : isIncome
+        ? (finance.incomeContainer, finance.onIncomeContainer)
+        : (finance.expenseContainer, finance.onExpenseContainer);
+    final nominalColor = isTransfer
+        ? finance.transfer
+        : isIncome
+        ? finance.income
+        : finance.expense;
+
+    return ListTile(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 20, color: scheme.primary),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.headline.copyWith(
-                      color: scheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption1.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            AnimatedBalance(
+      minTileHeight: 72,
+      leading: CircleAvatar(
+        radius: 20,
+        backgroundColor: container,
+        foregroundColor: onContainer,
+        child: Icon(icon, size: 20),
+      ),
+      title: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.bodyLarge?.copyWith(color: scheme.onSurface),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: AnimatedBalance(
               value: isIncome || isTransfer
                   ? transaction.amount
                   : -transaction.amount,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.headline.copyWith(color: nominalColor),
+              style: text.labelLarge?.copyWith(
+                color: nominalColor,
+                fontWeight: FontWeight.w600,
+              ),
               formatter: (value) => CurrencyFormatter.formatWithSign(
                 value,
                 showPlus: isIncome || isTagihan || isTransfer,
               ),
             ),
-            if (showChevron) ...[
-              const SizedBox(width: 6),
-              Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: scheme.outline,
-              ),
-            ],
+          ),
+          if (showChevron) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant),
           ],
-        ),
+        ],
       ),
     );
   }

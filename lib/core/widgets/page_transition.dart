@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 
-Route fadeSlideRoute(Widget page) {
-  return PageRouteBuilder(
+/// M3 "enter" transition: fade + short upward slide with the emphasized
+/// decelerate easing (400 ms in, 200 ms out).
+Route<T> fadeSlideRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(0.0, 0.08);
-      const end = Offset.zero;
-      const curve = Curves.easeOutCubic;
-
-      var tween =
-          Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-      var fadeTween = Tween<double>(begin: 0, end: 1)
-          .chain(CurveTween(curve: curve));
-
-      return SlideTransition(
-        position: animation.drive(tween),
-        child: FadeTransition(
-          opacity: animation.drive(fadeTween),
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Easing.emphasizedDecelerate,
+        reverseCurve: Easing.emphasizedAccelerate,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          ).animate(curved),
           child: child,
         ),
       );
     },
-    transitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: Durations.medium4,
+    reverseTransitionDuration: Durations.short4,
   );
 }

@@ -51,6 +51,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+CLAUDE.md
 AGENTS.md
 .agent/
 .opencode/

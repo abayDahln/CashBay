@@ -1,41 +1,55 @@
 import 'package:flutter/material.dart';
 
+enum AppCardVariant { filled, outlined, elevated }
+
+/// M3 card. `filled` (default) uses `surfaceContainerHighest`, `outlined`
+/// uses `surface` + `outlineVariant`, `elevated` uses `surfaceContainerLow`.
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final bool showBorder;
+  final AppCardVariant variant;
   final BorderRadiusGeometry? radius;
-  final Border? border;
-  final List<BoxShadow>? boxShadow;
+  final VoidCallback? onTap;
+  final Color? color;
+
+  /// Kept for backwards compatibility: `true` is the same as
+  /// `variant: AppCardVariant.outlined`.
+  final bool showBorder;
 
   const AppCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.showBorder = false,
+    this.variant = AppCardVariant.filled,
     this.radius,
-    this.border,
-    this.boxShadow,
+    this.onTap,
+    this.color,
+    this.showBorder = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final side =
-        border?.top ??
-        (showBorder
-            ? BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6))
-            : null);
+    final v = showBorder ? AppCardVariant.outlined : variant;
+    final shape = RoundedRectangleBorder(
+      borderRadius: radius ?? BorderRadius.circular(12),
+      side: v == AppCardVariant.outlined
+          ? BorderSide(color: scheme.outlineVariant)
+          : BorderSide.none,
+    );
+    final content = Padding(padding: padding, child: child);
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      color: scheme.surfaceContainer,
-      shape: RoundedRectangleBorder(
-        borderRadius: radius ?? BorderRadius.circular(16),
-        side: side ?? BorderSide.none,
-      ),
-      child: Padding(padding: padding, child: child),
+      elevation: v == AppCardVariant.elevated ? 1 : 0,
+      color: color ??
+          switch (v) {
+            AppCardVariant.filled => scheme.surfaceContainerHighest,
+            AppCardVariant.outlined => scheme.surface,
+            AppCardVariant.elevated => scheme.surfaceContainerLow,
+          },
+      shape: shape,
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }

@@ -2,14 +2,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart'
-    show DateFormatter, InputValidation;
+    show
+        CurrencyFormatter,
+        DateFormatter,
+        InputValidation,
+        RupiahInputFormatter;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/transaction.dart';
 import '../../../debts/data/models/debt.dart';
 import '../providers/transaction_provider.dart';
 import '../../../debts/presentation/providers/debt_provider.dart';
+import '../../../dashboard/data/models/wallet.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 
@@ -57,6 +61,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _dueDate = DateTime.now();
 
   bool _isLoading = false;
+  bool _submitted = false;
   String? _attachmentPath;
   final ImagePicker _picker = ImagePicker();
 
@@ -64,6 +69,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool get _isTransfer => _transactionType == 'transfer';
   String get _destinationWallet =>
       _paymentMethod == 'cash' ? 'ewallet' : 'cash';
+
+  /// Expense and transfer spend from the source wallet, so the amount is
+  /// capped by its balance.
+  bool get _spendsFromWallet =>
+      _transactionType == 'expense' || _transactionType == 'transfer';
+
+  static String _walletLabel(String type) =>
+      type == 'cash' ? 'Cash' : 'E-Wallet';
 
   @override
   void initState() {
@@ -94,37 +107,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.dispose();
   }
 
-  String _formatRupiah(String text) {
-    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return '';
-    final number = int.parse(digits);
-    final formatted = number.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
-    return formatted;
-  }
-
-  void _onAmountChanged(String value) {
-    final formatted = _formatRupiah(value.replaceAll(RegExp(r'[^0-9]'), ''));
-    _amountController.value = TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-    setState(() {});
-  }
-
-  /// Raw integer value of the amount field, 0 when empty.
+  /// Raw value of the amount field, 0 when empty.
   double get _amountValue =>
-      double.tryParse(_amountController.text.replaceAll('.', '')) ?? 0;
+      InputValidation.parseAmount(_amountController.text) ?? 0;
 
   void _setAmount(double value) {
-    final formatted = value <= 0 ? '' : _formatRupiah(value.toInt().toString());
+    final formatted = RupiahInputFormatter.formatValue(value);
     _amountController.value = TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
     );
     setState(() {});
+  }
+
+  Wallet? _walletOfType(List<Wallet> wallets, String type) =>
+      wallets.where((w) => w.type == type).firstOrNull;
+
+  String? _validateAmount(String? v) {
+    if (!_spendsFromWallet) return InputValidation.amountInRange(v);
+    final wallet = _walletOfType(
+      context.read<WalletProvider>().wallets,
+      _paymentMethod,
+    );
+    if (wallet == null) return InputValidation.amountInRange(v);
+    final balance = wallet.balance < 0 ? 0.0 : wallet.balance;
+    return InputValidation.amountInRange(
+      v,
+      max: balance,
+      maxMessage:
+          'Saldo ${wallet.name} tidak cukup (sisa ${CurrencyFormatter.format(balance)})',
+    );
   }
 
   @override
@@ -133,59 +145,72 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       appBar: const CashBayAppBar(title: 'Tambah Transaksi'),
       body: Consumer3<WalletProvider, CategoryProvider, DebtProvider>(
         builder: (context, walletProvider, categoryProvider, debtProvider, _) {
-          return Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildAnimatedField(0, _buildTypeSelector()),
-                  const SizedBox(height: 20),
-                  _buildAnimatedField(0, _buildAmountField()),
-                  const SizedBox(height: 16),
-                  _buildInsetGroup(
-                    'DETAIL UTAMA',
-                    [
-                      if (_isTagihan) ...[
-                        _buildDebtDirectionSelector(),
-                        const SizedBox(height: 12),
-                        _buildBillNameField(),
-                        const SizedBox(height: 12),
-                        _buildPersonNameField(),
-                        const SizedBox(height: 12),
-                        _buildDueDatePresets(),
-                      ] else if (_isTransfer) ...[
-                        _buildTransferSelector(),
-                        const SizedBox(height: 12),
-                        _buildDescriptionField(),
-                      ] else ...[
-                        _buildDescriptionField(),
+          final wallets = walletProvider.wallets;
+          return Column(
+            children: [
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  autovalidateMode: _submitted
+                      ? AutovalidateMode.onUserInteraction
+                      : AutovalidateMode.disabled,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildAnimatedField(0, _buildTypeSelector()),
+                        const SizedBox(height: 16),
+                        _buildAnimatedField(0, _buildAmountField(wallets)),
+                        const SizedBox(height: 24),
+                        _buildInsetGroup('Detail utama', [
+                          if (_isTagihan) ...[
+                            _buildDebtDirectionSelector(),
+                            const SizedBox(height: 16),
+                            _buildBillNameField(),
+                            const SizedBox(height: 8),
+                            _buildPersonNameField(),
+                            const SizedBox(height: 8),
+                            _buildDueDatePresets(),
+                          ] else if (_isTransfer) ...[
+                            _buildTransferSelector(wallets),
+                            const SizedBox(height: 16),
+                            _buildDescriptionField(),
+                          ] else ...[
+                            _buildDescriptionField(),
+                          ],
+                        ]),
+                        const SizedBox(height: 24),
+                        _buildInsetGroup('Sumber dana & waktu', [
+                          if (!_isTransfer) ...[
+                            _buildPaymentMethod(wallets),
+                            const SizedBox(height: 16),
+                          ],
+                          _buildDatePicker(),
+                        ]),
+                        const SizedBox(height: 24),
+                        _buildInsetGroup('Catatan & lampiran', [
+                          _buildNoteField(),
+                          const SizedBox(height: 8),
+                          _buildPhotoPicker(),
+                        ]),
                       ],
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildInsetGroup(
-                    'SUMBER DANA & WAKTU',
-                    [
-                      if (!_isTransfer) ...[
-                        _buildPaymentMethod(),
-                        const SizedBox(height: 12),
-                      ],
-                      _buildDatePicker(),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInsetGroup('CATATAN & LAMPIRAN', [
-                    _buildNoteField(),
-                    const SizedBox(height: 12),
-                    _buildPhotoPicker(),
-                  ]),
-                  const SizedBox(height: 24),
-                  _buildAnimatedField(12, _buildSubmitButton()),
-                ],
+                ),
               ),
-            ),
+              // Pinned save button: the Scaffold body shrinks above the
+              // keyboard, so this stays visible while typing.
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: _buildSubmitButton(),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -193,6 +218,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildInsetGroup(String label, List<Widget> children) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -200,15 +226,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             label,
-            style: AppTypography.caption1.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: scheme.primary),
           ),
         ),
         AppCard(
-          showBorder: true,
+          variant: AppCardVariant.outlined,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,54 +254,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildTypeSelector() {
     const types = <(String, IconData, String)>[
-      ('expense', Icons.arrow_upward, 'Pengeluaran'),
-      ('income', Icons.arrow_downward, 'Pendapatan'),
+      ('income', Icons.south, 'Pendapatan'),
+      ('expense', Icons.north, 'Pengeluaran'),
       ('tagihan', Icons.receipt_long, 'Tagihan'),
       ('transfer', Icons.swap_horiz, 'Transfer'),
     ];
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
-      ),
+    // Horizontally scrollable so all four fit on 360dp / large text scale.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           for (final (value, icon, label) in types)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() {
-                  _transactionType = value;
-                }),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    color: _transactionType == value
-                        ? scheme.surfaceBright
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(icon, size: 19, color: scheme.primary),
-                      const SizedBox(height: 3),
-                      Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption2.copyWith(
-                          color: _transactionType == value
-                              ? scheme.onSurface
-                              : scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                avatar: Icon(icon, size: 18),
+                showCheckmark: false,
+                label: Text(label),
+                selected: _transactionType == value,
+                onSelected: (_) => setState(() => _transactionType = value),
               ),
             ),
         ],
@@ -289,69 +284,74 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Arah Tagihan',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        Text('Arah Tagihan', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildOptionCard(
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
                 value: 'debt',
-                icon: Icons.north,
-                label: 'Tagihan Saya',
-                selectedValue: _debtDirection,
-                onTap: (v) => setState(() => _debtDirection = v),
+                icon: Icon(Icons.north),
+                label: Text(
+                  'Tagihan Saya',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildOptionCard(
+              ButtonSegment(
                 value: 'receivable',
-                icon: Icons.south,
-                label: 'Tagihan Orang',
-                selectedValue: _debtDirection,
-                onTap: (v) => setState(() => _debtDirection = v),
+                icon: Icon(Icons.south),
+                label: Text(
+                  'Tagihan Orang',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+            selected: {_debtDirection},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setState(() => _debtDirection = s.first),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildAmountField() {
+  Widget _buildAmountField(List<Wallet> wallets) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final hasValue = _amountValue > 0;
     const quickAmounts = <int>[10000, 20000, 50000, 100000];
     final display = _amountController.text.isEmpty
         ? '0'
         : _amountController.text;
-    final amountStyle = AppTypography.headlineLargeMobile.copyWith(
-      color: hasValue ? scheme.onSurface : scheme.outline,
+    final amountStyle = text.displaySmall?.copyWith(
+      color: hasValue ? scheme.onSurface : scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
     );
+    final source = _spendsFromWallet
+        ? _walletOfType(wallets, _paymentMethod)
+        : null;
     return AppCard(
-      showBorder: true,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       child: Column(
         children: [
           Text(
-            'NOMINAL TRANSAKSI',
-            style: AppTypography.caption1.copyWith(
-              color: scheme.onSurfaceVariant,
-              letterSpacing: 0.8,
-            ),
+            'Nominal transaksi',
+            style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Balances the clear button so the amount stays centred.
+              const SizedBox(width: 48),
               Expanded(
                 // The TextFormField stays transparent and handles input /
                 // validation; the visible Text is auto-scaled to avoid wrap.
                 child: Stack(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
                     IgnorePointer(
                       child: FittedBox(
@@ -363,13 +363,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           children: [
                             Text(
                               'Rp',
-                              style: AppTypography.headline.copyWith(
-                                color: scheme.onSurfaceVariant.withValues(
-                                  alpha: 0.6,
-                                ),
+                              style: text.titleLarge?.copyWith(
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Text(display, style: amountStyle),
                           ],
                         ),
@@ -378,10 +376,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     TextFormField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      onChanged: _onAmountChanged,
+                      textInputAction: TextInputAction.next,
+                      inputFormatters: [RupiahInputFormatter()],
+                      onChanged: (_) => setState(() {}),
                       textAlign: TextAlign.center,
-                      cursorHeight: 28,
-                      style: amountStyle.copyWith(color: Colors.transparent),
+                      cursorHeight: 32,
+                      style: amountStyle?.copyWith(color: Colors.transparent),
                       decoration: const InputDecoration(
                         filled: false,
                         border: InputBorder.none,
@@ -391,22 +391,38 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         focusedErrorBorder: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                         isDense: true,
+                        errorMaxLines: 2,
                       ),
-                      validator: InputValidation.amount,
+                      validator: _validateAmount,
                     ),
                   ],
                 ),
               ),
-              // Clear button — only visible when there is a value.
-              if (hasValue)
-                IconButton(
-                  tooltip: 'Kosongkan nominal',
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.cancel, size: 20, color: scheme.outline),
-                  onPressed: () => _setAmount(0),
-                ),
+              SizedBox(
+                width: 48,
+                child: hasValue
+                    ? IconButton(
+                        tooltip: 'Kosongkan nominal',
+                        icon: Icon(
+                          Icons.cancel,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        onPressed: () => _setAmount(0),
+                      )
+                    : null,
+              ),
             ],
           ),
+          if (source != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Saldo ${source.name}: ${CurrencyFormatter.format(source.balance)}',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -414,8 +430,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             alignment: WrapAlignment.center,
             children: [
               for (final amount in quickAmounts)
-                _buildQuickAmountChip(amount),
-              if (hasValue) _buildQuickAmountChip(null),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18),
+                  label: Text(CurrencyFormatter.formatShort(amount.toDouble())),
+                  tooltip:
+                      'Tambah ${CurrencyFormatter.format(amount.toDouble())}',
+                  onPressed: () => _setAmount(_amountValue + amount),
+                ),
             ],
           ),
         ],
@@ -423,240 +444,169 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildQuickAmountChip(int? amount) {
-    final scheme = Theme.of(context).colorScheme;
-    final isClear = amount == null;
-    final label = isClear
-        ? 'Hapus'
-        : '+${_formatRupiah((amount ~/ 1000).toString())}rb';
-    return GestureDetector(
-      onTap: () => _setAmount(isClear ? 0 : _amountValue + amount),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
-        ),
-        child: Text(
-          label,
-          style: AppTypography.footnote.copyWith(
-            color: isClear ? scheme.error : scheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildDescriptionField() {
+    final isIncome = _transactionType == 'income';
     return TextFormField(
       controller: _descriptionController,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         labelText: _isTransfer
             ? 'Keterangan (opsional)'
-            : _transactionType == 'income'
+            : isIncome
             ? 'Sumber Pendapatan'
             : 'Nama Transaksi',
         hintText: _isTransfer
             ? 'Contoh: Pindah ke E-Wallet'
-            : _transactionType == 'income'
+            : isIncome
             ? 'Contoh: Gaji, Freelance'
             : 'Contoh: Makan siang, Bensin',
-        prefixIcon: Icon(Icons.edit_note),
+        prefixIcon: const Icon(Icons.edit_note),
       ),
       maxLength: InputValidation.maxDescription,
-      // Counter disembunyikan; batas 200 karakter tetap berlaku.
-      buildCounter:
-          (_, {required currentLength, required isFocused, maxLength}) => null,
-      validator: _isTransfer
-          ? null
-          : (v) => InputValidation.required(v, 'Deskripsi'),
+      validator: (v) {
+        if (!_isTransfer) {
+          final req = InputValidation.required(v, 'Deskripsi');
+          if (req != null) return req;
+        }
+        return InputValidation.maxLength(
+          v,
+          'Deskripsi',
+          InputValidation.maxDescription,
+        );
+      },
     );
   }
 
-  Widget _buildTransferSelector() {
+  Widget _buildTransferSelector(List<Wallet> wallets) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    Widget walletTile(String caption, String type, CrossAxisAlignment align) {
+      final wallet = _walletOfType(wallets, type);
+      return Column(
+        crossAxisAlignment: align,
+        children: [
+          Text(
+            caption,
+            style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                type == 'cash' ? Icons.payments_outlined : Icons.phone_android,
+                size: 18,
+                color: scheme.onSurface,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  _walletLabel(type),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          if (wallet != null)
+            Text(
+              CurrencyFormatter.format(wallet.balance),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Dari',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    _paymentMethod == 'cash'
-                        ? Icons.money
-                        : Icons.phone_android,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _paymentMethod == 'cash' ? 'Cash' : 'E-Wallet',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          child: walletTile('Dari', _paymentMethod, CrossAxisAlignment.start),
         ),
-        IconButton(
+        IconButton.filledTonal(
           tooltip: 'Tukar dompet',
-          icon: Icon(
-            Icons.swap_vert,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+          icon: const Icon(Icons.swap_horiz),
           onPressed: () => setState(() => _paymentMethod = _destinationWallet),
         ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Ke',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    _destinationWallet == 'cash' ? 'Cash' : 'E-Wallet',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    _destinationWallet == 'cash'
-                        ? Icons.money
-                        : Icons.phone_android,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ],
-              ),
-            ],
-          ),
+          child: walletTile('Ke', _destinationWallet, CrossAxisAlignment.end),
         ),
       ],
     );
   }
 
-  Widget _buildPaymentMethod() {
+  Widget _buildPaymentMethod(List<Wallet> wallets) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final selected = _walletOfType(wallets, _paymentMethod);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           _isTagihan
               ? 'Metode Pembayaran'
-              : _isTransfer
-              ? 'Dompet Sumber'
               : _transactionType == 'income'
               ? 'Tujuan Dana'
               : 'Sumber Dana',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: text.labelLarge,
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildOptionCard(
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
                 value: 'cash',
-                label: 'Cash',
-                selectedValue: _paymentMethod,
-                onTap: (v) => setState(() => _paymentMethod = v),
+                icon: Icon(Icons.payments_outlined),
+                label: Text('Cash'),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildOptionCard(
+              ButtonSegment(
                 value: 'ewallet',
-                label: 'E-Wallet',
-                selectedValue: _paymentMethod,
-                onTap: (v) => setState(() => _paymentMethod = v),
+                icon: Icon(Icons.phone_android),
+                label: Text('E-Wallet'),
               ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// A tappable card used as a single-choice option (replaces segmented rows).
-  Widget _buildOptionCard({
-    required String value,
-    required String label,
-    required String selectedValue,
-    required ValueChanged<String> onTap,
-    IconData? icon,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final selected = selectedValue == value;
-    return GestureDetector(
-      onTap: () => onTap(value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: selected
-              ? scheme.primary.withValues(alpha: 0.12)
-              : scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? scheme.primary : scheme.outlineVariant,
-            width: selected ? 1.5 : 1,
+            ],
+            selected: {_paymentMethod},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setState(() => _paymentMethod = s.first),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? scheme.primary : scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 10),
-            ],
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: AppTypography.subheadline.copyWith(
-                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
+        if (selected != null) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Text(
+              'Saldo: ${CurrencyFormatter.format(selected.balance)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      ],
     );
   }
 
   Widget _buildBillNameField() {
     return TextFormField(
       controller: _billNameController,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: TextInputAction.next,
       decoration: const InputDecoration(
         labelText: 'Nama Tagihan',
         hintText: 'Contoh: Pinjaman Motor, Cicilan Rumah',
-        prefixIcon: Icon(Icons.description),
+        prefixIcon: Icon(Icons.description_outlined),
       ),
       maxLength: InputValidation.maxBillName,
-      buildCounter:
-          (_, {required currentLength, required isFocused, maxLength}) => null,
-      validator: (v) => InputValidation.required(v, 'Nama Tagihan'),
+      validator: (v) => InputValidation.name(
+        v,
+        'Nama Tagihan',
+        max: InputValidation.maxBillName,
+      ),
     );
   }
 
@@ -664,26 +614,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final isDebt = _debtDirection == 'debt';
     return TextFormField(
       controller: _personNameController,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         labelText: isDebt ? 'Nama Pemberi Pinjaman' : 'Nama Penerima Pinjaman',
         hintText: isDebt ? 'Dari siapa?' : 'Ke siapa?',
-        prefixIcon: Icon(Icons.person),
+        prefixIcon: const Icon(Icons.person_outline),
       ),
       maxLength: InputValidation.maxPersonName,
-      buildCounter:
-          (_, {required currentLength, required isFocused, maxLength}) => null,
-      validator: (v) => InputValidation.required(v, 'Nama'),
+      validator: (v) =>
+          InputValidation.name(v, 'Nama', max: InputValidation.maxPersonName),
     );
   }
 
   Widget _buildDueDatePresets() {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final isCustom = _duePreset == DueDatePreset.custom;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Jatuh Tempo',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        Text('Jatuh Tempo', style: text.labelLarge),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -695,26 +646,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _dueDateChip('1 Bulan', DueDatePreset.month1),
             _dueDateChip('3 Bulan', DueDatePreset.months3),
             _dueDateChip('1 Tahun', DueDatePreset.year1),
-            ActionChip(
+            ChoiceChip(
+              avatar: const Icon(Icons.calendar_today, size: 18),
+              showCheckmark: false,
               label: Text(
-                _duePreset == DueDatePreset.custom
-                    ? DateFormatter.formatDate(_dueDate)
-                    : 'Pilih Tanggal...',
-                style: TextStyle(
-                  color: _duePreset == DueDatePreset.custom
-                      ? Theme.of(context).colorScheme.onSurface
-                      : null,
-                ),
+                isCustom ? DateFormatter.formatDate(_dueDate) : 'Pilih Tanggal',
               ),
-              avatar: Icon(Icons.calendar_today, size: 16),
-              onPressed: () async {
+              selected: isCustom,
+              onSelected: (_) async {
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: _dueDate,
+                  initialDate: _dueDate.isBefore(DateTime.now())
+                      ? DateTime.now()
+                      : _dueDate,
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2100),
                 );
-                if (picked != null) {
+                if (picked != null && mounted) {
                   setState(() {
                     _dueDate = picked;
                     _duePreset = DueDatePreset.custom;
@@ -724,15 +672,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           ],
         ),
-        if (_duePreset != DueDatePreset.custom)
+        if (!isCustom)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
               'Jatuh tempo: ${DateFormatter.formatDate(_dueDate)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
       ],
@@ -763,7 +708,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           firstDate: DateTime(2020),
           lastDate: DateTime.now().add(const Duration(days: 365)),
         );
-        if (picked != null) {
+        if (picked != null && mounted) {
           setState(() {
             _selectedDate = picked;
             if (_isTagihan && _duePreset != DueDatePreset.custom) {
@@ -776,11 +721,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: 'Tanggal Transaksi',
-          prefixIcon: Icon(Icons.calendar_today),
+          prefixIcon: Icon(Icons.calendar_today_outlined),
+          suffixIcon: Icon(Icons.arrow_drop_down),
         ),
         child: Text(
           DateFormatter.formatDate(_selectedDate),
-          style: TextStyle(fontSize: 16),
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
       ),
     );
@@ -789,43 +735,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildNoteField() {
     return TextFormField(
       controller: _noteController,
-      maxLines: 3,
-      maxLength: 100,
+      minLines: 2,
+      maxLines: 4,
+      maxLength: InputValidation.maxNote,
+      textCapitalization: TextCapitalization.sentences,
+      keyboardType: TextInputType.multiline,
       decoration: InputDecoration(
         labelText: 'Catatan (opsional)',
         hintText: _isTagihan ? 'Catatan tagihan...' : 'Tambahkan catatan...',
         alignLabelWithHint: true,
-        counterText: '',
       ),
+      validator: (v) =>
+          InputValidation.maxLength(v, 'Catatan', InputValidation.maxNote),
     );
   }
 
   Widget _buildPhotoPicker() {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Icon(
-              Icons.image,
+              Icons.image_outlined,
               size: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: scheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
-            Text(
-              'Lampiran Foto (opsional)',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Expanded(
+              child: Text(
+                'Lampiran Foto (opsional)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
-            const Spacer(),
             if (_attachmentPath != null)
               IconButton(
                 tooltip: 'Hapus foto',
-                icon: Icon(Icons.close, size: 18),
+                icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _attachmentPath = null),
-                visualDensity: VisualDensity.compact,
               ),
           ],
         ),
@@ -835,9 +788,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             borderRadius: BorderRadius.circular(8),
             child: Image.file(
               File(_attachmentPath!),
-              height: 100,
+              height: 120,
               width: double.infinity,
               fit: BoxFit.cover,
+              semanticLabel: 'Lampiran foto',
             ),
           )
         else
@@ -845,16 +799,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: Icon(Icons.camera_alt, size: 18),
-                  label: Text('Kamera'),
+                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  label: const Text('Kamera'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
                   onPressed: () => _pickImage(ImageSource.camera),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: Icon(Icons.photo_library, size: 18),
-                  label: Text('Galeri'),
+                  icon: const Icon(Icons.photo_library_outlined, size: 18),
+                  label: const Text('Galeri'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
                   onPressed: () => _pickImage(ImageSource.gallery),
                 ),
               ),
@@ -870,21 +830,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       maxWidth: 1024,
       imageQuality: 80,
     );
-    if (file != null) {
-      final err = InputValidation.imageFile(file.path);
-      if (err != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(err),
-              backgroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
-          );
-        }
-        return;
-      }
-      setState(() => _attachmentPath = file.path);
+    if (file == null || !mounted) return;
+    final err = InputValidation.imageFile(file.path);
+    if (err != null) {
+      ToastWidget.error(context, err);
+      return;
     }
+    setState(() => _attachmentPath = file.path);
   }
 
   Widget _buildSubmitButton() {
@@ -900,20 +852,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  String? _optionalText(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
+
   Future<void> _submit() async {
+    if (_isLoading) return; // prevent double submit
+    FocusScope.of(context).unfocus();
+    if (!_submitted) setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    final rawAmount = _amountController.text.replaceAll('.', '');
-    final amount = double.parse(rawAmount);
 
     final walletProvider = context.read<WalletProvider>();
     final transactionProvider = context.read<TransactionProvider>();
     final debtProvider = context.read<DebtProvider>();
-    final wallet = walletProvider.wallets.firstWhere(
-      (w) => w.type == _paymentMethod,
-    );
+    final wallet = _walletOfType(walletProvider.wallets, _paymentMethod);
+    if (wallet == null) {
+      ToastWidget.error(context, 'Dompet tidak ditemukan');
+      return;
+    }
+    final destWallet = _isTransfer
+        ? _walletOfType(walletProvider.wallets, _destinationWallet)
+        : null;
+    if (_isTransfer && (destWallet == null || destWallet.id == wallet.id)) {
+      ToastWidget.error(context, 'Dompet asal dan tujuan harus berbeda');
+      return;
+    }
+
+    final amount = InputValidation.parseAmount(_amountController.text)!;
+    final note = _optionalText(_noteController);
+
+    setState(() => _isLoading = true);
 
     bool success;
 
@@ -924,9 +891,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         amount: amount,
         walletId: wallet.id!,
         categoryId: null,
-        note: _personNameController.text.trim().isNotEmpty
-            ? _personNameController.text.trim()
-            : (_noteController.text.isEmpty ? null : _noteController.text),
+        note: _optionalText(_personNameController) ?? note,
         date: _selectedDate,
         createdAt: DateTime.now(),
         description:
@@ -938,12 +903,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (!txnSuccess) {
         if (mounted) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menyimpan'),
-              backgroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
-          );
+          ToastWidget.error(context, 'Gagal menyimpan');
         }
         return;
       }
@@ -954,7 +914,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         remainingAmount: 0,
         walletId: wallet.id!,
         status: 'paid',
-        note: _noteController.text.isEmpty ? null : _noteController.text,
+        note: note,
         date: _selectedDate,
         billName: _billNameController.text.trim(),
         dueDate: _dueDate,
@@ -964,21 +924,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       success = await debtProvider.addDebt(debt);
     } else if (_isTransfer) {
-      final destWallet = walletProvider.wallets.firstWhere(
-        (w) => w.type == _destinationWallet,
-      );
       final transaction = Transaction(
         type: 'transfer',
         amount: amount,
         walletId: wallet.id!,
-        toWalletId: destWallet.id,
+        toWalletId: destWallet!.id,
         categoryId: null,
-        note: _noteController.text.isEmpty ? null : _noteController.text,
+        note: note,
         date: _selectedDate,
         createdAt: DateTime.now(),
-        description: _descriptionController.text.trim().isNotEmpty
-            ? _descriptionController.text.trim()
-            : 'Transfer ke ${_destinationWallet == 'cash' ? 'Cash' : 'E-Wallet'}',
+        description:
+            _optionalText(_descriptionController) ??
+            'Transfer ke ${_walletLabel(_destinationWallet)}',
         paymentMethod: _paymentMethod,
         attachmentPath: _attachmentPath,
       );
@@ -989,7 +946,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         amount: amount,
         walletId: wallet.id!,
         categoryId: null,
-        note: _noteController.text.isEmpty ? null : _noteController.text,
+        note: note,
         date: _selectedDate,
         createdAt: DateTime.now(),
         description: _descriptionController.text.trim(),
@@ -1005,24 +962,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (success) {
       if (_isTagihan) debtProvider.loadActiveDebts();
       walletProvider.loadWallets();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Berhasil disimpan',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ToastWidget.success(context, 'Berhasil disimpan');
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menyimpan'),
-          backgroundColor: Theme.of(context).colorScheme.onSurface,
-        ),
-      );
+      ToastWidget.error(context, 'Gagal menyimpan');
     }
   }
 }
