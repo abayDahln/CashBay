@@ -1,3 +1,10 @@
+# Unused platforms / test fixtures
+/macos/
+/linux/
+/windows/
+/web/
+/integration_test/
+
 # Miscellaneous
 *.class
 *.log
