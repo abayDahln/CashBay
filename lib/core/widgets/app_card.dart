@@ -2,38 +2,40 @@ import 'package:flutter/material.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;
-  final BorderRadiusGeometry radius;
   final EdgeInsetsGeometry padding;
   final bool showBorder;
+  final BorderRadiusGeometry? radius;
   final Border? border;
   final List<BoxShadow>? boxShadow;
 
   const AppCard({
     super.key,
     required this.child,
-    this.radius = const BorderRadius.all(Radius.circular(20)),
     this.padding = const EdgeInsets.all(16),
     this.showBorder = false,
+    this.radius,
     this.border,
     this.boxShadow,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBorder = border ??
-        (showBorder ? Border.all(color: Colors.grey.shade300, width: 1) : null);
-
-    return ClipRRect(
-      borderRadius: radius,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          borderRadius: effectiveBorder != null ? radius : null,
-          border: effectiveBorder,
-          boxShadow: boxShadow,
-        ),
-        child: Padding(padding: padding, child: child),
+    final scheme = Theme.of(context).colorScheme;
+    final side =
+        border?.top ??
+        (showBorder
+            ? BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6))
+            : null);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      color: scheme.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius ?? BorderRadius.circular(16),
+        side: side ?? BorderSide.none,
       ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }

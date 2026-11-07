@@ -1,153 +1,125 @@
 import 'package:flutter/material.dart';
 import '../../features/transactions/data/models/transaction.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
-import 'press_card.dart';
 import 'animated_balance.dart';
 
-final Map<String, Color> _typeColors = {
-    'expense': AppTheme.expense,
-    'income': AppTheme.income,
-    'tagihan': AppTheme.tagihan,
-    'transfer': AppTheme.transfer,
-};
-
+/// A single row inside an "inset grouped" list, matching the `ui/*.html`
+/// history rows: round tinted icon, title + subtitle, amount + chevron.
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
   final String? categoryName;
+  final bool showChevron;
 
   const TransactionTile({
     super.key,
     required this.transaction,
     this.onTap,
     this.categoryName,
+    this.showChevron = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isIncome = transaction.type == 'income';
     final isTransfer = transaction.type == 'transfer';
     final isTagihan = transaction.isTagihanRelated;
     final isPlainExpense = transaction.type == 'expense' && !isTagihan;
-
-    IconData icon;
-    Color color;
-    String label;
-
-    final desc = transaction.description?.trim() ?? '';
+    final description = transaction.description?.trim() ?? '';
     final note = transaction.note?.trim() ?? '';
-
-    final typeColor = _typeColors[transaction.type] ?? AppTheme.black;
-
-    // Warna nominal mengikuti tipe: pengeluaran merah, pemasukan hijau,
-    // tagihan (saya/orang) kuning, dan transfer biru.
-    final Color nominalColor;
-    if (isTagihan) {
-      nominalColor = AppTheme.tagihan;
-    } else if (isTransfer) {
-      nominalColor = AppTheme.transfer;
-    } else if (isIncome) {
-      nominalColor = AppTheme.income;
-    } else {
-      nominalColor = AppTheme.expense;
-    }
-
-    if (isTagihan) {
-      if (transaction.isTagihan) {
-        icon = Icons.receipt_long;
-        color = typeColor;
-        label = transaction.description ?? 'Tagihan';
-      } else if (transaction.isPembayaranTagihan) {
-        icon = Icons.check_circle_outline;
-        color = typeColor;
-        label = transaction.description ?? 'Pembayaran';
-      } else {
-        icon = Icons.file_download;
-        color = typeColor;
-        label = transaction.description ?? 'Penerimaan';
-      }
-    } else if (isTransfer) {
-      icon = Icons.swap_horiz;
-      color = typeColor;
-      label = desc.isNotEmpty ? desc : 'Transfer';
-    } else if (isIncome) {
-      icon = Icons.arrow_downward;
-      color = typeColor;
-      label = desc.isNotEmpty ? desc : (note.isNotEmpty ? note : 'Pendapatan');
-    } else {
-      icon = Icons.arrow_upward;
-      color = typeColor;
-      label = desc.isNotEmpty ? desc : (note.isNotEmpty ? note : 'Pengeluaran');
-    }
-
+    final nominalColor = isIncome ? AppColors.income : AppColors.expense;
+    final (icon, label) = transaction.isTagihan
+        ? (Icons.receipt_long, transaction.description ?? 'Tagihan')
+        : transaction.isPembayaranTagihan
+        ? (Icons.check_circle_outline, transaction.description ?? 'Pembayaran')
+        : transaction.isPenerimaanTagihan
+        ? (Icons.file_download, transaction.description ?? 'Penerimaan')
+        : isTransfer
+        ? (Icons.swap_horiz, description.isNotEmpty ? description : 'Transfer')
+        : isIncome
+        ? (
+            Icons.south,
+            description.isNotEmpty
+                ? description
+                : (note.isNotEmpty ? note : 'Pendapatan'),
+          )
+        : (
+            Icons.north,
+            description.isNotEmpty
+                ? description
+                : (note.isNotEmpty ? note : 'Pengeluaran'),
+          );
     final dateText = DateFormatter.formatDate(transaction.date);
-    final String subtitle;
-    if (isTagihan && (transaction.note?.isNotEmpty ?? false)) {
-      subtitle = '${transaction.note} • $dateText';
-    } else if ((isIncome || isPlainExpense) && (categoryName?.isNotEmpty ?? false)) {
-      subtitle = '$categoryName • $dateText';
-    } else {
-      subtitle = dateText;
-    }
+    final subtitle = isTagihan && note.isNotEmpty
+        ? '$note • $dateText'
+        : (isIncome || isPlainExpense) && (categoryName?.isNotEmpty ?? false)
+        ? '$categoryName • $dateText'
+        : dateText;
 
-    return PressCard(
+    return InkWell(
       onTap: onTap,
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300, width: 1),
-          boxShadow: AppTheme.softShadow,
-        ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: scheme.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, size: 20, color: scheme.primary),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 15,
-                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: AppTypography.headline.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption1.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             AnimatedBalance(
               value: isIncome || isTransfer
                   ? transaction.amount
                   : -transaction.amount,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: nominalColor,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.headline.copyWith(color: nominalColor),
+              formatter: (value) => CurrencyFormatter.formatWithSign(
+                value,
+                showPlus: isIncome || isTagihan || isTransfer,
               ),
-              formatter: (v) =>
-                  CurrencyFormatter.formatWithSign(v, showPlus: isIncome || isTagihan || isTransfer),
             ),
+            if (showChevron) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: scheme.outline,
+              ),
+            ],
           ],
         ),
       ),

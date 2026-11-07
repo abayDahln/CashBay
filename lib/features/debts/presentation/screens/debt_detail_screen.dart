@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/formatters.dart' show CurrencyFormatter, DateFormatter, InputValidation;
+import '../../../../core/utils/formatters.dart'
+    show CurrencyFormatter, DateFormatter, InputValidation;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
 import '../../data/models/debt_payment.dart';
@@ -22,7 +22,6 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
     with SingleTickerProviderStateMixin {
   late Debt _debt;
   List<DebtPayment> _payments = [];
-  bool _isLoading = false;
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
 
@@ -34,15 +33,18 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _progressAnimation = Tween<double>(
-      begin: 0,
-      end: _debt.amount > 0
-          ? (_debt.amount - _debt.remainingAmount) / _debt.amount
-          : 0.0,
-    ).animate(CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeOutCubic,
-    ));
+    _progressAnimation =
+        Tween<double>(
+          begin: 0,
+          end: _debt.amount > 0
+              ? (_debt.amount - _debt.remainingAmount) / _debt.amount
+              : 0.0,
+        ).animate(
+          CurvedAnimation(
+            parent: _progressController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _progressController.forward();
     _loadPayments();
   }
@@ -66,7 +68,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
   @override
   Widget build(BuildContext context) {
     final isDebt = _debt.type == 'debt';
-    final color = AppTheme.tagihan;
+    final color = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: CashBayAppBar(
@@ -74,33 +76,24 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
         actions: [
           if (_debt.status == 'active')
             IconButton(
-              icon: const Icon(Icons.edit),
+              tooltip: 'Edit tagihan',
+              icon: Icon(Icons.edit),
               onPressed: _showEditDialog,
             ),
         ],
       ),
-      body: AppCard(
-        radius: BorderRadius.zero,
-        padding: EdgeInsets.zero,
+      body: Container(
+        color: Colors.transparent,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AnimatedListItem(
-                index: 0,
-                child: _buildSummaryCard(color),
-              ),
+              AnimatedListItem(index: 0, child: _buildSummaryCard(color)),
               const SizedBox(height: 16),
-              AnimatedListItem(
-                index: 1,
-                child: _buildInfoCard(),
-              ),
+              AnimatedListItem(index: 1, child: _buildInfoCard()),
               const SizedBox(height: 16),
-              AnimatedListItem(
-                index: 2,
-                child: _buildPaymentSection(),
-              ),
+              AnimatedListItem(index: 2, child: _buildPaymentSection()),
             ],
           ),
         ),
@@ -116,9 +109,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
 
     return AppCard(
       padding: const EdgeInsets.all(20),
-      radius: BorderRadius.circular(18),
-      boxShadow: AppTheme.cardShadow,
-      border: Border.all(color: color.withOpacity(0.2)),
+      showBorder: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -130,7 +121,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -142,20 +133,21 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
                   const SizedBox(width: 12),
                   Text(
                     _debt.personName,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _debt.status == 'active'
-                      ? color.withOpacity(0.1)
-                      : AppTheme.textSecondary.withOpacity(0.1),
+                      ? color.withValues(alpha: 0.1)
+                      : Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -163,8 +155,9 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color:
-                        _debt.status == 'active' ? color : AppTheme.textSecondary,
+                    color: _debt.status == 'active'
+                        ? color
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -177,21 +170,21 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
                 child: _buildSummaryItem(
                   'Total ${isDebt ? 'Tagihan' : 'Tagihan Orang'}',
                   CurrencyFormatter.format(_debt.amount),
-                  color,
+                  Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Expanded(
                 child: _buildSummaryItem(
                   'Sisa',
                   CurrencyFormatter.format(_debt.remainingAmount),
-                  _debt.remainingAmount > 0 ? color : AppTheme.textSecondary,
+                  Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Expanded(
                 child: _buildSummaryItem(
                   'Telah ${isDebt ? 'Dibayar' : 'Diterima'}',
                   CurrencyFormatter.format(paid),
-                  AppTheme.black,
+                  Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -204,7 +197,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
                   value: _progressAnimation.value,
-                  backgroundColor: color.withOpacity(0.1),
+                  backgroundColor: color.withValues(alpha: 0.1),
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                   minHeight: 10,
                 ),
@@ -233,9 +226,9 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: AppTheme.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),
@@ -258,17 +251,17 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.info_outline,
-                  size: 18, color: AppTheme.textSecondary),
+              Icon(
+                Icons.info_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               SizedBox(width: 8),
               Text(
                 'Informasi',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -291,14 +284,13 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
             width: 80,
             child: Text(
               label,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -312,11 +304,17 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.history, size: 48, color: Colors.grey[300]),
+              Icon(
+                Icons.history,
+                size: 48,
+                color: Theme.of(context).colorScheme.outline,
+              ),
               const SizedBox(height: 8),
               Text(
                 'Belum ada histori ${isDebt ? 'pembayaran' : 'penerimaan'}',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -335,24 +333,23 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
               children: [
                 Text(
                   'Histori ${isDebt ? 'Pembayaran' : 'Penerimaan'}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   '${_payments.length} transaksi',
-                  style: const TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           ..._payments.asMap().entries.map(
-                (entry) => AnimatedListItem(
-                  index: entry.key,
-                  child: _buildPaymentTile(entry.value),
-                ),
-              ),
+            (entry) => AnimatedListItem(
+              index: entry.key,
+              child: _buildPaymentTile(entry.value),
+            ),
+          ),
         ],
       ),
     );
@@ -368,13 +365,12 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (isDebt ? AppTheme.black : AppTheme.darkGray)
-                  .withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               isDebt ? Icons.arrow_downward : Icons.arrow_upward,
-              color: isDebt ? AppTheme.black : AppTheme.darkGray,
+              color: Theme.of(context).colorScheme.primary,
               size: 18,
             ),
           ),
@@ -382,10 +378,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
           Expanded(
             child: Text(
               CurrencyFormatter.format(payment.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ),
           Column(
@@ -393,12 +386,11 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
             children: [
               Text(
                 DateFormatter.formatDate(payment.date),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-
             ],
           ),
         ],
@@ -410,19 +402,13 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: PressCard(
-          child: FilledButton.icon(
-            onPressed: _showAddPaymentDialog,
-            icon: const Icon(Icons.add),
-            label: Text(isDebt ? 'Bayar Cicilan' : 'Terima Cicilan'),
-            style: FilledButton.styleFrom(
-              backgroundColor: color,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+        child: FilledButton.icon(
+          onPressed: _showAddPaymentDialog,
+          icon: const Icon(Icons.add),
+          label: Text(isDebt ? 'Bayar Cicilan' : 'Terima Cicilan'),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            minimumSize: const Size.fromHeight(48),
           ),
         ),
       ),
@@ -430,7 +416,9 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
   }
 
   void _showAddPaymentDialog() {
-    final color = isDebt ? AppTheme.black : AppTheme.darkGray;
+    final color = isDebt
+        ? Theme.of(context).colorScheme.onSurface
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
@@ -439,197 +427,197 @@ class _DebtDetailScreenState extends State<DebtDetailScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => AppCard(
-                radius: const BorderRadius.all(Radius.circular(20)),
-        padding: const EdgeInsets.all(16),
-        child: Consumer<WalletProvider>(
-          builder: (context, walletProvider, _) {
-            final wallets = walletProvider.wallets;
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Consumer<WalletProvider>(
+            builder: (context, walletProvider, _) {
+              final wallets = walletProvider.wallets;
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                            color: color,
+                          ),
                         ),
-                        child: Icon(
-                          isDebt
-                              ? Icons.arrow_upward
-                              : Icons.arrow_downward,
-                          color: color,
+                        const SizedBox(width: 10),
+                        Text(
+                          isDebt ? 'Bayar Cicilan' : 'Terima Cicilan',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Jumlah',
+                        prefixText: 'Rp ',
+                        hintText: 'Masukkan nominal',
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        isDebt ? 'Bayar Cicilan' : 'Terima Cicilan',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      validator: InputValidation.amount,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<Wallet>(
+                      initialValue: selectedWallet,
+                      items: wallets
+                          .map(
+                            (w) =>
+                                DropdownMenuItem(value: w, child: Text(w.name)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => selectedWallet = v),
+                      decoration: const InputDecoration(labelText: 'Dompet'),
+                      validator: (v) => v == null ? 'Pilih dompet' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Catatan (opsional)',
+                        hintText: 'Catatan cicilan',
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Jumlah',
-                    prefixText: 'Rp ',
-                    hintText: 'Masukkan nominal',
-                  ),
-                  validator: InputValidation.amount,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<Wallet>(
-                  value: selectedWallet,
-                  items: wallets
-                      .map((w) => DropdownMenuItem(
-                            value: w,
-                            child: Text(w.name),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => selectedWallet = v),
-                  decoration: const InputDecoration(labelText: 'Dompet'),
-                  validator: (v) => v == null ? 'Pilih dompet' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Catatan (opsional)',
-                    hintText: 'Catatan cicilan',
-                  ),
-                  maxLines: 2,
-                  maxLength: InputValidation.maxNote,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
+                      maxLines: 2,
+                      maxLength: InputValidation.maxNote,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                selectedDate = date;
+                                setState(() {});
+                              }
+                            },
+                            icon: Icon(Icons.calendar_today),
+                            label: Text(
+                              DateFormatter.formatShortDate(selectedDate),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
                         onPressed: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime.now(),
+                          if (amountController.text.isEmpty ||
+                              selectedWallet == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Isi jumlah dan pilih dompet'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final amount = double.tryParse(amountController.text);
+                          if (amount == null || amount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Nominal tidak valid'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (amount > _debt.remainingAmount) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Maksimal ${CurrencyFormatter.format(_debt.remainingAmount)}',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(ctx);
+
+                          final provider = context.read<DebtProvider>();
+                          final success = await provider.addPayment(
+                            DebtPayment(
+                              debtId: _debt.id!,
+                              amount: amount,
+                              walletId: selectedWallet!.id!,
+                              date: selectedDate,
+                            ),
                           );
-                          if (date != null) {
-                            selectedDate = date;
-                            setState(() {});
+
+                          if (success) {
+                            await _loadPayments();
+                            setState(() {
+                              _debt = provider.debts.firstWhere(
+                                (d) => d.id == _debt.id,
+                              );
+                            });
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${isDebt ? "Pembayaran" : "Penerimaan"} berhasil dicatat',
+                                ),
+                              ),
+                            );
+                          } else {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal: ${provider.error}'),
+                              ),
+                            );
                           }
                         },
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                          DateFormatter.formatShortDate(selectedDate),
-                        ),
+                        child: const Text('Simpan'),
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () async {
-                      if (amountController.text.isEmpty ||
-                          selectedWallet == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Isi jumlah dan pilih dompet'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      final amount =
-                          double.tryParse(amountController.text);
-                      if (amount == null || amount <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Nominal tidak valid'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (amount > _debt.remainingAmount) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Maksimal ${CurrencyFormatter.format(_debt.remainingAmount)}',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      Navigator.pop(ctx);
-
-                      final provider = context.read<DebtProvider>();
-                      final success = await provider.addPayment(
-                        DebtPayment(
-                          debtId: _debt.id!,
-                          amount: amount,
-                          walletId: selectedWallet!.id!,
-                          date: selectedDate,
-                        ),
-                      );
-
-                      if (success) {
-                        await _loadPayments();
-                        setState(() {
-                          _debt = provider.debts
-                              .firstWhere((d) => d.id == _debt.id);
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${isDebt ? "Pembayaran" : "Penerimaan"} berhasil dicatat',
-                            ),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content:
-                                Text('Gagal: ${provider.error}'),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text('Simpan'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

@@ -5,11 +5,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/report_provider.dart';
 import '../../../transactions/data/models/transaction.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_card.dart';
 
-const _posColor = Colors.black;
-const _negColor = Colors.black54;
+const _posColor = AppTheme.income;
+const _negColor = AppTheme.expense;
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -29,16 +31,25 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReportProvider>(
-      builder: (context, report, _) {
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _modeChips(report),
-            const SizedBox(height: 8),
-            _filterRow(report),
-            const SizedBox(height: 16),
-            if (report.isLoading)
+    return SafeArea(
+      bottom: false,
+      child: Consumer<ReportProvider>(
+        builder: (context, report, _) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            children: [
+              Text(
+                'Analytics',
+                style: AppTypography.largeTitle.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _modeChips(report),
+              const SizedBox(height: 8),
+              _filterRow(report),
+              const SizedBox(height: 16),
+              if (report.isLoading)
               const Center(child: CircularProgressIndicator())
             else ...[
               _summaryCards(report),
@@ -58,17 +69,23 @@ class _ReportScreenState extends State<ReportScreen> {
               if (report.error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: Text('Error: ${report.error}',
-                      style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    'Error: ${report.error}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ),
             ],
           ],
         );
       },
+      ),
     );
   }
 
   Widget _modeChips(ReportProvider report) {
+    final scheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -76,25 +93,34 @@ class _ReportScreenState extends State<ReportScreen> {
           final selected = report.chartMode == m;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(_modeLabel(m)),
-              selected: selected,
-              onSelected: (_) => report.setChartMode(m),
-              selectedColor: Colors.black87,
-              labelStyle: TextStyle(
-                color: selected ? Colors.white : AppTheme.textSecondary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 13,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: selected ? Colors.black87 : AppTheme.dividerColor,
+            child: GestureDetector(
+              onTap: () => report.setChartMode(m),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? scheme.primaryContainer
+                      : scheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? scheme.primaryContainer
+                        : scheme.outlineVariant.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  _modeLabel(m),
+                  style: AppTypography.footnote.copyWith(
+                    color: selected
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
                 ),
               ),
-              backgroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             ),
           );
         }).toList(),
@@ -111,7 +137,9 @@ class _ReportScreenState extends State<ReportScreen> {
             value: report.selectedYear,
             items: report.availableYears,
             labelBuilder: (y) => y.toString(),
-            onChanged: (v) { if (v != null) report.setYear(v); },
+            onChanged: (v) {
+              if (v != null) report.setYear(v);
+            },
           ),
           if (report.chartMode == ChartMode.daily) ...[
             const SizedBox(width: 8),
@@ -119,10 +147,25 @@ class _ReportScreenState extends State<ReportScreen> {
               value: report.selectedMonth,
               items: List.generate(12, (i) => i + 1),
               labelBuilder: (m) {
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const months = [
+                  'Jan',
+                  'Feb',
+                  'Mar',
+                  'Apr',
+                  'Mei',
+                  'Jun',
+                  'Jul',
+                  'Agu',
+                  'Sep',
+                  'Okt',
+                  'Nov',
+                  'Des',
+                ];
                 return months[m - 1];
               },
-              onChanged: (v) { if (v != null) report.setMonth(v); },
+              onChanged: (v) {
+                if (v != null) report.setMonth(v);
+              },
             ),
           ],
         ],
@@ -139,17 +182,25 @@ class _ReportScreenState extends State<ReportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.dividerColor),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: value,
-          items: items.map((e) => DropdownMenuItem(
-            value: e,
-            child: Text(labelBuilder(e), style: const TextStyle(fontSize: 13)),
-          )).toList(),
+          items: items
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(labelBuilder(e), style: TextStyle(fontSize: 13)),
+                ),
+              )
+              .toList(),
           onChanged: onChanged,
           isDense: true,
         ),
@@ -159,74 +210,75 @@ class _ReportScreenState extends State<ReportScreen> {
 
   String _modeLabel(ChartMode m) {
     switch (m) {
-      case ChartMode.daily: return 'Harian';
-      case ChartMode.monthly: return 'Bulanan';
-      case ChartMode.yearly: return 'Tahunan';
+      case ChartMode.daily:
+        return 'Harian';
+      case ChartMode.monthly:
+        return 'Bulanan';
+      case ChartMode.yearly:
+        return 'Tahunan';
     }
   }
 
   Widget _summaryCards(ReportProvider report) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: _summaryCard(
-              'Pendapatan',
-              CurrencyFormatter.formatMedium(report.totalIncome),
-              Icons.trending_up,
-              _posColor,
-            )),
-            const SizedBox(width: 12),
-            Expanded(child: _summaryCard(
-              'Pengeluaran',
-              CurrencyFormatter.formatMedium(report.totalExpense),
-              Icons.trending_down,
-              _negColor,
-            )),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _summaryCard(
-          'Selisih',
-          CurrencyFormatter.formatMedium(report.balance),
-          Icons.balance,
-          report.balance >= 0 ? _posColor : _negColor,
-        ),
-      ],
+    final cards = [
+      _summaryCard(
+        'Pendapatan',
+        CurrencyFormatter.formatMedium(report.totalIncome),
+        Icons.trending_up,
+        _posColor,
+      ),
+      _summaryCard(
+        'Pengeluaran',
+        CurrencyFormatter.formatMedium(report.totalExpense),
+        Icons.trending_down,
+        _negColor,
+      ),
+      _summaryCard(
+        'Selisih',
+        CurrencyFormatter.formatMedium(report.balance),
+        Icons.balance,
+        report.balance >= 0 ? _posColor : _negColor,
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) => GridView.count(
+        crossAxisCount: constraints.maxWidth >= 720 ? 3 : 1,
+        childAspectRatio: constraints.maxWidth >= 720 ? 2.2 : 4.2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        children: cards,
+      ),
     );
   }
 
   Widget _summaryCard(String label, String amount, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: AppTheme.softShadow,
-      ),
+    return AppCard(
+      showBorder: true,
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 20, color: color),
+          CircleAvatar(
+            backgroundColor: color.withValues(alpha: 0.12),
+            foregroundColor: color,
+            child: Icon(icon),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(
-                  fontSize: 12, color: AppTheme.textSecondary,
-                )),
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 4),
-                Text(amount, style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: color,
-                )),
+                Text(
+                  amount,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: color),
+                ),
               ],
             ),
           ),
@@ -236,9 +288,12 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _sectionHeader(String title) {
-    return Text(title, style: const TextStyle(
-      fontSize: 16, fontWeight: FontWeight.bold,
-    ));
+    return Text(
+      title,
+      style: AppTypography.headline.copyWith(
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+    );
   }
 
   Widget _emptyChart() {
@@ -246,11 +301,21 @@ class _ReportScreenState extends State<ReportScreen> {
       height: 200,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
-      child: Text('Tidak ada data', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+      child: Text(
+        'Tidak ada data',
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 
@@ -307,13 +372,19 @@ class _ReportScreenState extends State<ReportScreen> {
           scrollDirection: Axis.horizontal,
           child: Container(
             height: 260,
-            width: (data.length * 40.0).clamp(MediaQuery.of(context).size.width - 32, double.infinity),
+            width: (data.length * 40.0).clamp(
+              MediaQuery.of(context).size.width - 32,
+              double.infinity,
+            ),
             padding: const EdgeInsets.fromLTRB(8, 24, 16, 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: AppTheme.softShadow,
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
             ),
             child: BarChart(
               BarChartData(
@@ -325,14 +396,18 @@ class _ReportScreenState extends State<ReportScreen> {
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
                     tooltipRoundedRadius: 8,
-                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    getTooltipColor: (_) => Colors.black,
+                    tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    getTooltipColor: (_) =>
+                        Theme.of(context).colorScheme.inverseSurface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final d = data[group.x];
                       return BarTooltipItem(
                         '${_tooltipLabel(d, mode)}\n${CurrencyFormatter.formatShort(d.netBalance.abs())}',
-                        const TextStyle(
-                          color: Colors.white,
+                        TextStyle(
+                          color: Theme.of(context).colorScheme.surface,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -342,47 +417,82 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  bottomTitles: AxisTitles(sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (val, _) {
-                      final i = val.toInt();
-                      if (i < 0 || i >= data.length) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Text(data[i].label,
-                          style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
-                      );
-                    },
-                    reservedSize: 28,
-                    interval: 1,
-                  )),
-                  leftTitles: AxisTitles(sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 50,
-                    interval: step,
-                    getTitlesWidget: (val, _) {
-                      if (val == 0) return const Padding(
-                        padding: EdgeInsets.only(right: 6),
-                        child: Text('0', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
-                      );
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Text(
-                          CurrencyFormatter.formatShort(val),
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-                        ),
-                      );
-                    },
-                  )),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (val, _) {
+                        final i = val.toInt();
+                        if (i < 0 || i >= data.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            data[i].label,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      },
+                      reservedSize: 28,
+                      interval: 1,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 50,
+                      interval: step,
+                      getTitlesWidget: (val, _) {
+                        if (val == 0) {
+                          return Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Text(
+                              '0',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            CurrencyFormatter.formatShort(val),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (val) => FlLine(
-                    color: val == 0 ? Colors.grey.shade400 : Colors.grey.shade200,
+                    color: val == 0
+                        ? Theme.of(context).colorScheme.outline
+                        : Theme.of(context).colorScheme.outlineVariant,
                     strokeWidth: val == 0 ? 1.5 : 1,
                     dashArray: val == 0 ? null : [6, 4],
                   ),
@@ -413,17 +523,30 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _legendItem(Color color, String label) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(
-          color: color, borderRadius: BorderRadius.circular(3),
-        )),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
 
   static double _niceStep(double range) {
-    final magnitude = math.pow(10, (math.log(range) / math.ln10).floor()).toDouble();
+    final magnitude = math
+        .pow(10, (math.log(range) / math.ln10).floor())
+        .toDouble();
     final normalized = range / magnitude;
     double nice;
     if (normalized <= 1.5) {
@@ -439,51 +562,24 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _transactionTile(Transaction tx) {
-    return Container(
+    final isIncome = tx.type == 'income';
+    final color = isIncome ? _posColor : _negColor;
+    return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _posColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              tx.type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 16,
-              color: _posColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tx.description ?? tx.note ?? (tx.type == 'income' ? 'Pendapatan' : 'Pengeluaran'),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(DateFormatter.formatDate(tx.date),
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-              ],
-            ),
-          ),
-          Text(
-            tx.type == 'income' ? '' : '-',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-              color: _posColor),
-          ),
-          Text(CurrencyFormatter.formatMedium(tx.amount),
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-              color: _posColor)),
-        ],
+      child: ListTile(
+        leading: Icon(isIncome ? Icons.south : Icons.north, color: color),
+        title: Text(
+          tx.description ??
+              tx.note ??
+              (isIncome ? 'Pendapatan' : 'Pengeluaran'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(DateFormatter.formatDate(tx.date)),
+        trailing: Text(
+          '${isIncome ? '' : '-'}${CurrencyFormatter.formatMedium(tx.amount)}',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color),
+        ),
       ),
     );
   }

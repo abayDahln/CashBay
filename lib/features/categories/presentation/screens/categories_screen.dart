@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart' show InputValidation;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/category.dart';
@@ -41,48 +40,29 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         title: 'Kategori',
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.black.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppTheme.black.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: AppTheme.black,
-                unselectedLabelColor: AppTheme.textSecondary,
-                tabs: const [
-                  Tab(text: 'Pendapatan'),
-                  Tab(text: 'Pengeluaran'),
-                ],
-              ),
-            ),
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Pendapatan'),
+              Tab(text: 'Pengeluaran'),
+            ],
           ),
         ),
       ),
-      body: AppCard(
-        radius: BorderRadius.zero,
-        padding: EdgeInsets.zero,
-        child: Consumer<CategoryProvider>(
-          builder: (context, provider, _) {
-            return TabBarView(
-              controller: _tabController,
-              children: [
-                _buildCategoryList(provider.incomeCategories, 'income'),
-                _buildCategoryList(provider.expenseCategories, 'expense'),
-              ],
-            );
-          },
-        ),
+      body: Consumer<CategoryProvider>(
+        builder: (context, provider, _) {
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildCategoryList(provider.incomeCategories, 'income'),
+              _buildCategoryList(provider.expenseCategories, 'expense'),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddCategoryDialog(),
+        tooltip: 'Tambah kategori',
+        onPressed: _showAddCategoryDialog,
         child: const Icon(Icons.add),
       ),
     );
@@ -97,17 +77,22 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             Icon(
               type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
               size: 64,
-              color: Colors.grey[300],
+              color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 16),
             Text(
               'Belum ada kategori ${type == 'income' ? 'pendapatan' : 'pengeluaran'}',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Tambah kategori untuk mengelompokkan transaksi',
-              style: TextStyle(color: Colors.grey[500]),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -124,7 +109,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: categories.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         return AnimatedListItem(
           index: index,
@@ -135,72 +120,47 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   Widget _buildCategoryTile(Category category, String type) {
-    final color = type == 'income'
-        ? AppTheme.black
-        : AppTheme.black;
-
-    return PressCard(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: AppTheme.softShadow,
+    final color = Theme.of(context).colorScheme.primary;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          foregroundColor: color,
+          child: Icon(_getCategoryIcon(category.icon)),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                _getCategoryIcon(category.icon),
-                color: color,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                category.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
+        title: Text(category.name),
+        trailing: PopupMenuButton<String>(
+          tooltip: 'Opsi kategori',
+          onSelected: (value) {
+            if (value == 'edit') {
+              _showEditCategoryDialog(category);
+            } else if (value == 'delete') {
+              _deleteCategory(category);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'edit',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.edit),
+                title: Text('Edit'),
               ),
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showEditCategoryDialog(category);
-                } else if (value == 'delete') {
-                  _deleteCategory(category);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 18),
-                      SizedBox(width: 8),
-                      Text('Edit'),
-                    ],
-                  ),
+            PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.delete,
+                  color: Theme.of(context).colorScheme.error,
                 ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, size: 18, color: AppTheme.black),
-                      SizedBox(width: 8),
-                      Text('Hapus', style: TextStyle(color: AppTheme.black)),
-                    ],
-                  ),
+                title: Text(
+                  'Hapus',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-              ],
+              ),
             ),
           ],
         ),
@@ -225,66 +185,55 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   void _showAddCategoryDialog({String initialType = 'expense'}) {
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: _CategoryDialog(
-          initialType: initialType,
-          onSubmit: (name, type, icon) async {
-            final provider = context.read<CategoryProvider>();
-            await provider.addCategory(name: name, type: type, icon: icon);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Kategori ditambahkan')),
-              );
-            }
-          },
-        ),
+      builder: (context) => _CategoryDialog(
+        initialType: initialType,
+        onSubmit: (name, type, icon) async {
+          final provider = context.read<CategoryProvider>();
+          await provider.addCategory(name: name, type: type, icon: icon);
+          if (mounted) {
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Kategori ditambahkan')),
+            );
+          }
+        },
       ),
     );
   }
 
   void _showEditCategoryDialog(Category category) {
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: _CategoryDialog(
-          initialName: category.name,
-          initialType: category.type,
-          initialIcon: category.icon,
-          onSubmit: (name, type, icon) async {
-            final provider = context.read<CategoryProvider>();
-            await provider.updateCategory(
-              category.copyWith(name: name, type: type, icon: icon),
+      builder: (context) => _CategoryDialog(
+        initialName: category.name,
+        initialType: category.type,
+        initialIcon: category.icon,
+        onSubmit: (name, type, icon) async {
+          final provider = context.read<CategoryProvider>();
+          await provider.updateCategory(
+            category.copyWith(name: name, type: type, icon: icon),
+          );
+          if (mounted) {
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Kategori diperbarui')),
             );
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Kategori diperbarui')),
-              );
-            }
-          },
-        ),
+          }
+        },
       ),
     );
   }
 
   void _deleteCategory(Category category) async {
+    final provider = context.read<CategoryProvider>();
+    final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
         title: const Text('Hapus Kategori?'),
-        content: Text(
-          'Kategori "${category.name}" akan dihapus permanen.',
-        ),
+        content: Text('Kategori "${category.name}" akan dihapus permanen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -293,7 +242,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.black,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Hapus'),
           ),
@@ -302,22 +252,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     );
 
     if (confirm == true) {
-      final provider = context.read<CategoryProvider>();
       final success = await provider.deleteCategory(category.id!);
       if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kategori dihapus')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Kategori tidak bisa dihapus (masih digunakan)',
-              ),
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Kategori dihapus'
+                  : 'Kategori tidak bisa dihapus (masih digunakan)',
             ),
-          );
-        }
+          ),
+        );
       }
     }
   }
@@ -380,126 +325,88 @@ class _CategoryDialogState extends State<_CategoryDialog> {
   @override
   Widget build(BuildContext context) {
     final icons = _selectedType == 'income' ? _incomeIcons : _expenseIcons;
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return AlertDialog(
+      title: Text(
+        widget.initialName == null ? 'Tambah Kategori' : 'Edit Kategori',
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  widget.initialName == null
-                      ? 'Tambah Kategori'
-                      : 'Edit Kategori',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'income',
-                  label: Text('Pendapatan'),
-                  icon: Icon(Icons.arrow_downward),
-                ),
-                ButtonSegment(
-                  value: 'expense',
-                  label: Text('Pengeluaran'),
-                  icon: Icon(Icons.arrow_upward),
-                ),
-              ],
-              selected: {_selectedType},
-              onSelectionChanged: (selection) =>
-                  setState(() => _selectedType = selection.first),
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                shape: WidgetStateProperty.all(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameController,
-              maxLength: InputValidation.maxCategory,
-              decoration: const InputDecoration(
-                labelText: 'Nama Kategori',
-                hintText: 'Contoh: Gaji, Makan, Transport',
-              ),
-              validator: (v) => InputValidation.required(v, 'Nama Kategori'),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Ikon',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: icons.map((iconName) {
-                final isSelected = _selectedIcon == iconName;
-                return FilterChip(
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_getIconData(iconName), size: 18),
-                      const SizedBox(width: 6),
-                      Text(_formatIconName(iconName)),
-                    ],
-                  ),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _selectedIcon = iconName);
-                    }
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'income',
+                      label: Text('Pendapatan'),
+                      icon: Icon(Icons.arrow_downward),
+                    ),
+                    ButtonSegment(
+                      value: 'expense',
+                      label: Text('Pengeluaran'),
+                      icon: Icon(Icons.arrow_upward),
+                    ),
+                  ],
+                  selected: {_selectedType},
+                  onSelectionChanged: (selection) {
+                    setState(() => _selectedType = selection.first);
                   },
-                  selectedColor: AppTheme.black.withOpacity(0.2),
-                  checkmarkColor: AppTheme.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    widget.onSubmit(
-                      _nameController.text.trim(),
-                      _selectedType,
-                      _selectedIcon,
-                    );
-                    Navigator.pop(context);
-                  }
-                },
-                child: Text(
-                  widget.initialName == null ? 'Tambah' : 'Simpan',
+                  showSelectedIcon: false,
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nameController,
+                  maxLength: InputValidation.maxCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Kategori',
+                    hintText: 'Contoh: Gaji, Makan, Transport',
+                  ),
+                  validator: (value) =>
+                      InputValidation.required(value, 'Nama Kategori'),
+                ),
+                const SizedBox(height: 16),
+                Text('Ikon', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: icons.map((iconName) {
+                    return FilterChip(
+                      avatar: Icon(_getIconData(iconName), size: 18),
+                      label: Text(_formatIconName(iconName)),
+                      selected: _selectedIcon == iconName,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedIcon = iconName);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(widget.initialName == null ? 'Tambah' : 'Simpan'),
+        ),
+      ],
     );
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    widget.onSubmit(_nameController.text.trim(), _selectedType, _selectedIcon);
+    Navigator.pop(context);
   }
 
   IconData _getIconData(String iconName) {
