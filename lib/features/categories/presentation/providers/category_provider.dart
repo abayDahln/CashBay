@@ -73,4 +73,14 @@ class CategoryProvider extends ChangeNotifier {
   Future<bool> isCategoryInUse(int id) async {
     return await _repository.isCategoryInUse(id);
   }
+
+  /// Duplicate-name message for a new category, or null when it is unique.
+  String? hasCategoryNamed(String name, String type) {
+    final lower = name.trim().toLowerCase();
+    final sameType = type == 'income' ? _incomeCategories : _expenseCategories;
+    final duplicate = sameType.any(
+      (c) => c.name.trim().toLowerCase() == lower,
+    );
+    return duplicate ? 'Tag dengan nama ini sudah ada' : null;
+  }
 }

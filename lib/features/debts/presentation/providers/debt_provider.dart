@@ -160,7 +160,6 @@ class DebtProvider extends ChangeNotifier {
           type: debt.type == 'debt' ? 'expense' : 'income',
           amount: payment.amount,
           walletId: payment.walletId,
-          categoryId: null,
           note: debt.note,
           date: payment.date,
           createdAt: DateTime.now(),

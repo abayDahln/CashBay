@@ -20,7 +20,7 @@ class AppDatabase {
     final path = join(dbPath, 'cashbay.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -53,7 +53,6 @@ class AppDatabase {
         amount REAL NOT NULL,
         wallet_id INTEGER NOT NULL,
         to_wallet_id INTEGER,
-        category_id INTEGER,
         note TEXT,
         date TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -62,7 +61,16 @@ class AppDatabase {
         attachment_path TEXT,
         is_deleted INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (wallet_id) REFERENCES wallets (id),
-        FOREIGN KEY (to_wallet_id) REFERENCES wallets (id),
+        FOREIGN KEY (to_wallet_id) REFERENCES wallets (id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE transaction_tags (
+        transaction_id INTEGER NOT NULL,
+        category_id INTEGER NOT NULL,
+        PRIMARY KEY (transaction_id, category_id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions (id),
         FOREIGN KEY (category_id) REFERENCES categories (id)
       )
     ''');
@@ -107,6 +115,10 @@ class AppDatabase {
       await _addColumnIfNotExists(db, 'transactions', 'is_deleted', 'INTEGER NOT NULL DEFAULT 0');
     }
 
+    if (oldVersion < 4) {
+      await _migrateToTransactionTags(db);
+    }
+
     if (oldVersion < 2) {
       await _addColumnIfNotExists(db, 'categories', 'is_default', 'INTEGER NOT NULL DEFAULT 0');
       await _addColumnIfNotExists(db, 'transactions', 'description', 'TEXT');
@@ -125,6 +137,53 @@ class AppDatabase {
     try {
       await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
     } catch (_) {}
+  }
+
+  /// v4: categories become optional multi-tags. Moves each transaction's
+  /// single `category_id` into the `transaction_tags` pivot, then rebuilds
+  /// `transactions` without the column.
+  Future<void> _migrateToTransactionTags(Database db) async {
+    await db.execute('ALTER TABLE transactions RENAME TO transactions_old');
+    await db.execute('''
+      CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        wallet_id INTEGER NOT NULL,
+        to_wallet_id INTEGER,
+        note TEXT,
+        date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        description TEXT,
+        payment_method TEXT NOT NULL DEFAULT 'cash',
+        attachment_path TEXT,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (wallet_id) REFERENCES wallets (id),
+        FOREIGN KEY (to_wallet_id) REFERENCES wallets (id)
+      )
+    ''');
+    await db.execute('''
+      INSERT INTO transactions
+        (id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
+         description, payment_method, attachment_path, is_deleted)
+      SELECT id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
+         description, payment_method, attachment_path, is_deleted
+      FROM transactions_old
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS transaction_tags (
+        transaction_id INTEGER NOT NULL,
+        category_id INTEGER NOT NULL,
+        PRIMARY KEY (transaction_id, category_id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions (id),
+        FOREIGN KEY (category_id) REFERENCES categories (id)
+      )
+    ''');
+    await db.execute('''
+      INSERT OR IGNORE INTO transaction_tags (transaction_id, category_id)
+      SELECT id, category_id FROM transactions_old WHERE category_id IS NOT NULL
+    ''');
+    await db.execute('DROP TABLE transactions_old');
   }
 
   Future<void> _seedInitialData(Database db) async {

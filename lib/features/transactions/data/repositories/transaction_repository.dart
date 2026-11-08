@@ -1,5 +1,6 @@
 import '../models/transaction.dart';
 import '../../../../core/database/app_database.dart';
+import 'package:sqflite/sqflite.dart' hide Transaction;
 
 class TransactionRepository {
   final AppDatabase _db = AppDatabase();
@@ -37,7 +38,8 @@ class TransactionRepository {
 
     if (categoryId != null) {
       if (where.isNotEmpty) where += ' AND ';
-      where += 'category_id = ?';
+      where +=
+          'id IN (SELECT transaction_id FROM transaction_tags WHERE category_id = ?)';
       whereArgs.add(categoryId);
     }
 
@@ -62,29 +64,74 @@ class TransactionRepository {
       offset: offset,
     );
 
-    return maps.map((map) => Transaction.fromMap(map)).toList();
+    return _withTags(db, maps.map((map) => Transaction.fromMap(map)).toList());
+  }
+
+  /// Loads each transaction's tag ids in one query.
+  Future<List<Transaction>> _withTags(
+    Database db,
+    List<Transaction> transactions,
+  ) async {
+    if (transactions.isEmpty) return transactions;
+    final ids = transactions.map((t) => t.id).whereType<int>().toList();
+    final rows = await db.query(
+      'transaction_tags',
+      where: 'transaction_id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: ids,
+    );
+    final byTransaction = <int, List<int>>{};
+    for (final row in rows) {
+      byTransaction
+          .putIfAbsent(row['transaction_id'] as int, () => [])
+          .add(row['category_id'] as int);
+    }
+    return [
+      for (final t in transactions)
+        t.copyWith(categoryIds: byTransaction[t.id] ?? const []),
+    ];
+  }
+
+  Future<void> _replaceTags(Database db, int transactionId, List<int> categoryIds) async {
+    await db.delete(
+      'transaction_tags',
+      where: 'transaction_id = ?',
+      whereArgs: [transactionId],
+    );
+    for (final categoryId in categoryIds.toSet()) {
+      await db.insert('transaction_tags', {
+        'transaction_id': transactionId,
+        'category_id': categoryId,
+      });
+    }
   }
 
   Future<Transaction?> getTransactionById(int id) async {
     final db = await _db.database;
     final maps = await db.query('transactions', where: 'id = ? AND is_deleted = 0', whereArgs: [id]);
     if (maps.isEmpty) return null;
-    return Transaction.fromMap(maps.first);
+    final loaded = await _withTags(db, [Transaction.fromMap(maps.first)]);
+    return loaded.first;
   }
 
   Future<int> insertTransaction(Transaction transaction) async {
     final db = await _db.database;
-    return await db.insert('transactions', transaction.toMap());
+    final id = await db.insert('transactions', transaction.toMap());
+    await _replaceTags(db, id, transaction.categoryIds);
+    return id;
   }
 
   Future<int> updateTransaction(Transaction transaction) async {
     final db = await _db.database;
-    return await db.update(
+    final result = await db.update(
       'transactions',
       transaction.toMap(),
       where: 'id = ?',
       whereArgs: [transaction.id],
     );
+    if (transaction.id != null) {
+      await _replaceTags(db, transaction.id!, transaction.categoryIds);
+    }
+    return result;
   }
 
   Future<int> deleteTransaction(int id) async {

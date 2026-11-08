@@ -71,8 +71,9 @@ class HistoryScreenState extends State<HistoryScreen> {
           transaction.note?.toLowerCase().contains(query) == true ||
           (digits.isNotEmpty &&
               transaction.amount.toInt().toString().contains(digits)) ||
-          (transaction.categoryId != null &&
-              categories[transaction.categoryId]?.contains(query) == true);
+          transaction.categoryIds.any(
+            (id) => categories[id]?.contains(query) == true,
+          );
     }).toList();
   }
 
@@ -270,11 +271,13 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _tile(Transaction transaction, Map<int, String> categoryNames) {
+    final names = transaction.categoryIds
+        .map((id) => categoryNames[id])
+        .whereType<String>()
+        .toList();
     return TransactionTile(
       transaction: transaction,
-      categoryName: transaction.categoryId == null
-          ? null
-          : categoryNames[transaction.categoryId],
+      categoryName: names.isEmpty ? null : names.join(', '),
       onTap: () => Navigator.push(
         context,
         fadeSlideRoute(HistoryDetailScreen(transaction: transaction)),

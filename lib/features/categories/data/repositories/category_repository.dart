@@ -51,7 +51,7 @@ class CategoryRepository {
   Future<bool> isCategoryInUse(int id) async {
     final db = await _db.database;
     final maps = await db.query(
-      'transactions',
+      'transaction_tags',
       where: 'category_id = ?',
       whereArgs: [id],
       limit: 1,

@@ -4,7 +4,7 @@ class Transaction {
   final double amount;
   final int walletId;
   final int? toWalletId;
-  final int? categoryId;
+  final List<int> categoryIds;
   final String? note;
   final DateTime date;
   final DateTime createdAt;
@@ -19,7 +19,7 @@ class Transaction {
     required this.amount,
     required this.walletId,
     this.toWalletId,
-    this.categoryId,
+    this.categoryIds = const [],
     this.note,
     required this.date,
     required this.createdAt,
@@ -36,7 +36,6 @@ class Transaction {
       'amount': amount,
       'wallet_id': walletId,
       'to_wallet_id': toWalletId,
-      'category_id': categoryId,
       'note': note,
       'date': date.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
@@ -54,7 +53,6 @@ class Transaction {
       amount: (map['amount'] as num).toDouble(),
       walletId: map['wallet_id'] as int,
       toWalletId: map['to_wallet_id'] as int?,
-      categoryId: map['category_id'] as int?,
       note: map['note'] as String?,
       date: DateTime.parse(map['date'] as String),
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -71,7 +69,7 @@ class Transaction {
     double? amount,
     int? walletId,
     int? toWalletId,
-    int? categoryId,
+    List<int>? categoryIds,
     String? note,
     DateTime? date,
     DateTime? createdAt,
@@ -86,7 +84,7 @@ class Transaction {
       amount: amount ?? this.amount,
       walletId: walletId ?? this.walletId,
       toWalletId: toWalletId ?? this.toWalletId,
-      categoryId: categoryId ?? this.categoryId,
+      categoryIds: categoryIds ?? this.categoryIds,
       note: note ?? this.note,
       date: date ?? this.date,
       createdAt: createdAt ?? this.createdAt,
@@ -99,7 +97,7 @@ class Transaction {
 
   @override
   String toString() {
-    return 'Transaction(id: $id, type: $type, amount: $amount, walletId: $walletId, toWalletId: $toWalletId, categoryId: $categoryId, note: $note, date: $date, createdAt: $createdAt, description: $description, paymentMethod: $paymentMethod, attachmentPath: $attachmentPath)';
+    return 'Transaction(id: $id, type: $type, amount: $amount, walletId: $walletId, toWalletId: $toWalletId, categoryIds: $categoryIds, note: $note, date: $date, createdAt: $createdAt, description: $description, paymentMethod: $paymentMethod, attachmentPath: $attachmentPath)';
   }
 
   bool get isTagihan => description?.startsWith('Tagihan') == true;

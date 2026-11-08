@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart' hide Category;
 import '../../../transactions/data/models/transaction.dart';
 import '../../../transactions/data/repositories/transaction_repository.dart';
-import '../../../categories/data/models/category.dart';
-import '../../../categories/data/repositories/category_repository.dart';
 
 enum ChartMode { daily, monthly, yearly }
 
@@ -13,17 +11,8 @@ class ChartBarData {
   ChartBarData(this.label, this.netBalance, {this.date});
 }
 
-class CategorySummary {
-  final String name;
-  final String? icon;
-  final double amount;
-  final double percentage;
-  CategorySummary(this.name, this.icon, this.amount, this.percentage);
-}
-
 class ReportProvider extends ChangeNotifier {
   final TransactionRepository _txRepo = TransactionRepository();
-  final CategoryRepository _catRepo = CategoryRepository();
 
   ChartMode _chartMode = ChartMode.monthly;
   int _selectedYear = DateTime.now().year;
@@ -33,8 +22,6 @@ class ReportProvider extends ChangeNotifier {
   double _totalTransferOut = 0;
   double _totalTransferIn = 0;
   List<ChartBarData> _chartData = [];
-  List<CategorySummary> _incomeCategories = [];
-  List<CategorySummary> _expenseCategories = [];
   List<Transaction> _recentTransactions = [];
   bool _isLoading = false;
   String? _error;
@@ -48,8 +35,6 @@ class ReportProvider extends ChangeNotifier {
   double get totalTransferIn => _totalTransferIn;
   double get balance => _totalIncome - _totalExpense - _totalTransferOut + _totalTransferIn;
   List<ChartBarData> get chartData => _chartData;
-  List<CategorySummary> get incomeCategories => _incomeCategories;
-  List<CategorySummary> get expenseCategories => _expenseCategories;
   List<Transaction> get recentTransactions => _recentTransactions;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -100,15 +85,9 @@ class ReportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cats = await _catRepo.getAllCategories();
-      final catMap = <int, Category>{};
-      for (final c in cats) {
-        if (c.id != null) catMap[c.id!] = c;
-      }
-
       final txs = await _txRepo.getAllTransactions(startDate: start, endDate: end);
       _computeChartData(txs);
-      _computeSummaries(txs, catMap);
+      _computeSummaries(txs);
     } catch (e) {
       _chartData = [];
       _error = e.toString();
@@ -169,55 +148,22 @@ class ReportProvider extends ChangeNotifier {
     }).toList();
   }
 
-  void _computeSummaries(List<Transaction> txs, Map<int, Category> categories) {
+  void _computeSummaries(List<Transaction> txs) {
     _totalIncome = 0;
     _totalExpense = 0;
     _totalTransferOut = 0;
     _totalTransferIn = 0;
 
-    final incomeByCategory = <int?, double>{};
-    final expenseByCategory = <int?, double>{};
-
     for (final tx in txs) {
       switch (tx.type) {
         case 'income':
           _totalIncome += tx.amount;
-          incomeByCategory.update(tx.categoryId, (v) => v + tx.amount, ifAbsent: () => tx.amount);
         case 'expense':
           _totalExpense += tx.amount;
-          expenseByCategory.update(tx.categoryId, (v) => v + tx.amount, ifAbsent: () => tx.amount);
         case 'transfer':
           _totalTransferOut += tx.amount;
       }
     }
-
-    final totalInc = _totalIncome;
-    _incomeCategories = incomeByCategory.entries
-      .map((e) {
-        final cat = e.key != null ? categories[e.key] : null;
-        return CategorySummary(
-          cat?.name ?? 'Tanpa Kategori',
-          cat?.icon,
-          e.value,
-          totalInc > 0 ? (e.value / totalInc * 100) : 0,
-        );
-      })
-      .toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
-
-    final totalExp = _totalExpense;
-    _expenseCategories = expenseByCategory.entries
-      .map((e) {
-        final cat = e.key != null ? categories[e.key] : null;
-        return CategorySummary(
-          cat?.name ?? 'Tanpa Kategori',
-          cat?.icon,
-          e.value,
-          totalExp > 0 ? (e.value / totalExp * 100) : 0,
-        );
-      })
-      .toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
 
     _recentTransactions = txs
       .where((t) => t.type == 'income' || t.type == 'expense')

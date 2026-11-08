@@ -247,7 +247,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
       content = const EmptyState(
         icon: Icons.receipt_long_outlined,
         message: 'Belum ada transaksi',
-        subtitle: 'Tekan tombol + untuk mencatat transaksi pertama',
       );
     } else {
       content = Column(
@@ -256,9 +255,10 @@ class _DashboardHomeState extends State<_DashboardHome> {
             if (i > 0) const Divider(height: 1, indent: 72),
             TransactionTile(
               transaction: recentTransactions[i],
-              categoryName: recentTransactions[i].categoryId != null
-                  ? categoryOf[recentTransactions[i].categoryId]
-                  : null,
+              categoryName: _joinCategoryNames(
+                recentTransactions[i].categoryIds,
+                categoryOf,
+              ),
               showChevron: false,
               onTap: () => Navigator.push(
                 context,
@@ -290,6 +290,12 @@ class _DashboardHomeState extends State<_DashboardHome> {
       ],
     );
   }
+}
+
+/// Comma-joined category names for a transaction's tag ids.
+String? _joinCategoryNames(List<int> ids, Map<int, String> names) {
+  final resolved = ids.map((id) => names[id]).whereType<String>().toList();
+  return resolved.isEmpty ? null : resolved.join(', ');
 }
 
 /// Hero "Total Saldo" card with the Cash / E-Wallet breakdown.

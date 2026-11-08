@@ -8,6 +8,7 @@ import '../../../../core/utils/formatters.dart'
         DateFormatter,
         InputValidation,
         RupiahInputFormatter;
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/transaction.dart';
 import '../../../debts/data/models/debt.dart';
@@ -57,6 +58,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _transactionType = 'expense';
   String _debtDirection = 'debt';
   String _paymentMethod = 'cash';
+  final Set<int> _selectedCategoryIds = {};
   DateTime _selectedDate = DateTime.now();
   DueDatePreset _duePreset = DueDatePreset.custom;
   DateTime _dueDate = DateTime.now();
@@ -175,6 +177,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ]),
                         const SizedBox(height: 24),
                         _buildInsetGroup('Catatan & lampiran', [
+                          if (!_isTagihan && !_isTransfer) ...[
+                            _buildCategoryPicker(categoryProvider),
+                            const SizedBox(height: 16),
+                          ],
                           _buildNoteField(),
                           const SizedBox(height: 8),
                           _buildPhotoPicker(),
@@ -407,6 +413,96 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     onSelected: (_) => _setAmount(_amountValue + amount),
   );
 
+  Widget _buildCategoryPicker(CategoryProvider provider) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final categories = _transactionType == 'income'
+        ? provider.incomeCategories
+        : provider.expenseCategories;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tag (opsional)',
+          style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final category in categories)
+              FilterChip(
+                label: Text(category.name),
+                selected: _selectedCategoryIds.contains(category.id),
+                onSelected: (selected) => setState(() {
+                  if (selected) {
+                    _selectedCategoryIds.add(category.id!);
+                  } else {
+                    _selectedCategoryIds.remove(category.id);
+                  }
+                }),
+              ),
+            ActionChip(
+              avatar: const Icon(Icons.add, size: 18),
+              label: const Text('Tag baru'),
+              onPressed: () => _addCustomTag(provider),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addCustomTag(CategoryProvider provider) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tag baru'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          maxLength: InputValidation.maxCategory,
+          decoration: const InputDecoration(
+            labelText: 'Nama tag',
+            hintText: 'Contoh: Liburan',
+          ),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || !mounted) return;
+
+    final trimmed = name.trim();
+    final err =
+        InputValidation.name(trimmed, 'Nama tag', max: InputValidation.maxCategory) ??
+        provider.hasCategoryNamed(trimmed, _transactionType);
+    if (err != null) {
+      ToastWidget.error(context, err);
+      return;
+    }
+
+    final id = await provider.addCategory(
+      name: trimmed,
+      type: _transactionType,
+    );
+    if (id != null && mounted) {
+      setState(() => _selectedCategoryIds.add(id));
+    }
+  }
+
   Widget _buildDescriptionField() {
     final isIncome = _transactionType == 'income';
     return TextFormField(
@@ -585,63 +681,73 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildDueDatePresets() {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final isCustom = _duePreset == DueDatePreset.custom;
+    const presets = <(String, DueDatePreset)>[
+      ('3 Hari', DueDatePreset.days3),
+      ('1 Minggu', DueDatePreset.week1),
+      ('2 Minggu', DueDatePreset.weeks2),
+      ('1 Bulan', DueDatePreset.month1),
+      ('3 Bulan', DueDatePreset.months3),
+      ('1 Tahun', DueDatePreset.year1),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Jatuh Tempo', style: text.labelLarge),
+        Text('Tanggal Jatuh Tempo', style: text.labelLarge),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _dueDateChip('3 Hari', DueDatePreset.days3),
-            _dueDateChip('1 Minggu', DueDatePreset.week1),
-            _dueDateChip('2 Minggu', DueDatePreset.weeks2),
-            _dueDateChip('1 Bulan', DueDatePreset.month1),
-            _dueDateChip('3 Bulan', DueDatePreset.months3),
-            _dueDateChip('1 Tahun', DueDatePreset.year1),
-            ChoiceChip(
-              avatar: const Icon(Icons.calendar_today, size: 18),
-              showCheckmark: false,
-              label: Text(
-                isCustom ? DateFormatter.formatDate(_dueDate) : 'Pilih Tanggal',
-              ),
-              selected: isCustom,
-              onSelected: (_) async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _dueDate.isBefore(DateTime.now())
-                      ? DateTime.now()
-                      : _dueDate,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null && mounted) {
-                  setState(() {
-                    _dueDate = picked;
-                    _duePreset = DueDatePreset.custom;
-                  });
-                }
-              },
-            ),
+            for (final (label, preset) in presets) _dueDateChip(label, preset),
           ],
         ),
-        if (!isCustom)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
+        const SizedBox(height: 8),
+        // Exact date: full-width trigger, or the chosen date once picked.
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _dueDate.isBefore(DateTime.now())
+                  ? DateTime.now()
+                  : _dueDate,
+              firstDate: DateTime.now(),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null && mounted) {
+              setState(() {
+                _dueDate = picked;
+                _duePreset = DueDatePreset.custom;
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.calendar_today),
+              suffixIcon: const Icon(Icons.chevron_right),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
+              ),
+            ),
             child: Text(
-              'Jatuh tempo: ${DateFormatter.formatDate(_dueDate)}',
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              DateFormatter.formatDate(_dueDate),
+              style: text.bodyLarge?.copyWith(
+                color: _duePreset == DueDatePreset.custom
+                    ? scheme.onSurface
+                    : scheme.onSurfaceVariant,
+              ),
             ),
           ),
+        ),
       ],
     );
   }
 
   Widget _dueDateChip(String label, DueDatePreset preset) {
     return ChoiceChip(
-      label: Text(label),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      showCheckmark: false,
       selected: _duePreset == preset,
       onSelected: (selected) {
         if (selected) {
@@ -739,14 +845,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ),
         const SizedBox(height: 8),
         if (_attachmentPath != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(_attachmentPath!),
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              semanticLabel: 'Lampiran foto',
+          GestureDetector(
+            onTap: () => _openImageViewer(_attachmentPath!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.file(
+                  File(_attachmentPath!),
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Lampiran foto',
+                ),
+              ),
             ),
           )
         else
@@ -776,6 +886,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ],
           ),
       ],
+    );
+  }
+
+  void _openImageViewer(String path) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullScreenImage(path: path),
+        fullscreenDialog: true,
+      ),
     );
   }
 
@@ -845,7 +965,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         type: 'expense',
         amount: amount,
         walletId: wallet.id!,
-        categoryId: null,
         note: _optionalText(_personNameController) ?? note,
         date: _selectedDate,
         createdAt: DateTime.now(),
@@ -884,7 +1003,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         amount: amount,
         walletId: wallet.id!,
         toWalletId: destWallet!.id,
-        categoryId: null,
         note: note,
         date: _selectedDate,
         createdAt: DateTime.now(),
@@ -900,7 +1018,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         type: _transactionType,
         amount: amount,
         walletId: wallet.id!,
-        categoryId: null,
+        categoryIds: _selectedCategoryIds.toList(),
         note: note,
         date: _selectedDate,
         createdAt: DateTime.now(),
@@ -922,5 +1040,45 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     } else {
       ToastWidget.error(context, 'Gagal menyimpan');
     }
+  }
+}
+
+/// Full-screen, uncropped attachment viewer with pinch-zoom.
+class _FullScreenImage extends StatelessWidget {
+  final String path;
+  const _FullScreenImage({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    // Photo viewer intentionally uses a black backdrop regardless of theme.
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Center(
+                child: InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 4.0,
+                  child: Image.file(File(path), fit: BoxFit.contain),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            left: 8,
+            child: IconButton(
+              tooltip: 'Kembali',
+              color: Colors.white,
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
