@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// Formats digits as Rupiah thousands ("1500000" → "1.500.000") while typing.
-/// Non-digits are stripped; the caret stays at the end.
+/// Non-digits are stripped; the caret is kept relative to the typed digits.
 class RupiahInputFormatter extends TextInputFormatter {
   static final NumberFormat _format = NumberFormat.decimalPattern('id_ID');
 
@@ -19,11 +19,33 @@ class RupiahInputFormatter extends TextInputFormatter {
     digits = digits.replaceFirst(RegExp(r'^0+'), '');
     if (digits.length > maxDigits) return oldValue;
     final text = digits.isEmpty ? '' : _format.format(int.parse(digits));
+    // Keep the caret where the user was typing: place it after the same
+    // number of digits that sat before the caret in the raw input.
+    final digitsBeforeCaret = newValue.text
+        .substring(0, newValue.selection.baseOffset.clamp(0, newValue.text.length))
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .length;
+    final offset = _offsetAfterDigits(text, digitsBeforeCaret);
     return TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      selection: TextSelection.collapsed(offset: offset),
     );
   }
+
+  /// Index in [text] just after its first [count] digits (end when fewer).
+  static int _offsetAfterDigits(String text, int count) {
+    if (count <= 0) return 0;
+    var seen = 0;
+    for (var i = 0; i < text.length; i++) {
+      if (_isDigit(text.codeUnitAt(i))) {
+        seen++;
+        if (seen == count) return i + 1;
+      }
+    }
+    return text.length;
+  }
+
+  static bool _isDigit(int codeUnit) => codeUnit >= 0x30 && codeUnit <= 0x39;
 
   static String formatValue(double value) =>
       value <= 0 ? '' : _format.format(value.toInt());

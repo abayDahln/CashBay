@@ -52,6 +52,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _descriptionController = TextEditingController();
   final _personNameController = TextEditingController();
   final _billNameController = TextEditingController();
+  final _typeScrollController = ScrollController();
 
   String _transactionType = 'expense';
   String _debtDirection = 'debt';
@@ -99,6 +100,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _descriptionController.dispose();
     _personNameController.dispose();
     _billNameController.dispose();
+    _typeScrollController.dispose();
     super.dispose();
   }
 
@@ -143,10 +145,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildAnimatedField(0, _buildTypeSelector()),
-                        const SizedBox(height: 16),
-                        _buildAnimatedField(0, _buildAmountField()),
                         const SizedBox(height: 24),
                         _buildInsetGroup('Detail utama', [
+                          _buildAmountField(),
+                          const SizedBox(height: 16),
                           if (_isTagihan) ...[
                             _buildDebtDirectionSelector(),
                             const SizedBox(height: 16),
@@ -240,23 +242,70 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ('tagihan', Icons.receipt_long, 'Tagihan'),
       ('transfer', Icons.swap_horiz, 'Transfer'),
     ];
+    final scheme = Theme.of(context).colorScheme;
     // Horizontally scrollable so all four fit on 360dp / large text scale.
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final (value, icon, label) in types)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                avatar: Icon(icon, size: 18),
-                showCheckmark: false,
-                label: Text(label),
-                selected: _transactionType == value,
-                onSelected: (_) => setState(() => _transactionType = value),
+    // Edge fades hint at more items; each side hides at its scroll end.
+    return AnimatedBuilder(
+      animation: _typeScrollController,
+      builder: (context, _) {
+        final position = _typeScrollController.hasClients
+            ? _typeScrollController.position
+            : null;
+        final showLeft = position != null && position.pixels > 0;
+        final showRight =
+            position != null && position.pixels < position.maxScrollExtent;
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _typeScrollController,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final (value, icon, label) in types)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        avatar: Icon(icon, size: 18),
+                        showCheckmark: false,
+                        label: Text(label),
+                        selected: _transactionType == value,
+                        onSelected: (_) =>
+                            setState(() => _transactionType = value),
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
+            _edgeFade(scheme.surface, Alignment.centerLeft, showLeft),
+            _edgeFade(scheme.surface, Alignment.centerRight, showRight),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _edgeFade(Color color, Alignment alignment, bool visible) {
+    final isLeft = alignment == Alignment.centerLeft;
+    return Positioned(
+      left: isLeft ? 0 : null,
+      right: isLeft ? null : 0,
+      top: 0,
+      bottom: 0,
+      width: 32,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 150),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+                end: isLeft ? Alignment.centerRight : Alignment.centerLeft,
+                colors: [color, color.withValues(alpha: 0)],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -304,45 +353,42 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final text = Theme.of(context).textTheme;
     final hasValue = _amountValue > 0;
     const quickAmounts = <int>[10000, 20000, 50000, 100000, 200000];
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      child: Column(
-        children: [
-          TextFormField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.next,
-            inputFormatters: [RupiahInputFormatter()],
-            onChanged: (_) => setState(() {}),
-            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              labelText: 'Nominal transaksi',
-              prefixText: 'Rp ',
-              prefixStyle: text.headlineSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-              suffixIcon: hasValue
-                  ? IconButton(
-                      tooltip: 'Kosongkan nominal',
-                      icon: const Icon(Icons.cancel),
-                      onPressed: () => _setAmount(0),
-                    )
-                  : null,
-              errorMaxLines: 2,
+    return Column(
+      children: [
+        TextFormField(
+          controller: _amountController,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
+          inputFormatters: [RupiahInputFormatter()],
+          onChanged: (_) => setState(() {}),
+          style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            labelText: 'Nominal transaksi',
+            prefixText: 'Rp ',
+            prefixStyle: text.headlineSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
-            validator: _validateAmount,
+            suffixIcon: hasValue
+                ? IconButton(
+                    tooltip: 'Kosongkan nominal',
+                    icon: const Icon(Icons.cancel),
+                    onPressed: () => _setAmount(0),
+                  )
+                : null,
+            errorMaxLines: 2,
           ),
-          const SizedBox(height: 12),
-          Row(
-            spacing: 8,
-            children: [
-              for (final amount in quickAmounts)
-                Expanded(child: _quickAmountChip(amount)),
-            ],
-          ),
-        ],
-      ),
+          validator: _validateAmount,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          spacing: 8,
+          children: [
+            for (final amount in quickAmounts)
+              Expanded(child: _quickAmountChip(amount)),
+          ],
+        ),
+      ],
     );
   }
 
