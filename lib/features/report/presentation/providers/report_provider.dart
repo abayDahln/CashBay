@@ -41,7 +41,7 @@ class ReportProvider extends ChangeNotifier {
 
   List<int> get availableYears {
     final now = DateTime.now().year;
-    return List.generate(now - 2019, (i) => 2020 + i);
+    return List.generate(now - 2010 + 1, (i) => 2010 + i);
   }
 
   void init() {
@@ -60,6 +60,21 @@ class ReportProvider extends ChangeNotifier {
 
   void setMonth(int month) {
     _selectedMonth = month;
+    loadChartData();
+  }
+
+  /// Moves the active period one step back/forward for the current mode.
+  void shiftPeriod(int delta) {
+    switch (_chartMode) {
+      case ChartMode.daily:
+        final shifted = DateTime(_selectedYear, _selectedMonth + delta);
+        _selectedYear = shifted.year;
+        _selectedMonth = shifted.month;
+      case ChartMode.monthly:
+        _selectedYear += delta;
+      case ChartMode.yearly:
+        return;
+    }
     loadChartData();
   }
 

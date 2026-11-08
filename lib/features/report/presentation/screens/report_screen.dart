@@ -9,19 +9,19 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 
-const _monthLabels = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
+const _monthNames = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
   'Mei',
-  'Jun',
-  'Jul',
-  'Agu',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Des',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
 ];
 
 class ReportScreen extends StatefulWidget {
@@ -57,9 +57,9 @@ class _ReportScreenState extends State<ReportScreen> {
                 sliver: SliverList.list(
                   children: [
                     _modeSelector(report),
-                    const SizedBox(height: 16),
-                    _filterRow(report),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    _periodNavigator(report),
+                    const SizedBox(height: 8),
                     if (report.isLoading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 48),
@@ -151,57 +151,157 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _filterRow(ReportProvider report) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+  /// Compact period navigator: `< November 2026 >`, adapting to the tab.
+  /// Hidden entirely on the yearly tab, where every year is shown at once.
+  Widget _periodNavigator(ReportProvider report) {
+    if (report.chartMode == ChartMode.yearly) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final isDaily = report.chartMode == ChartMode.daily;
+    final label = isDaily
+        ? '${_monthNames[report.selectedMonth - 1]} ${report.selectedYear}'
+        : '${report.selectedYear}';
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _periodDropdown<int>(
-          label: 'Tahun',
-          icon: Icons.calendar_today_outlined,
-          value: report.selectedYear,
-          items: report.availableYears,
-          labelBuilder: (y) => y.toString(),
-          onSelected: report.setYear,
+        IconButton(
+          tooltip: 'Sebelumnya',
+          icon: const Icon(Icons.chevron_left),
+          onPressed: () => report.shiftPeriod(-1),
         ),
-        if (report.chartMode == ChartMode.daily)
-          _periodDropdown<int>(
-            label: 'Bulan',
-            icon: Icons.date_range_outlined,
-            value: report.selectedMonth,
-            items: List.generate(12, (i) => i + 1),
-            labelBuilder: (m) => _monthLabels[m - 1],
-            onSelected: report.setMonth,
+        TextButton(
+          onPressed: () =>
+              isDaily ? _pickMonth(report) : _pickYear(report),
+          style: TextButton.styleFrom(
+            foregroundColor: scheme.onSurface,
+            textStyle: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
+          child: Text(label),
+        ),
+        IconButton(
+          tooltip: 'Berikutnya',
+          icon: const Icon(Icons.chevron_right),
+          onPressed: () => report.shiftPeriod(1),
+        ),
       ],
     );
   }
 
-  Widget _periodDropdown<T>({
-    required String label,
-    required IconData icon,
-    required T value,
-    required List<T> items,
-    required String Function(T) labelBuilder,
-    required void Function(T) onSelected,
-  }) {
-    return DropdownMenu<T>(
-      // Rebuild when the provider value changes so the field stays in sync.
-      key: ValueKey(value),
-      initialSelection: value,
-      width: 152,
-      label: Text(label),
-      leadingIcon: Icon(icon, size: 20),
-      requestFocusOnTap: false,
-      menuHeight: 320,
-      dropdownMenuEntries: [
-        for (final e in items)
-          DropdownMenuEntry(value: e, label: labelBuilder(e)),
-      ],
-      onSelected: (v) {
-        if (v != null) onSelected(v);
-      },
+  /// Month picker modal: year stepper on top, 12-month grid below. Tapping a
+  /// month returns it; there is no day step.
+  Future<void> _pickMonth(ReportProvider report) async {
+    var year = report.selectedYear;
+    final picked = await showModalBottomSheet<(int, int)>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Tahun sebelumnya',
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () => setSheetState(() => year--),
+                    ),
+                    Text(
+                      '$year',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tahun berikutnya',
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => setSheetState(() => year++),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 2.4,
+                  children: [
+                    for (var m = 1; m <= 12; m++)
+                      Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: SizedBox.expand(
+                          child: ChoiceChip(
+                            label: SizedBox(
+                              width: double.infinity,
+                              child: Text(
+                                _monthNames[m - 1],
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            selected:
+                                year == report.selectedYear &&
+                                m == report.selectedMonth,
+                            onSelected: (_) =>
+                                Navigator.pop(context, (year, m)),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
+    if (picked != null) {
+      report.setYear(picked.$1);
+      report.setMonth(picked.$2);
+    }
+  }
+
+  Future<void> _pickYear(ReportProvider report) async {
+    final years = report.availableYears;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 2.4,
+            children: [
+              for (final year in years.reversed)
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: SizedBox.expand(
+                    child: ChoiceChip(
+                      label: SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          year.toString(),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      selected: year == report.selectedYear,
+                      onSelected: (_) => Navigator.pop(context, year),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) report.setYear(picked);
   }
 
   String _modeLabel(ChartMode m) {
@@ -219,7 +319,6 @@ class _ReportScreenState extends State<ReportScreen> {
     final finance = FinanceColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final positive = report.balance >= 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -230,8 +329,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 label: 'Pendapatan',
                 amount: report.totalIncome,
                 icon: Icons.trending_up,
-                container: finance.incomeContainer,
-                onContainer: finance.onIncomeContainer,
+                container: finance.income,
               ),
             ),
             const SizedBox(width: 8),
@@ -240,8 +338,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 label: 'Pengeluaran',
                 amount: report.totalExpense,
                 icon: Icons.trending_down,
-                container: finance.expenseContainer,
-                onContainer: finance.onExpenseContainer,
+                container: finance.expense,
               ),
             ),
           ],
@@ -253,37 +350,34 @@ class _ReportScreenState extends State<ReportScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: positive
-                    ? finance.incomeContainer
-                    : finance.expenseContainer,
-                foregroundColor: positive
-                    ? finance.onIncomeContainer
-                    : finance.onExpenseContainer,
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.onPrimaryContainer,
                 child: const Icon(Icons.balance, size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  'Selisih',
-                  style: text.titleSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                flex: 2,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    CurrencyFormatter.formatMedium(report.balance),
-                    maxLines: 1,
-                    style: text.titleLarge?.copyWith(
-                      color: positive ? finance.income : finance.expense,
-                      fontWeight: FontWeight.w600,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selisih',
+                      style: text.titleSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        CurrencyFormatter.formatMedium(report.balance),
+                        maxLines: 1,
+                        style: text.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -539,33 +633,34 @@ class _SummaryTile extends StatelessWidget {
   final double amount;
   final IconData icon;
   final Color container;
-  final Color onContainer;
   const _SummaryTile({
     required this.label,
     required this.amount,
     required this.icon,
     required this.container,
-    required this.onContainer,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return AppCard(
-      color: container,
+      variant: AppCardVariant.outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: onContainer),
+              Icon(icon, size: 18, color: container),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: text.labelLarge?.copyWith(color: onContainer),
+                  style: text.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -576,7 +671,6 @@ class _SummaryTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: text.titleMedium?.copyWith(
-              color: onContainer,
               fontWeight: FontWeight.w600,
             ),
           ),
