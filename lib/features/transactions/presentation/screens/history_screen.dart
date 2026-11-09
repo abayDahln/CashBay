@@ -19,7 +19,7 @@ class HistoryScreenState extends State<HistoryScreen> {
     ('Semua', 'all'),
     ('Pendapatan', 'income'),
     ('Pengeluaran', 'expense'),
-    ('Tagihan', 'tagihan'),
+    ('Titipan', 'tagihan'),
     ('Transfer', 'transfer'),
   ];
 

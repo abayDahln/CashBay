@@ -187,10 +187,10 @@ class _DebtsScreenState extends State<DebtsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CashBayAppBar(
-        title: 'Tagihan',
+        title: 'Titipan',
         actions: [
           IconButton(
-            tooltip: 'Filter tagihan',
+            tooltip: 'Filter titipan',
             isSelected: _hasFilter,
             icon: Badge(
               isLabelVisible: _hasFilter,
@@ -202,8 +202,8 @@ class _DebtsScreenState extends State<DebtsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.arrow_upward), text: 'Tagihan Saya'),
-            Tab(icon: Icon(Icons.arrow_downward), text: 'Tagihan Orang'),
+            Tab(icon: Icon(Icons.arrow_upward), text: 'Titipan Saya'),
+            Tab(icon: Icon(Icons.arrow_downward), text: 'Titipan Orang'),
           ],
         ),
       ),
@@ -228,7 +228,7 @@ class _DebtsScreenState extends State<DebtsScreen>
         },
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Tambah tagihan',
+        tooltip: 'Tambah titipan',
         onPressed: _showAddDebtDialog,
         child: const Icon(Icons.add),
       ),
@@ -293,7 +293,7 @@ class _DebtsScreenState extends State<DebtsScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isDebt ? 'Sisa tagihan saya' : 'Sisa tagihan orang',
+                  isDebt ? 'Sisa titipan saya' : 'Sisa titipan orang',
                   style: textTheme.titleSmall?.copyWith(color: onContainer),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -316,8 +316,8 @@ class _DebtsScreenState extends State<DebtsScreen>
           const SizedBox(height: 4),
           Text(
             activeCount == 0
-                ? 'Tidak ada tagihan aktif'
-                : '$activeCount tagihan aktif',
+                ? 'Tidak ada titipan aktif'
+                : '$activeCount titipan aktif',
             style: textTheme.bodyMedium?.copyWith(color: onContainer),
           ),
         ],
@@ -367,7 +367,7 @@ class _DebtsScreenState extends State<DebtsScreen>
     if (filtered) {
       return EmptyState(
         icon: Icons.filter_list_off,
-        message: 'Tidak ada tagihan yang cocok',
+        message: 'Tidak ada titipan yang cocok',
         subtitle: 'Coba ubah atau reset filter',
         buttonLabel: 'Reset Filter',
         buttonIcon: Icons.restart_alt,
@@ -377,11 +377,11 @@ class _DebtsScreenState extends State<DebtsScreen>
     final isDebt = type == 'debt';
     return EmptyState(
       icon: isDebt ? Icons.receipt_long_outlined : Icons.people_outline,
-      message: isDebt ? 'Belum ada tagihan' : 'Belum ada tagihan orang',
+      message: isDebt ? 'Belum ada titipan' : 'Belum ada titipan orang',
       subtitle: isDebt
-          ? 'Catat tagihan yang Anda pinjam dari orang lain'
-          : 'Catat uang yang Anda pinjamkan ke orang lain',
-      buttonLabel: isDebt ? 'Tambah Tagihan' : 'Tambah Tagihan Orang',
+          ? 'Catat uang yang Anda titipkan ke orang lain'
+          : 'Catat uang orang lain yang Anda pegang',
+      buttonLabel: isDebt ? 'Tambah Titipan' : 'Tambah Titipan Orang',
       onButtonTap: _showAddDebtDialog,
     );
   }

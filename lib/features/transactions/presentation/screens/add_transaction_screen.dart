@@ -245,7 +245,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     const types = <(String, IconData, String)>[
       ('income', Icons.south, 'Pendapatan'),
       ('expense', Icons.north, 'Pengeluaran'),
-      ('tagihan', Icons.receipt_long, 'Tagihan'),
+      ('tagihan', Icons.receipt_long, 'Titipan'),
       ('transfer', Icons.swap_horiz, 'Transfer'),
     ];
     final scheme = Theme.of(context).colorScheme;
@@ -320,7 +320,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Arah Tagihan', style: Theme.of(context).textTheme.labelLarge),
+        Text('Arah Titipan', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -330,7 +330,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 value: 'debt',
                 icon: Icon(Icons.north),
                 label: Text(
-                  'Tagihan Saya',
+                  'Titipan Saya',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -339,7 +339,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 value: 'receivable',
                 icon: Icon(Icons.south),
                 label: Text(
-                  'Tagihan Orang',
+                  'Titipan Orang',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -648,14 +648,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       textCapitalization: TextCapitalization.sentences,
       textInputAction: TextInputAction.next,
       decoration: const InputDecoration(
-        labelText: 'Nama Tagihan',
-        hintText: 'Contoh: Pinjaman Motor, Cicilan Rumah',
+        labelText: 'Nama Titipan',
+        hintText: 'Contoh: Titip uang ke Budi',
         prefixIcon: Icon(Icons.description_outlined),
       ),
       maxLength: InputValidation.maxBillName,
       validator: (v) => InputValidation.name(
         v,
-        'Nama Tagihan',
+        'Nama Titipan',
         max: InputValidation.maxBillName,
       ),
     );
@@ -668,8 +668,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       textCapitalization: TextCapitalization.words,
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(
-        labelText: isDebt ? 'Nama Pemberi Pinjaman' : 'Nama Penerima Pinjaman',
-        hintText: isDebt ? 'Dari siapa?' : 'Ke siapa?',
+        labelText: isDebt ? 'Nama Penerima Titipan' : 'Nama Penitip',
+        hintText: isDebt ? 'Ke siapa Anda titip?' : 'Siapa yang nitip?',
         prefixIcon: const Icon(Icons.person_outline),
       ),
       maxLength: InputValidation.maxPersonName,
@@ -803,7 +803,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       keyboardType: TextInputType.multiline,
       decoration: InputDecoration(
         labelText: 'Catatan (opsional)',
-        hintText: _isTagihan ? 'Catatan tagihan...' : 'Tambahkan catatan...',
+        hintText: _isTagihan ? 'Catatan titipan...' : 'Tambahkan catatan...',
         alignLabelWithHint: true,
       ),
       validator: (v) =>
@@ -961,33 +961,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     if (_isTagihan) {
       final debtType = _debtDirection;
-      final transaction = Transaction(
-        type: 'expense',
-        amount: amount,
-        walletId: wallet.id!,
-        note: _optionalText(_personNameController) ?? note,
-        date: _selectedDate,
-        createdAt: DateTime.now(),
-        description:
-            '${debtType == 'debt' ? 'Tagihan Saya' : 'Tagihan Orang'} - ${_personNameController.text.trim()}',
-        paymentMethod: _paymentMethod,
-        attachmentPath: _attachmentPath,
-      );
-      final txnSuccess = await transactionProvider.addTransaction(transaction);
-      if (!txnSuccess) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ToastWidget.error(context, 'Gagal menyimpan');
-        }
-        return;
-      }
+      // Creating a titipan moves the money and records the opening leg inside
+      // DebtProvider.addDebt, so no transaction is inserted here.
       final debt = Debt(
         type: debtType,
         personName: _personNameController.text.trim(),
         amount: amount,
-        remainingAmount: 0,
+        remainingAmount: amount,
         walletId: wallet.id!,
-        status: 'paid',
+        status: 'active',
         note: note,
         date: _selectedDate,
         billName: _billNameController.text.trim(),

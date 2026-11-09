@@ -183,7 +183,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
-          title: 'Tagihan & Piutang',
+          title: 'Titipan & Piutang',
           trailing: Text(
             '${provider.debts.length} Terbuka',
             style: Theme.of(
@@ -195,7 +195,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
           children: [
             Expanded(
               child: _TagihanCard(
-                title: 'Tagihan Saya',
+                title: 'Titipan Saya',
                 amount: provider.totalActiveDebt,
                 icon: Icons.north,
                 container: finance.expenseContainer,
@@ -209,7 +209,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
             const SizedBox(width: 8),
             Expanded(
               child: _TagihanCard(
-                title: 'Tagihan Orang',
+                title: 'Titipan Orang',
                 amount: provider.totalActiveReceivable,
                 icon: Icons.south,
                 container: finance.incomeContainer,
@@ -239,7 +239,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
       ])
         if (c.id != null) c.id!: c.name,
     };
-
+    
     final Widget content;
     if (recentTransactions.isEmpty && provider.isLoading) {
       content = const _TransactionSkeleton();

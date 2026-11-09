@@ -30,7 +30,7 @@ class TransactionTile extends StatelessWidget {
     final description = transaction.description?.trim() ?? '';
     final note = transaction.note?.trim() ?? '';
     final (icon, label) = transaction.isTagihan
-        ? (Icons.receipt_long, transaction.description ?? 'Tagihan')
+        ? (Icons.receipt_long, transaction.description ?? 'Titipan')
         : transaction.isPembayaranTagihan
         ? (Icons.check_circle_outline, transaction.description ?? 'Pembayaran')
         : transaction.isPenerimaanTagihan

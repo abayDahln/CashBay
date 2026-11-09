@@ -4,6 +4,7 @@ class DebtPayment {
   final double amount;
   final int walletId;
   final DateTime date;
+  final int? txnId;
 
   DebtPayment({
     this.id,
@@ -11,6 +12,7 @@ class DebtPayment {
     required this.amount,
     required this.walletId,
     required this.date,
+    this.txnId,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +22,7 @@ class DebtPayment {
       'amount': amount,
       'wallet_id': walletId,
       'date': date.toIso8601String(),
+      'txn_id': txnId,
     };
   }
 
@@ -30,6 +33,7 @@ class DebtPayment {
       amount: (map['amount'] as num).toDouble(),
       walletId: map['wallet_id'] as int,
       date: DateTime.parse(map['date'] as String),
+      txnId: map['txn_id'] as int?,
     );
   }
 
@@ -39,6 +43,7 @@ class DebtPayment {
     double? amount,
     int? walletId,
     DateTime? date,
+    int? txnId,
   }) {
     return DebtPayment(
       id: id ?? this.id,
@@ -46,6 +51,7 @@ class DebtPayment {
       amount: amount ?? this.amount,
       walletId: walletId ?? this.walletId,
       date: date ?? this.date,
+      txnId: txnId ?? this.txnId,
     );
   }
 

@@ -72,8 +72,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   String get _typeLabel {
-    if (_transaction.isTagihan) return 'Detail Tagihan';
-    if (_transaction.isPembayaranTagihan) return 'Detail Pembayaran';
+    if (_transaction.isTagihan) return 'Detail Titipan';
+    if (_transaction.isPembayaranTagihan) return 'Detail Pengembalian';
     if (_transaction.isPenerimaanTagihan) return 'Detail Penerimaan';
     if (_isTransfer) return 'Detail Transfer';
     if (_isIncome) return 'Detail Pendapatan';
@@ -119,7 +119,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       _ => (finance.expenseContainer, finance.onExpenseContainer),
     };
     final statusLabel = _transaction.isTagihan
-        ? 'Tagihan'
+        ? 'Titipan'
         : _isTransfer && !_transaction.isTagihanRelated
         ? 'Transfer'
         : 'Berhasil';
@@ -235,14 +235,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       if (_transaction.description?.trim().isNotEmpty == true)
         _detailRow(
           Icons.notes_outlined,
-          isMainTagihan ? 'Nama Tagihan' : 'Deskripsi',
+          isMainTagihan ? 'Nama Titipan' : 'Deskripsi',
           _transaction.description!,
         ),
       if (_transaction.note?.trim().isNotEmpty == true)
         _detailRow(
           isMainTagihan ? Icons.person_outline : Icons.sticky_note_2_outlined,
-          isMainTagihan ? 'Nama Orang' : 'Catatan',
-          _transaction.note!,
+          isMainTagihan ? 'Nama Orang' : 'Catatan',          _transaction.note!,
         ),
     ];
 

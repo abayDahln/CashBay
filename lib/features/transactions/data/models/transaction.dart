@@ -100,10 +100,18 @@ class Transaction {
     return 'Transaction(id: $id, type: $type, amount: $amount, walletId: $walletId, toWalletId: $toWalletId, categoryIds: $categoryIds, note: $note, date: $date, createdAt: $createdAt, description: $description, paymentMethod: $paymentMethod, attachmentPath: $attachmentPath)';
   }
 
-  bool get isTagihan => description?.startsWith('Tagihan') == true;
-  bool get isPembayaranTagihan => description?.startsWith('Pembayaran') == true;
+  // Legacy "Tagihan" descriptions and the newer "Titip" ones both count as a
+  // titipan-related transaction so old data keeps rendering correctly.
+  bool get isTagihan => description?.startsWith('Tagihan') == true ||
+      description?.startsWith('Titip keluar') == true ||
+      description?.startsWith('Titip masuk') == true;
+  // Return leg: legacy "Pembayaran"/"Penerimaan" or the newer "Titip kembali".
+  bool get isPembayaranTagihan =>
+      description?.startsWith('Pembayaran') == true ||
+      description?.startsWith('Penerimaan') == true ||
+      description?.startsWith('Titip kembali') == true;
   bool get isPenerimaanTagihan => description?.startsWith('Penerimaan') == true;
-  bool get isTagihanRelated => isTagihan || isPembayaranTagihan || isPenerimaanTagihan;
+  bool get isTagihanRelated => isTagihan || isPembayaranTagihan;
 
   @override
   bool operator ==(Object other) {

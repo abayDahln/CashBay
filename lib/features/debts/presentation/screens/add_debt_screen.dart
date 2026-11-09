@@ -52,8 +52,8 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   }
 
   String get _personLabel => _selectedType == 'debt'
-      ? 'Nama Pemberi Pinjaman'
-      : 'Nama Penerima Pinjaman';
+      ? 'Nama Penerima Titipan'
+      : 'Nama Penitip';
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -61,7 +61,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      helpText: 'Tanggal tagihan',
+      helpText: 'Tanggal titipan',
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -97,7 +97,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
 
     return Scaffold(
       appBar: CashBayAppBar(
-        title: isDebt ? 'Tambah Tagihan' : 'Tambah Tagihan Orang',
+        title: isDebt ? 'Tambah Titipan' : 'Tambah Titipan Orang',
         leading: IconButton(
           tooltip: 'Tutup',
           icon: const Icon(Icons.close),
@@ -135,8 +135,8 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                       decoration: InputDecoration(
                         labelText: _personLabel,
                         hintText: isDebt
-                            ? 'Dari siapa Anda meminjam?'
-                            : 'Ke siapa Anda meminjamkan?',
+                            ? 'Ke siapa Anda menitipkan uang?'
+                            : 'Siapa yang menitipkan uang ke Anda?',
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
                       maxLength: InputValidation.maxPersonName,
@@ -189,8 +189,8 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                                 setState(() => _selectedWalletId = value),
                       decoration: InputDecoration(
                         labelText: isDebt
-                            ? 'Dompet yang Menerima Dana'
-                            : 'Dompet yang Mengeluarkan Dana',
+                            ? 'Dompet Sumber (Uang Keluar)'
+                            : 'Dompet Tujuan (Uang Masuk)',
                         prefixIcon: const Icon(
                           Icons.account_balance_wallet_outlined,
                         ),
@@ -242,8 +242,8 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                       decoration: InputDecoration(
                         labelText: 'Catatan (opsional)',
                         hintText: isDebt
-                            ? 'Contoh: Pinjam uang untuk beli motor, tanpa bunga'
-                            : 'Contoh: Pinjamkan uang ke teman untuk modal usaha',
+                            ? 'Contoh: Nitip uang ke Budi untuk ditabung'
+                            : 'Contoh: Budi nitip uang titipan ke saya',
                         hintMaxLines: 2,
                         alignLabelWithHint: true,
                       ),
@@ -268,7 +268,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Text(
-                              'Simpan ${isDebt ? "Tagihan" : "Tagihan Orang"}',
+                              'Simpan ${isDebt ? "Titipan" : "Titipan Orang"}',
                               style: textTheme.labelLarge,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -336,12 +336,12 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
               ButtonSegment(
                 value: 'debt',
                 icon: Icon(Icons.arrow_upward),
-                label: Text('Tagihan Saya'),
+                label: Text('Titipan Saya'),
               ),
               ButtonSegment(
                 value: 'receivable',
                 icon: Icon(Icons.arrow_downward),
-                label: Text('Tagihan Orang'),
+                label: Text('Titipan Orang'),
               ),
             ],
             selected: {_selectedType},
@@ -387,7 +387,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
 
     if (!mounted) return;
     if (success) {
-      ToastWidget.success(context, 'Tagihan berhasil ditambahkan');
+      ToastWidget.success(context, 'Titipan berhasil ditambahkan');
       Navigator.pop(context, true);
     } else {
       setState(() => _isLoading = false);

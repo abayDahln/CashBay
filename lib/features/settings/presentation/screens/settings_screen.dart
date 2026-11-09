@@ -611,7 +611,7 @@ class _DeleteAllDialogState extends State<_DeleteAllDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Semua data transaksi, dompet, kategori, dan tagihan akan dihapus. '
+              'Semua data transaksi, dompet, kategori, dan titipan akan dihapus. '
               'Tindakan ini tidak dapat dibatalkan.',
             ),
             const SizedBox(height: 16),

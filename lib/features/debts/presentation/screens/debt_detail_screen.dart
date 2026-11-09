@@ -52,7 +52,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CashBayAppBar(
-        title: isDebt ? 'Detail Tagihan' : 'Detail Tagihan Orang',
+        title: isDebt ? 'Detail Titipan' : 'Detail Titipan Orang',
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -161,7 +161,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
             children: [
               Expanded(
                 child: _buildSummaryItem(
-                  'Total ${isDebt ? 'Tagihan' : 'Tagihan Orang'}',
+                  'Total ${isDebt ? 'Titipan' : 'Titipan Orang'}',
                   CurrencyFormatter.format(_debt.amount),
                 ),
               ),
@@ -272,7 +272,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
             Icon(Icons.history, size: 40, color: scheme.onSurfaceVariant),
             const SizedBox(height: 8),
             Text(
-              'Belum ada histori ${isDebt ? 'pembayaran' : 'penerimaan'}',
+              'Belum ada histori pengembalian',
               style: textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -293,7 +293,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Histori ${isDebt ? 'Pembayaran' : 'Penerimaan'}',
+                    'Histori Pengembalian',
                     style: textTheme.titleMedium,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -368,7 +368,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         child: FilledButton.icon(
           onPressed: _showAddPaymentDialog,
           icon: const Icon(Icons.add),
-          label: Text(isDebt ? 'Bayar Cicilan' : 'Terima Cicilan'),
+          label: Text(isDebt ? 'Terima Pengembalian' : 'Kembalikan Uang'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
         ),
       ),
@@ -395,7 +395,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     if (updated != null) setState(() => _debt = updated);
     ToastWidget.success(
       context,
-      '${isDebt ? "Pembayaran" : "Penerimaan"} berhasil dicatat',
+      'Pengembalian berhasil dicatat',
     );
   }
 }
@@ -443,11 +443,12 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
       v,
       max: _debt.remainingAmount,
       maxMessage:
-          'Melebihi sisa tagihan (${CurrencyFormatter.format(_debt.remainingAmount)})',
+          'Melebihi sisa titipan (${CurrencyFormatter.format(_debt.remainingAmount)})',
     );
     if (rangeError != null) return rangeError;
-    // Paying a debt takes money out of the wallet: it must cover the amount.
-    if (_isDebt && wallet != null) {
+    // Returning a "Titipan Orang" takes money out of my wallet, so it must
+    // cover the amount. Receiving a "Titipan Saya" return adds money instead.
+    if (!_isDebt && wallet != null) {
       final amount = InputValidation.parseAmount(v)!;
       if (amount > wallet.balance) {
         return 'Saldo ${wallet.name} tidak cukup (${CurrencyFormatter.format(wallet.balance)})';
@@ -466,7 +467,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
       initialDate: _selectedDate.isBefore(first) ? first : _selectedDate,
       firstDate: first,
       lastDate: now,
-      helpText: _isDebt ? 'Tanggal pembayaran' : 'Tanggal penerimaan',
+      helpText: 'Tanggal pengembalian',
     );
     if (date != null && mounted) setState(() => _selectedDate = date);
   }
@@ -540,7 +541,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      _isDebt ? 'Bayar Cicilan' : 'Terima Cicilan',
+                      _isDebt ? 'Terima Pengembalian' : 'Kembalikan Uang',
                       style: textTheme.titleLarge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -560,7 +561,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
                   labelText: 'Jumlah',
                   prefixText: 'Rp ',
                   hintText: '0',
-                  helperText: 'Sisa tagihan $remaining',
+                  helperText: 'Sisa titipan $remaining',
                   helperMaxLines: 2,
                   errorMaxLines: 2,
                 ),
@@ -603,7 +604,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
                         if (_submitted) _formKey.currentState?.validate();
                       },
                 decoration: InputDecoration(
-                  labelText: _isDebt ? 'Bayar dari dompet' : 'Masuk ke dompet',
+                  labelText: _isDebt ? 'Masuk ke dompet' : 'Keluar dari dompet',
                   prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
                   helperText: wallet != null
                       ? 'Saldo ${CurrencyFormatter.format(wallet.balance)}'

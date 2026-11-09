@@ -20,7 +20,7 @@ class AppDatabase {
     final path = join(dbPath, 'cashbay.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -91,6 +91,7 @@ class AppDatabase {
         reminder_enabled INTEGER NOT NULL DEFAULT 0,
         payment_method TEXT NOT NULL DEFAULT 'cash',
         attachment_path TEXT,
+        open_txn_id INTEGER,
         FOREIGN KEY (wallet_id) REFERENCES wallets (id)
       )
     ''');
@@ -102,6 +103,7 @@ class AppDatabase {
         amount REAL NOT NULL,
         wallet_id INTEGER NOT NULL,
         date TEXT NOT NULL,
+        txn_id INTEGER,
         FOREIGN KEY (debt_id) REFERENCES debts (id),
         FOREIGN KEY (wallet_id) REFERENCES wallets (id)
       )
@@ -117,6 +119,11 @@ class AppDatabase {
 
     if (oldVersion < 4) {
       await _migrateToTransactionTags(db);
+    }
+
+    if (oldVersion < 5) {
+      await _addColumnIfNotExists(db, 'debts', 'open_txn_id', 'INTEGER');
+      await _addColumnIfNotExists(db, 'debt_payments', 'txn_id', 'INTEGER');
     }
 
     if (oldVersion < 2) {

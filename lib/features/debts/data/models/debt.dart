@@ -13,6 +13,7 @@ class Debt {
   final bool reminderEnabled;
   final String paymentMethod;
   final String? attachmentPath;
+  final int? openTxnId;
 
   Debt({
     this.id,
@@ -29,6 +30,7 @@ class Debt {
     this.reminderEnabled = false,
     this.paymentMethod = 'cash',
     this.attachmentPath,
+    this.openTxnId,
   });
 
   Map<String, dynamic> toMap() {
@@ -47,6 +49,7 @@ class Debt {
       'reminder_enabled': reminderEnabled ? 1 : 0,
       'payment_method': paymentMethod,
       'attachment_path': attachmentPath,
+      'open_txn_id': openTxnId,
     };
   }
 
@@ -66,6 +69,7 @@ class Debt {
       reminderEnabled: (map['reminder_enabled'] as int?) == 1,
       paymentMethod: (map['payment_method'] as String?) ?? 'cash',
       attachmentPath: map['attachment_path'] as String?,
+      openTxnId: map['open_txn_id'] as int?,
     );
   }
 
@@ -84,6 +88,7 @@ class Debt {
     bool? reminderEnabled,
     String? paymentMethod,
     String? attachmentPath,
+    int? openTxnId,
   }) {
     return Debt(
       id: id ?? this.id,
@@ -100,6 +105,7 @@ class Debt {
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       attachmentPath: attachmentPath ?? this.attachmentPath,
+      openTxnId: openTxnId ?? this.openTxnId,
     );
   }
 
