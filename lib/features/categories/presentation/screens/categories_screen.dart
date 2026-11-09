@@ -82,7 +82,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CashBayAppBar(
-        title: 'Kategori',
+        title: 'Tag Transaksi',
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -108,7 +108,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         },
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Tambah kategori',
+        tooltip: 'Tambah tag',
         onPressed: () => _showCategorySheet(initialType: _currentType),
         child: const Icon(Icons.add),
       ),
@@ -119,9 +119,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     if (categories.isEmpty) {
       return EmptyState(
         icon: type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-        message: 'Belum ada kategori ${_typeLabel(type)}',
-        subtitle: 'Tambah kategori untuk mengelompokkan transaksi',
-        buttonLabel: 'Tambah Kategori',
+        message: 'Belum ada tag ${_typeLabel(type)}',
+        subtitle: 'Tambah tag untuk mengelompokkan transaksi',
+        buttonLabel: 'Tambah Tag',
         onButtonTap: () => _showCategorySheet(initialType: type),
       );
     }
@@ -179,7 +179,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           : null,
       onTap: () => _showCategorySheet(category: category),
       trailing: PopupMenuButton<String>(
-        tooltip: 'Opsi kategori',
+        tooltip: 'Opsi tag',
         onSelected: (value) {
           if (value == 'edit') {
             _showCategorySheet(category: category);
@@ -250,7 +250,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     if (saved == true && mounted) {
       ToastWidget.success(
         context,
-        isEdit ? 'Kategori diperbarui' : 'Kategori ditambahkan',
+        isEdit ? 'Tag diperbarui' : 'Tag ditambahkan',
       );
     }
   }
@@ -264,13 +264,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         if (mounted) {
           ToastWidget.error(
             context,
-            'Kategori "${category.name}" masih digunakan transaksi',
+            'Tag "${category.name}" masih digunakan transaksi',
           );
         }
         return;
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal memeriksa kategori: $e');
+      if (mounted) ToastWidget.error(context, 'Gagal memeriksa tag: $e');
       return;
     }
     if (!mounted) return;
@@ -279,11 +279,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         icon: Icon(Icons.delete_outline, color: scheme.error),
-        title: const Text('Hapus Kategori?'),
+        title: const Text('Hapus Tag?'),
         content: Text(
           category.isDefault
-              ? 'Kategori bawaan "${category.name}" akan dihapus permanen.'
-              : 'Kategori "${category.name}" akan dihapus permanen.',
+              ? 'Tag bawaan "${category.name}" akan dihapus permanen.'
+              : 'Tag "${category.name}" akan dihapus permanen.',
         ),
         actions: [
           TextButton(
@@ -307,15 +307,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       final success = await provider.deleteCategory(category.id!);
       if (!mounted) return;
       if (success) {
-        ToastWidget.success(context, 'Kategori dihapus');
+        ToastWidget.success(context, 'Tag dihapus');
       } else {
         ToastWidget.error(
           context,
-          'Kategori tidak bisa dihapus (masih digunakan)',
+          'Tag tidak bisa dihapus (masih digunakan)',
         );
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal menghapus kategori: $e');
+      if (mounted) ToastWidget.error(context, 'Gagal menghapus tag: $e');
     }
   }
 }
@@ -364,7 +364,7 @@ class _CategorySheetState extends State<_CategorySheet> {
   String? _validateName(String? value) {
     final base = InputValidation.name(
       value,
-      'Nama kategori',
+      'Nama tag',
       max: InputValidation.maxCategory,
     );
     if (base != null) return base;
@@ -379,7 +379,7 @@ class _CategorySheetState extends State<_CategorySheet> {
           c.id != widget.category?.id && c.name.trim().toLowerCase() == name,
     );
     if (duplicate) {
-      return 'Kategori ${_typeLabel(_selectedType)} dengan nama ini sudah ada';
+      return 'Tag ${_typeLabel(_selectedType)} dengan nama ini sudah ada';
     }
     return null;
   }
@@ -400,10 +400,10 @@ class _CategorySheetState extends State<_CategorySheet> {
       if (ok) {
         Navigator.pop(context, true);
       } else {
-        ToastWidget.error(context, 'Gagal menyimpan kategori');
+        ToastWidget.error(context, 'Gagal menyimpan tag');
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal menyimpan kategori: $e');
+      if (mounted) ToastWidget.error(context, 'Gagal menyimpan tag: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -430,7 +430,7 @@ class _CategorySheetState extends State<_CategorySheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _isEdit ? 'Edit Kategori' : 'Tambah Kategori',
+                _isEdit ? 'Edit Tag' : 'Tambah Tag',
                 style: textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -474,7 +474,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
                 decoration: const InputDecoration(
-                  labelText: 'Nama Kategori',
+                  labelText: 'Nama Tag',
                   hintText: 'Contoh: Gaji, Makan, Transport',
                 ),
                 validator: _validateName,

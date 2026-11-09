@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
+import '../../../transactions/presentation/screens/add_transaction_screen.dart';
 import '../providers/debt_provider.dart';
-import 'add_debt_screen.dart';
 import 'debt_detail_screen.dart';
 
 class DebtsScreen extends StatefulWidget {
@@ -80,7 +79,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                   children: [
                     for (final option in const [
                       ('Semua', 'all'),
-                      ('Aktif', 'active'),
+                      ('Belum Lunas', 'active'),
                       ('Lunas', 'paid'),
                     ])
                       ChoiceChip(
@@ -229,7 +228,8 @@ class _DebtsScreenState extends State<DebtsScreen>
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Tambah titipan',
-        onPressed: _showAddDebtDialog,
+        onPressed: () =>
+            _openAddTitipan(_tabController.index == 0 ? 'debt' : 'receivable'),
         child: const Icon(Icons.add),
       ),
     );
@@ -268,17 +268,11 @@ class _DebtsScreenState extends State<DebtsScreen>
 
   Widget _buildSummaryCard(String type, double total, int activeCount) {
     final isDebt = type == 'debt';
-    final finance = FinanceColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final container = isDebt
-        ? finance.expenseContainer
-        : finance.incomeContainer;
-    final onContainer = isDebt
-        ? finance.onExpenseContainer
-        : finance.onIncomeContainer;
 
     return AppCard(
-      color: container,
+      variant: AppCardVariant.outlined,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,13 +282,15 @@ class _DebtsScreenState extends State<DebtsScreen>
               Icon(
                 isDebt ? Icons.arrow_upward : Icons.arrow_downward,
                 size: 20,
-                color: onContainer,
+                color: scheme.primary,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   isDebt ? 'Sisa titipan saya' : 'Sisa titipan orang',
-                  style: textTheme.titleSmall?.copyWith(color: onContainer),
+                  style: textTheme.titleSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -308,7 +304,6 @@ class _DebtsScreenState extends State<DebtsScreen>
             child: Text(
               CurrencyFormatter.format(total),
               style: textTheme.headlineMedium?.copyWith(
-                color: onContainer,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -316,9 +311,11 @@ class _DebtsScreenState extends State<DebtsScreen>
           const SizedBox(height: 4),
           Text(
             activeCount == 0
-                ? 'Tidak ada titipan aktif'
-                : '$activeCount titipan aktif',
-            style: textTheme.bodyMedium?.copyWith(color: onContainer),
+                ? 'Tidak ada titipan belum lunas'
+                : '$activeCount titipan belum lunas',
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -382,7 +379,7 @@ class _DebtsScreenState extends State<DebtsScreen>
           ? 'Catat uang yang Anda titipkan ke orang lain'
           : 'Catat uang orang lain yang Anda pegang',
       buttonLabel: isDebt ? 'Tambah Titipan' : 'Tambah Titipan Orang',
-      onButtonTap: _showAddDebtDialog,
+      onButtonTap: () => _openAddTitipan(isDebt ? 'debt' : 'receivable'),
     );
   }
 
@@ -413,99 +410,143 @@ class _DebtsScreenState extends State<DebtsScreen>
     final isPaid = debt.status == 'paid';
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final finance = FinanceColors.of(context);
-    final subtitle = [
-      DateFormatter.formatDate(debt.date),
-      if (!isPaid && debt.dueDate != null)
-        'Jatuh tempo ${DateFormatter.formatDate(debt.dueDate!)}',
-    ].join(' • ');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final isOverdue =
+        !isPaid &&
+        debt.dueDate != null &&
+        DateTime(debt.dueDate!.year, debt.dueDate!.month, debt.dueDate!.day)
+            .isBefore(today);
+    final subtitle = debt.dueDate != null
+        ? DateFormatter.formatDate(debt.dueDate!)
+        : DateFormatter.formatDate(debt.date);
     final paidRatio = debt.amount > 0
         ? ((debt.amount - debt.remainingAmount) / debt.amount).clamp(0.0, 1.0)
         : 0.0;
 
     return AppCard(
       variant: AppCardVariant.outlined,
+      // Overdue titipan get a faint red wash so they stand out in the list.
+      color: isOverdue
+          ? Color.alphaBlend(
+              scheme.error.withValues(alpha: 0.10),
+              scheme.surface,
+            )
+          : null,
       padding: const EdgeInsets.all(16),
       onTap: () =>
           Navigator.push(context, fadeSlideRoute(DebtDetailScreen(debt: debt))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: isDebt
-                    ? finance.expenseContainer
-                    : finance.incomeContainer,
-                foregroundColor: isDebt
-                    ? finance.onExpenseContainer
-                    : finance.onIncomeContainer,
-                child: Icon(
-                  isDebt ? Icons.receipt_long : Icons.file_download_outlined,
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: CircleAvatar(
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.onPrimaryContainer,
+                    child: const Icon(Icons.receipt_long),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      debt.personName,
-                      style: textTheme.titleMedium,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        debt.personName,
+                        style: textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isOverdue
+                              ? scheme.error
+                              : scheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      CurrencyFormatter.format(debt.remainingAmount),
+                      textAlign: TextAlign.right,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        CurrencyFormatter.format(
-                          isPaid ? debt.amount : debt.remainingAmount,
-                        ),
-                        style: textTheme.titleSmall?.copyWith(
-                          color: isDebt ? finance.expense : finance.income,
-                        ),
+                      style: textTheme.titleSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    DebtStatusBadge(isPaid: isPaid),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          if (!isPaid && debt.amount > 0) ...[
+          if (debt.amount > 0) ...[
             const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: paidRatio,
-              borderRadius: BorderRadius.circular(4),
-              semanticsLabel: 'Progres pembayaran',
-              semanticsValue: '${(paidRatio * 100).round()}%',
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: paidRatio,
+                    borderRadius: BorderRadius.circular(4),
+                    semanticsLabel: 'Progres pembayaran',
+                    semanticsValue: '${(paidRatio * 100).round()}%',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(paidRatio * 100).round()}%',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
-            Text(
-              '${(paidRatio * 100).round()}% ${isDebt ? 'dibayar' : 'diterima'} dari ${CurrencyFormatter.format(debt.amount)}',
-              style: textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${CurrencyFormatter.format(debt.amount - debt.remainingAmount)} ${isDebt ? 'dibayar' : 'diterima'} dari ${CurrencyFormatter.format(debt.amount)}',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isPaid) ...[
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.check_circle,
+                    size: 14,
+                    color: Color(0xFF2E7D32),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Lunas',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: const Color(0xFF2E7D32),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ],
@@ -513,23 +554,25 @@ class _DebtsScreenState extends State<DebtsScreen>
     );
   }
 
-  void _showAddDebtDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.92,
-        child: AddDebtScreen(
-          initialType: _tabController.index == 0 ? 'debt' : 'receivable',
+  /// Opens the shared add-transaction screen on the Titipan tab, matching the
+  /// selected list ("Titipan Saya" -> debt, "Titipan Orang" -> receivable).
+  Future<void> _openAddTitipan(String direction) async {
+    final saved = await Navigator.push(
+      context,
+      fadeSlideRoute(
+        AddTransactionScreen(
+          initialType: 'tagihan',
+          initialDebtDirection: direction,
         ),
       ),
     );
+    if (saved == true && mounted) {
+      await context.read<DebtProvider>().loadAllDebts();
+    }
   }
 }
 
-/// Tonal status label ("Lunas" / "Aktif") shared by the debt list and detail.
+/// Tonal status label ("Lunas" / "Belum Lunas") shared by the debt list and detail.
 class DebtStatusBadge extends StatelessWidget {
   final bool isPaid;
   const DebtStatusBadge({super.key, required this.isPaid});
@@ -537,17 +580,16 @@ class DebtStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final finance = FinanceColors.of(context);
     return Badge(
-      label: Text(isPaid ? 'Lunas' : 'Aktif'),
+      label: Text(isPaid ? 'Lunas' : 'Belum Lunas'),
       largeSize: 20,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       textStyle: Theme.of(context).textTheme.labelSmall,
       backgroundColor: isPaid
-          ? finance.incomeContainer
+          ? scheme.primaryContainer
           : scheme.tertiaryContainer,
       textColor: isPaid
-          ? finance.onIncomeContainer
+          ? scheme.onPrimaryContainer
           : scheme.onTertiaryContainer,
     );
   }

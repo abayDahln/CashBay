@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -177,7 +176,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
   }
 
   Widget _buildTagihanSection(DebtProvider provider) {
-    final finance = FinanceColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -198,8 +196,8 @@ class _DashboardHomeState extends State<_DashboardHome> {
                 title: 'Titipan Saya',
                 amount: provider.totalActiveDebt,
                 icon: Icons.north,
-                container: finance.expenseContainer,
-                onContainer: finance.onExpenseContainer,
+                container: scheme.primaryContainer,
+                onContainer: scheme.onPrimaryContainer,
                 onTap: () => Navigator.push(
                   context,
                   fadeSlideRoute(const DebtsScreen(initialTab: 0)),
@@ -212,8 +210,8 @@ class _DashboardHomeState extends State<_DashboardHome> {
                 title: 'Titipan Orang',
                 amount: provider.totalActiveReceivable,
                 icon: Icons.south,
-                container: finance.incomeContainer,
-                onContainer: finance.onIncomeContainer,
+                container: scheme.primaryContainer,
+                onContainer: scheme.onPrimaryContainer,
                 onTap: () => Navigator.push(
                   context,
                   fadeSlideRoute(const DebtsScreen(initialTab: 1)),

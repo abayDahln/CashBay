@@ -27,23 +27,42 @@ class WalletProvider extends ChangeNotifier {
   }
 
   /// Guarantees the two default wallets exist, recreating any that are missing
-  /// (e.g. after an import from an older backup). Returns true if it changed.
+  /// (e.g. after an import from an older backup). Reads from the database so it
+  /// is safe to call before / concurrently with [loadWallets]. Reloads the list
+  /// afterwards so callers always end with an up-to-date [wallets].
   Future<bool> ensureDefaultWallets() async {
     var changed = false;
-    if (cashWallet == null) {
+    if (await _repository.getWalletByType('cash') == null) {
       await _repository.insertWallet(
         Wallet(name: 'Cash', type: 'cash', balance: 0),
       );
       changed = true;
     }
-    if (ewalletWallet == null) {
+    if (await _repository.getWalletByType('ewallet') == null) {
       await _repository.insertWallet(
         Wallet(name: 'E-Wallet', type: 'ewallet', balance: 0),
       );
       changed = true;
     }
-    if (changed) await loadWallets();
+    if (await _removeDuplicateWallets()) changed = true;
+    await loadWallets();
     return changed;
+  }
+
+  /// Drops extra wallets of the same type, keeping the lowest id. Cleans up
+  /// duplicates a raced ensureDefaultWallets could once have inserted.
+  Future<bool> _removeDuplicateWallets() async {
+    final all = await _repository.getAllWallets();
+    final seen = <String>{};
+    var removed = false;
+    for (final w in all) {
+      if (w.id == null) continue;
+      if (!seen.add(w.type)) {
+        await _repository.deleteWallet(w.id!);
+        removed = true;
+      }
+    }
+    return removed;
   }
 
   Future<void> refreshBalances() async {

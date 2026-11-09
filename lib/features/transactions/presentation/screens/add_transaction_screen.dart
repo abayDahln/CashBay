@@ -40,7 +40,19 @@ DateTime _calculateDueDate(DateTime from, DueDatePreset preset) {
 }
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  /// Which type chip is preselected ('income' | 'expense' | 'tagihan' |
+  /// 'transfer'). Defaults to 'income'.
+  final String initialType;
+
+  /// Which titipan direction is preselected ('debt' | 'receivable') when
+  /// [initialType] is 'tagihan'. Defaults to 'debt'.
+  final String initialDebtDirection;
+
+  const AddTransactionScreen({
+    super.key,
+    this.initialType = 'income',
+    this.initialDebtDirection = 'debt',
+  });
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -55,8 +67,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _billNameController = TextEditingController();
   final _typeScrollController = ScrollController();
 
-  String _transactionType = 'expense';
-  String _debtDirection = 'debt';
+  String _transactionType = 'income';  String _debtDirection = 'debt';
   String _paymentMethod = 'cash';
   final Set<int> _selectedCategoryIds = {};
   DateTime _selectedDate = DateTime.now();
@@ -79,6 +90,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void initState() {
     super.initState();
+    _transactionType = widget.initialType;
+    _debtDirection = widget.initialDebtDirection;
     _loadData();
   }
 

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
 import '../../data/models/debt_payment.dart';
-import '../../../dashboard/data/models/wallet.dart';
 import '../providers/debt_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import 'debts_screen.dart' show DebtStatusBadge;
@@ -77,7 +75,6 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     final paid = _debt.amount - _debt.remainingAmount;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final finance = FinanceColors.of(context);
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -88,12 +85,8 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: isDebt
-                    ? finance.expenseContainer
-                    : finance.incomeContainer,
-                foregroundColor: isDebt
-                    ? finance.onExpenseContainer
-                    : finance.onIncomeContainer,
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.onPrimaryContainer,
                 child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
               ),
               const SizedBox(width: 16),
@@ -124,7 +117,6 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
               CurrencyFormatter.format(_debt.remainingAmount),
               style: textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: isDebt ? finance.expense : finance.income,
               ),
             ),
           ),
@@ -210,6 +202,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         .firstOrNull;
 
     return AppCard(
+      variant: AppCardVariant.outlined,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,6 +259,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
 
     if (_payments.isEmpty) {
       return AppCard(
+        variant: AppCardVariant.outlined,
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -284,6 +278,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     }
 
     return AppCard(
+      variant: AppCardVariant.outlined,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
@@ -328,7 +323,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
   }
 
   Widget _buildPaymentTile(DebtPayment payment) {
-    final finance = FinanceColors.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final wallet = context
         .read<WalletProvider>()
         .wallets
@@ -337,12 +332,8 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: isDebt
-            ? finance.expenseContainer
-            : finance.incomeContainer,
-        foregroundColor: isDebt
-            ? finance.onExpenseContainer
-            : finance.onIncomeContainer,
+        backgroundColor: scheme.primaryContainer,
+        foregroundColor: scheme.onPrimaryContainer,
         child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
       ),
       title: Text(
@@ -435,26 +426,16 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
     super.dispose();
   }
 
-  Wallet? _walletOf(List<Wallet> wallets) =>
-      wallets.where((w) => w.id == _walletId).firstOrNull;
-
-  String? _validateAmount(String? v, Wallet? wallet) {
-    final rangeError = InputValidation.amountInRange(
+  String? _validateAmount(String? v) {
+    // Only the remaining titipan caps the amount. Wallet balance is not a
+    // limit: a titipan can be settled from the titipan money itself, so a
+    // wallet may legitimately go negative here.
+    return InputValidation.amountInRange(
       v,
       max: _debt.remainingAmount,
       maxMessage:
           'Melebihi sisa titipan (${CurrencyFormatter.format(_debt.remainingAmount)})',
     );
-    if (rangeError != null) return rangeError;
-    // Returning a "Titipan Orang" takes money out of my wallet, so it must
-    // cover the amount. Receiving a "Titipan Saya" return adds money instead.
-    if (!_isDebt && wallet != null) {
-      final amount = InputValidation.parseAmount(v)!;
-      if (amount > wallet.balance) {
-        return 'Saldo ${wallet.name} tidak cukup (${CurrencyFormatter.format(wallet.balance)})';
-      }
-    }
-    return null;
   }
 
   Future<void> _pickDate() async {
@@ -507,9 +488,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    final finance = FinanceColors.of(context);
     final wallets = context.watch<WalletProvider>().wallets;
-    final wallet = _walletOf(wallets);
     final remaining = CurrencyFormatter.format(_debt.remainingAmount);
 
     return Padding(
@@ -528,12 +507,8 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: _isDebt
-                        ? finance.expenseContainer
-                        : finance.incomeContainer,
-                    foregroundColor: _isDebt
-                        ? finance.onExpenseContainer
-                        : finance.onIncomeContainer,
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.onPrimaryContainer,
                     child: Icon(
                       _isDebt ? Icons.arrow_upward : Icons.arrow_downward,
                     ),
@@ -565,20 +540,20 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
                   helperMaxLines: 2,
                   errorMaxLines: 2,
                 ),
-                validator: (v) => _validateAmount(v, wallet),
+                validator: _validateAmount,
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ActionChip(
-                  avatar: const Icon(Icons.done_all),
-                  label: Text('Lunasi $remaining'),
-                  onPressed: _isSaving
-                      ? null
-                      : () => _amountController.text =
-                            RupiahInputFormatter.formatValue(
-                              _debt.remainingAmount,
-                            ),
+              OutlinedButton.icon(
+                onPressed: _isSaving
+                    ? null
+                    : () => _amountController.text =
+                          RupiahInputFormatter.formatValue(
+                            _debt.remainingAmount,
+                          ),
+                icon: const Icon(Icons.done_all, size: 18),
+                label: Text('Lunasi $remaining'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
                 ),
               ),
               const SizedBox(height: 16),
@@ -598,17 +573,10 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
                 ],
                 onChanged: _isSaving
                     ? null
-                    : (v) {
-                        setState(() => _walletId = v);
-                        // Re-check the amount against the new wallet balance.
-                        if (_submitted) _formKey.currentState?.validate();
-                      },
+                    : (v) => setState(() => _walletId = v),
                 decoration: InputDecoration(
                   labelText: _isDebt ? 'Masuk ke dompet' : 'Keluar dari dompet',
                   prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
-                  helperText: wallet != null
-                      ? 'Saldo ${CurrencyFormatter.format(wallet.balance)}'
-                      : null,
                 ),
                 validator: (v) => v == null ? 'Pilih dompet' : null,
               ),

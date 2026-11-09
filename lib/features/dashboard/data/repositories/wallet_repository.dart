@@ -46,6 +46,11 @@ class WalletRepository {
     );
   }
 
+  Future<int> deleteWallet(int id) async {
+    final db = await _db.database;
+    return await db.delete('wallets', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<int> updateWalletBalance(int walletId, double newBalance) async {
     final db = await _db.database;
     return await db.update(

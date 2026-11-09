@@ -34,21 +34,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CashBayAppBar(
-        title: _typeLabel,
-        actions: [
-          IconButton(
-            tooltip: 'Ubah',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _isDeleting ? null : _openEditSheet,
-          ),
-          IconButton(
-            tooltip: 'Hapus',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _isDeleting ? null : _confirmDelete,
-          ),
-        ],
-      ),
+      appBar: CashBayAppBar(title: _typeLabel),
       body: _isDeleting
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -118,12 +104,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       'transfer' => (finance.transferContainer, finance.onTransferContainer),
       _ => (finance.expenseContainer, finance.onExpenseContainer),
     };
-    final statusLabel = _transaction.isTagihan
-        ? 'Titipan'
-        : _isTransfer && !_transaction.isTagihanRelated
-        ? 'Transfer'
-        : 'Berhasil';
     return AppCard(
+      variant: AppCardVariant.outlined,
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       child: Column(
         children: [
@@ -159,24 +141,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     _isTransfer,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle, size: 16, color: scheme.primary),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  statusLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.labelLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),

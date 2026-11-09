@@ -24,9 +24,7 @@ class CashBayApp extends StatelessWidget {
               themePreferences ?? (ThemePreferencesProvider()..load()),
         ),
         ChangeNotifierProvider(
-          create: (_) => WalletProvider()
-            ..loadWallets()
-            ..ensureDefaultWallets(),
+          create: (_) => WalletProvider()..ensureDefaultWallets(),
         ),
         ChangeNotifierProvider(
           create: (_) => TransactionProvider()..loadTransactions(limit: 10),

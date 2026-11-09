@@ -344,9 +344,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const Divider(),
         const _SectionHeader('Manajemen Data'),
         ListTile(
-          leading: const Icon(Icons.category_outlined),
-          title: const Text('Kelola Kategori'),
-          subtitle: const Text('Tambah, ubah, atau hapus kategori'),
+          leading: const Icon(Icons.sell_outlined),
+          title: const Text('Kelola Tag Transaksi'),
+          subtitle: const Text('Tambah, ubah, atau hapus tag transaksi'),
           trailing: const Icon(Icons.chevron_right),
           onTap: _openCategories,
         ),

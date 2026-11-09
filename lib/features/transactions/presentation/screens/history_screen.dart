@@ -25,6 +25,7 @@ class HistoryScreenState extends State<HistoryScreen> {
 
   String _typeFilter = 'all';
   final _searchController = TextEditingController();
+  final _filterScrollController = ScrollController();
   String _searchQuery = '';
 
   @override
@@ -36,6 +37,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _filterScrollController.dispose();
     super.dispose();
   }
 
@@ -286,21 +288,68 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildFilterChips() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-      child: Row(
-        children: [
-          for (final (label, value) in _filters)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(label),
-                selected: _typeFilter == value,
-                onSelected: (_) => setState(() => _typeFilter = value),
+    final scheme = Theme.of(context).colorScheme;
+    // Horizontally scrollable; edge fades hint at more chips and each side
+    // hides once the row reaches that scroll end.
+    return AnimatedBuilder(
+      animation: _filterScrollController,
+      builder: (context, _) {
+        final position = _filterScrollController.hasClients
+            ? _filterScrollController.position
+            : null;
+        final showLeft = position != null && position.pixels > 0;
+        final showRight =
+            position != null && position.pixels < position.maxScrollExtent;
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _filterScrollController,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+              child: Row(
+                children: [
+                  for (final (label, value) in _filters)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(label),
+                        selected: _typeFilter == value,
+                        onSelected: (_) => setState(() => _typeFilter = value),
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
+            _edgeFade(scheme.surface, Alignment.centerLeft, showLeft),
+            _edgeFade(scheme.surface, Alignment.centerRight, showRight),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _edgeFade(Color color, Alignment alignment, bool visible) {
+    final isLeft = alignment == Alignment.centerLeft;
+    return Positioned(
+      left: isLeft ? 0 : null,
+      right: isLeft ? null : 0,
+      top: 0,
+      bottom: 8,
+      width: 32,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 150),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+                end: isLeft ? Alignment.centerRight : Alignment.centerLeft,
+                colors: [color, color.withValues(alpha: 0)],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
