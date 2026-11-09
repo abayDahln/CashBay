@@ -86,9 +86,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final walletProvider = context.read<WalletProvider>();
     final categoryProvider = context.read<CategoryProvider>();
 
-    if (walletProvider.wallets.isEmpty) {
-      await walletProvider.loadWallets();
-    }
+    await walletProvider.loadWallets();
+    await walletProvider.ensureDefaultWallets();
     if (categoryProvider.incomeCategories.isEmpty &&
         categoryProvider.expenseCategories.isEmpty) {
       await categoryProvider.loadCategories();
@@ -939,9 +938,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final walletProvider = context.read<WalletProvider>();
     final transactionProvider = context.read<TransactionProvider>();
     final debtProvider = context.read<DebtProvider>();
+    // The list may not have finished loading (or was never loaded) — make sure.
+    if (walletProvider.wallets.isEmpty) {
+      await walletProvider.loadWallets();
+      if (!mounted) return;
+    }
     final wallet = _walletOfType(walletProvider.wallets, _paymentMethod);
     if (wallet == null) {
-      ToastWidget.error(context, 'Dompet tidak ditemukan');
+      ToastWidget.error(
+        context,
+        walletProvider.wallets.isEmpty
+            ? 'Dompet belum tersedia, muat ulang aplikasi'
+            : 'Dompet ${_paymentMethod == 'cash' ? 'Cash' : 'E-Wallet'} tidak ditemukan',
+      );
       return;
     }
     final destWallet = _isTransfer

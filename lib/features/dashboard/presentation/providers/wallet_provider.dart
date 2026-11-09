@@ -26,6 +26,26 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Guarantees the two default wallets exist, recreating any that are missing
+  /// (e.g. after an import from an older backup). Returns true if it changed.
+  Future<bool> ensureDefaultWallets() async {
+    var changed = false;
+    if (cashWallet == null) {
+      await _repository.insertWallet(
+        Wallet(name: 'Cash', type: 'cash', balance: 0),
+      );
+      changed = true;
+    }
+    if (ewalletWallet == null) {
+      await _repository.insertWallet(
+        Wallet(name: 'E-Wallet', type: 'ewallet', balance: 0),
+      );
+      changed = true;
+    }
+    if (changed) await loadWallets();
+    return changed;
+  }
+
   Future<void> refreshBalances() async {
     for (final wallet in _wallets) {
       await _repository.recalculateWalletBalance(wallet.id!);

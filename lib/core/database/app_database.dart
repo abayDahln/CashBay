@@ -148,9 +148,70 @@ class AppDatabase {
 
   /// v4: categories become optional multi-tags. Moves each transaction's
   /// single `category_id` into the `transaction_tags` pivot, then rebuilds
-  /// `transactions` without the column.
+  /// `transactions` without the column. Idempotent: safe to re-run if a
+  /// previous attempt was interrupted before the version bump was persisted.
   Future<void> _migrateToTransactionTags(Database db) async {
-    await db.execute('ALTER TABLE transactions RENAME TO transactions_old');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS transaction_tags (
+        transaction_id INTEGER NOT NULL,
+        category_id INTEGER NOT NULL,
+        PRIMARY KEY (transaction_id, category_id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions (id),
+        FOREIGN KEY (category_id) REFERENCES categories (id)
+      )
+    ''');
+
+    Future<bool> tableExists(String name) async {
+      final rows = await db.rawQuery(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        [name],
+      );
+      return rows.isNotEmpty;
+    }
+
+    Future<List<String>> columnsOf(String name) async {
+      final rows = await db.rawQuery('PRAGMA table_info($name)');
+      return rows.map((c) => c['name'] as String).toList();
+    }
+
+    final hasOld = await tableExists('transactions_old');
+    final hasNew = await tableExists('transactions');
+
+    // Source table: a leftover from an interrupted run, else the live table.
+    final String source;
+    if (hasOld) {
+      source = 'transactions_old';
+      if (hasNew) await db.execute('DROP TABLE transactions');
+    } else if (hasNew) {
+      final cols = await columnsOf('transactions');
+      if (!cols.contains('category_id')) return; // already migrated
+      await db.execute('ALTER TABLE transactions RENAME TO transactions_old');
+      source = 'transactions_old';
+    } else {
+      return; // nothing to migrate
+    }
+
+    final sourceHasCategory = (await columnsOf(source)).contains('category_id');
+
+    await _rebuildTransactionsTable(db);
+    await db.execute('''
+      INSERT INTO transactions
+        (id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
+         description, payment_method, attachment_path, is_deleted)
+      SELECT id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
+         description, payment_method, attachment_path, is_deleted
+      FROM $source
+    ''');
+    if (sourceHasCategory) {
+      await db.execute('''
+        INSERT OR IGNORE INTO transaction_tags (transaction_id, category_id)
+        SELECT id, category_id FROM $source WHERE category_id IS NOT NULL
+      ''');
+    }
+    await db.execute('DROP TABLE $source');
+  }
+
+  Future<void> _rebuildTransactionsTable(Database db) async {
     await db.execute('''
       CREATE TABLE transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,28 +230,6 @@ class AppDatabase {
         FOREIGN KEY (to_wallet_id) REFERENCES wallets (id)
       )
     ''');
-    await db.execute('''
-      INSERT INTO transactions
-        (id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
-         description, payment_method, attachment_path, is_deleted)
-      SELECT id, type, amount, wallet_id, to_wallet_id, note, date, created_at,
-         description, payment_method, attachment_path, is_deleted
-      FROM transactions_old
-    ''');
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS transaction_tags (
-        transaction_id INTEGER NOT NULL,
-        category_id INTEGER NOT NULL,
-        PRIMARY KEY (transaction_id, category_id),
-        FOREIGN KEY (transaction_id) REFERENCES transactions (id),
-        FOREIGN KEY (category_id) REFERENCES categories (id)
-      )
-    ''');
-    await db.execute('''
-      INSERT OR IGNORE INTO transaction_tags (transaction_id, category_id)
-      SELECT id, category_id FROM transactions_old WHERE category_id IS NOT NULL
-    ''');
-    await db.execute('DROP TABLE transactions_old');
   }
 
   Future<void> _seedInitialData(Database db) async {
