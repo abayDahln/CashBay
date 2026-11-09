@@ -103,8 +103,8 @@ class _DashboardHomeState extends State<_DashboardHome> {
       now.month + 1,
     ).subtract(const Duration(microseconds: 1));
     final results = await Future.wait([
-      _txRepository.getTotalIncome(startDate: start, endDate: end),
-      _txRepository.getTotalExpense(startDate: start, endDate: end),
+      _txRepository.getTotalIncome(startDate: start, endDate: end, excludeTitipan: true),
+      _txRepository.getTotalExpense(startDate: start, endDate: end, excludeTitipan: true),
     ]);
     if (!mounted) return;
     setState(() {
@@ -228,7 +228,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
     BuildContext context,
     TransactionProvider provider,
   ) {
-    final recentTransactions = provider.transactions.take(3).toList();
+    final recentTransactions = provider.transactions.take(10).toList();
     final catProvider = context.watch<CategoryProvider>();
     final categoryOf = <int, String>{
       for (final c in [

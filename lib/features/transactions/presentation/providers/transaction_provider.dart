@@ -80,10 +80,9 @@ class TransactionProvider extends ChangeNotifier {
       if (result > 0) {
         final index = _transactions.indexWhere((t) => t.id == transaction.id);
         if (index != -1) _transactions[index] = transaction;
-        await _walletRepository.recalculateWalletBalance(transaction.walletId);
-        if (transaction.type == 'transfer' && transaction.toWalletId != null) {
-          await _walletRepository.recalculateWalletBalance(transaction.toWalletId!);
-        }
+        // The wallet (or transfer pair) may have changed, so recalculate
+        // every wallet to keep balances correct.
+        await _walletRepository.recalculateAllBalances();
         return true;
       }
       return false;

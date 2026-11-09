@@ -12,6 +12,7 @@ class Transaction {
   final String paymentMethod;
   final String? attachmentPath;
   final bool isDeleted;
+  final bool isTitipan;
 
   Transaction({
     this.id,
@@ -27,6 +28,7 @@ class Transaction {
     this.paymentMethod = 'cash',
     this.attachmentPath,
     this.isDeleted = false,
+    this.isTitipan = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -43,6 +45,7 @@ class Transaction {
       'payment_method': paymentMethod,
       'attachment_path': attachmentPath,
       'is_deleted': isDeleted ? 1 : 0,
+      'is_titipan': isTitipan ? 1 : 0,
     };
   }
 
@@ -60,6 +63,7 @@ class Transaction {
       paymentMethod: (map['payment_method'] as String?) ?? 'cash',
       attachmentPath: map['attachment_path'] as String?,
       isDeleted: (map['is_deleted'] as int?) == 1,
+      isTitipan: (map['is_titipan'] as int?) == 1,
     );
   }
 
@@ -77,6 +81,7 @@ class Transaction {
     String? paymentMethod,
     String? attachmentPath,
     bool? isDeleted,
+    bool? isTitipan,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -92,6 +97,7 @@ class Transaction {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       attachmentPath: attachmentPath ?? this.attachmentPath,
       isDeleted: isDeleted ?? this.isDeleted,
+      isTitipan: isTitipan ?? this.isTitipan,
     );
   }
 

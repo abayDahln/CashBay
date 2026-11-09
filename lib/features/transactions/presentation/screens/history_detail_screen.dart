@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart'
-    show CurrencyFormatter, DateFormatter, InputValidation;
+    show CurrencyFormatter, DateFormatter, InputValidation, RupiahInputFormatter;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/transaction.dart';
 import '../providers/transaction_provider.dart';
@@ -356,11 +356,16 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _descriptionController;
   late final TextEditingController _noteController;
+  late final TextEditingController _amountController;
+  int? _walletId;
   String? _newAttachmentPath;
   bool _isSaving = false;
   bool _submitted = false;
 
   Transaction get _transaction => widget.transaction;
+
+  /// Titipan legs are edited from the titipan detail screen, not here.
+  bool get _canEditAmount => !_transaction.isTagihanRelated;
 
   @override
   void initState() {
@@ -369,12 +374,17 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
       text: _transaction.description ?? '',
     );
     _noteController = TextEditingController(text: _transaction.note ?? '');
+    _amountController = TextEditingController(
+      text: RupiahInputFormatter.formatValue(_transaction.amount),
+    );
+    _walletId = _transaction.walletId;
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
     _noteController.dispose();
+    _amountController.dispose();
     super.dispose();
   }
 
@@ -404,36 +414,56 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
 
     final description = _trimmedOrNull(_descriptionController);
     final note = _trimmedOrNull(_noteController);
-    // Null means "unchanged" in updateTransactionMetadata.
-    final changed =
+    final newAmount = InputValidation.parseAmount(_amountController.text);
+    final amountChanged =
+        _canEditAmount &&
+        newAmount != null &&
+        newAmount != _transaction.amount;
+    final walletChanged = _canEditAmount && _walletId != _transaction.walletId;
+    final metaChanged =
         (description != null && description != _transaction.description) ||
         (note != null && note != _transaction.note) ||
         _newAttachmentPath != null;
-    if (!changed) {
+
+    final provider = context.read<TransactionProvider>();
+    setState(() => _isSaving = true);
+
+    final Transaction updated;
+    bool success;
+    if (amountChanged || walletChanged) {
+      // Full-row update: amount and/or wallet moved with description/note/photo.
+      updated = _transaction.copyWith(
+        amount: newAmount,
+        walletId: _walletId,
+        description: description,
+        note: note,
+        attachmentPath: _newAttachmentPath,
+      );
+      success = await provider.updateTransaction(updated);
+    } else if (metaChanged) {
+      updated = _transaction.copyWith(
+        description: description,
+        note: note,
+        attachmentPath: _newAttachmentPath,
+      );
+      success = await provider.updateTransactionMetadata(
+        _transaction.id!,
+        description: description,
+        note: note,
+        attachmentPath: _newAttachmentPath,
+      );
+    } else {
       Navigator.pop(context);
       return;
     }
 
-    setState(() => _isSaving = true);
-    final success = await context
-        .read<TransactionProvider>()
-        .updateTransactionMetadata(
-          _transaction.id!,
-          description: description,
-          note: note,
-          attachmentPath: _newAttachmentPath,
-        );
     if (!mounted) return;
     if (success) {
+      // Keep the dashboard totals in sync with the new amount/wallet.
+      await context.read<WalletProvider>().refreshBalances();
+      if (!mounted) return;
       ToastWidget.success(context, 'Berhasil disimpan');
-      Navigator.pop(
-        context,
-        _transaction.copyWith(
-          description: description,
-          note: note,
-          attachmentPath: _newAttachmentPath,
-        ),
-      );
+      Navigator.pop(context, updated);
     } else {
       setState(() => _isSaving = false);
       ToastWidget.error(context, 'Gagal menyimpan');
@@ -461,12 +491,56 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
               Text('Ubah Transaksi', style: text.titleLarge),
               const SizedBox(height: 4),
               Text(
-                'Nominal, jenis, dan dompet tidak dapat diubah.',
+                _canEditAmount
+                    ? 'Jenis transaksi tidak dapat diubah.'
+                    : 'Titipan diubah dari layar detail titipan.',
                 style: text.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 16),
+              if (_canEditAmount) ...[
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  inputFormatters: [RupiahInputFormatter()],
+                  decoration: const InputDecoration(
+                    labelText: 'Nominal',
+                    prefixText: 'Rp ',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    errorMaxLines: 2,
+                  ),
+                  validator: InputValidation.amountInRange,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<int>(
+                  initialValue: _walletId,
+                  isExpanded: true,
+                  items: [
+                    for (final w in context.watch<WalletProvider>().wallets)
+                      DropdownMenuItem(
+                        value: w.id,
+                        child: Text(
+                          w.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: _isSaving
+                      ? null
+                      : (v) => setState(() => _walletId = v),
+                  decoration: InputDecoration(
+                    labelText: _transaction.type == 'transfer'
+                        ? 'Dompet Asal'
+                        : 'Dompet',
+                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  validator: (v) => v == null ? 'Pilih dompet' : null,
+                ),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _descriptionController,
                 maxLength: InputValidation.maxDescription,

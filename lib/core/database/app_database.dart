@@ -20,7 +20,7 @@ class AppDatabase {
     final path = join(dbPath, 'cashbay.db');
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -60,6 +60,7 @@ class AppDatabase {
         payment_method TEXT NOT NULL DEFAULT 'cash',
         attachment_path TEXT,
         is_deleted INTEGER NOT NULL DEFAULT 0,
+        is_titipan INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (wallet_id) REFERENCES wallets (id),
         FOREIGN KEY (to_wallet_id) REFERENCES wallets (id)
       )
@@ -124,6 +125,23 @@ class AppDatabase {
     if (oldVersion < 5) {
       await _addColumnIfNotExists(db, 'debts', 'open_txn_id', 'INTEGER');
       await _addColumnIfNotExists(db, 'debt_payments', 'txn_id', 'INTEGER');
+    }
+
+    if (oldVersion < 6) {
+      await _addColumnIfNotExists(
+        db,
+        'transactions',
+        'is_titipan',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      // Flag existing titipan rows (opening + return legs) once.
+      await db.execute('''
+        UPDATE transactions SET is_titipan = 1
+        WHERE description LIKE 'Titip %'
+           OR description LIKE 'Tagihan %'
+           OR description LIKE 'Pembayaran %'
+           OR description LIKE 'Penerimaan %'
+      ''');
     }
 
     if (oldVersion < 2) {

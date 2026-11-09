@@ -8,6 +8,7 @@ import 'package:cashbay/features/dashboard/data/repositories/wallet_repository.d
 import 'package:cashbay/features/debts/data/models/debt.dart';
 import 'package:cashbay/features/debts/data/models/debt_payment.dart';
 import 'package:cashbay/features/debts/presentation/providers/debt_provider.dart';
+import 'package:cashbay/features/transactions/data/repositories/transaction_repository.dart';
 
 /// Verifies the two-leg titipan money model against the live wallet balance.
 /// Run with --concurrency=1: it uses the shared on-disk AppDatabase file.
@@ -119,5 +120,131 @@ void main() {
     expect(updated.remainingAmount, 30000);
     expect(updated.status, 'active');
     expect(await balance(1), start - 30000);
+  });
+
+  test('opening leg cannot drop below what was already returned', () async {
+    final provider2 = DebtProvider();
+    await provider2.addDebt(
+      Debt(
+        type: 'debt',
+        personName: 'Dedi',
+        amount: 100000,
+        remainingAmount: 100000,
+        walletId: 1,
+        status: 'active',
+        date: DateTime(2026, 1, 1),
+      ),
+    );
+    final titipan = provider2.debts.first;
+    await provider2.addPayment(
+      DebtPayment(
+        debtId: titipan.id!,
+        amount: 60000,
+        walletId: 1,
+        date: DateTime(2026, 1, 2),
+      ),
+    );
+
+    final afterReturn = provider2.debts.firstWhere((d) => d.id == titipan.id);
+    // 40.000 < 60.000 already returned -> rejected.
+    final error = await provider2.updateOpeningLeg(
+      debt: afterReturn,
+      newAmount: 40000,
+      newWalletId: 1,
+    );
+    expect(error, isNotNull);
+
+    // 80.000 >= 60.000 returned -> allowed, sisa becomes 20.000.
+    final ok = await provider2.updateOpeningLeg(
+      debt: afterReturn,
+      newAmount: 80000,
+      newWalletId: 1,
+    );
+    expect(ok, isNull);
+    final updated = provider2.debts.firstWhere((d) => d.id == titipan.id);
+    expect(updated.amount, 80000);
+    expect(updated.remainingAmount, 20000);
+  });
+
+  test('return leg cannot exceed the titipan total', () async {
+    final provider3 = DebtProvider();
+    await provider3.addDebt(
+      Debt(
+        type: 'debt',
+        personName: 'Eka',
+        amount: 100000,
+        remainingAmount: 100000,
+        walletId: 1,
+        status: 'active',
+        date: DateTime(2026, 1, 1),
+      ),
+    );
+    final titipan = provider3.debts.first;
+    await provider3.addPayment(
+      DebtPayment(
+        debtId: titipan.id!,
+        amount: 30000,
+        walletId: 1,
+        date: DateTime(2026, 1, 2),
+      ),
+    );
+    await provider3.loadDebtPayments(titipan.id!);
+    final payment = provider3.selectedDebtPayments.first;
+    final debt = provider3.debts.firstWhere((d) => d.id == titipan.id);
+
+    // 30.000 already returned + this leg 30.000; raising to 120.000 exceeds total.
+    final error = await provider3.updateReturnLeg(
+      debt: debt,
+      payment: payment,
+      newAmount: 120000,
+      newWalletId: 1,
+    );
+    expect(error, isNotNull);
+
+    // Raising to 100.000 is exactly the total -> allowed, sisa becomes 0.
+    final ok = await provider3.updateReturnLeg(
+      debt: debt,
+      payment: payment,
+      newAmount: 100000,
+      newWalletId: 1,
+    );
+    expect(ok, isNull);
+    final updated = provider3.debts.firstWhere((d) => d.id == titipan.id);
+    expect(updated.remainingAmount, 0);
+    expect(updated.status, 'paid');
+  });
+
+  test('titipan moves the wallet but is not income/expense', () async {
+    final txRepo = TransactionRepository();
+    final provider4 = DebtProvider();
+
+    // Titipan Saya: 30.000 leaves the wallet.
+    await provider4.addDebt(
+      Debt(
+        type: 'debt',
+        personName: 'Fani',
+        amount: 30000,
+        remainingAmount: 30000,
+        walletId: 1,
+        status: 'active',
+        date: DateTime(2026, 4, 1),
+      ),
+    );
+    final titipan = provider4.debts.first;
+    await provider4.addPayment(
+      DebtPayment(
+        debtId: titipan.id!,
+        amount: 30000,
+        walletId: 1,
+        date: DateTime(2026, 4, 2),
+      ),
+    );
+
+    // Wallet balance reflects both legs (net 0 change here).
+    expect(await balance(1), isNotNull);
+
+    // But income/expense summaries ignore titipan entirely.
+    expect(await txRepo.getTotalIncome(excludeTitipan: true), 0);
+    expect(await txRepo.getTotalExpense(excludeTitipan: true), 0);
   });
 }

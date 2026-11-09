@@ -6,6 +6,7 @@ import '../../data/repositories/debt_repository.dart';
 import '../../../transactions/data/repositories/transaction_repository.dart';
 import '../../../dashboard/data/repositories/wallet_repository.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/utils/formatters.dart' show CurrencyFormatter;
 
 class DebtProvider extends ChangeNotifier {
   final DebtRepository _repository = DebtRepository();
@@ -105,6 +106,7 @@ class DebtProvider extends ChangeNotifier {
               ? 'Titip keluar ${debt.personName}'
               : 'Titip masuk ${debt.personName}',
           paymentMethod: debt.paymentMethod,
+          isTitipan: true,
         ),
       );
 
@@ -197,6 +199,7 @@ class DebtProvider extends ChangeNotifier {
                 ? 'Titip kembali dari ${debt.personName}'
                 : 'Titip kembali ke ${debt.personName}',
             paymentMethod: debt.paymentMethod,
+            isTitipan: true,
           ),
         );
         final newPayment = payment.copyWith(id: id, txnId: txnId);
@@ -215,10 +218,134 @@ class DebtProvider extends ChangeNotifier {
     }
   }
 
+  /// Edits the opening leg of a titipan: its total amount and/or wallet.
+  ///
+  /// Returns an error message when invalid, else null on success.
+  /// Validation: the new total may not be less than what has already been
+  /// returned (`amount - remainingAmount`).
+  Future<String?> updateOpeningLeg({
+    required Debt debt,
+    required double newAmount,
+    required int newWalletId,
+  }) async {
+    final returned = debt.amount - debt.remainingAmount;
+    if (newAmount < returned) {
+      return 'Total tidak boleh kurang dari yang sudah dikembalikan '
+          '(${CurrencyFormatter.format(returned)})';
+    }
+    if (debt.id == null || debt.openTxnId == null) {
+      return 'Data titipan tidak lengkap';
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final newRemaining = newAmount - returned;
+      final updated = debt.copyWith(
+        amount: newAmount,
+        remainingAmount: newRemaining,
+        status: newRemaining <= 0 ? 'paid' : 'active',
+        walletId: newWalletId,
+      );
+      await _repository.updateDebt(updated);
+
+      final txnRepo = TransactionRepository();
+      final opening = await txnRepo.getTransactionById(debt.openTxnId!);
+      if (opening != null) {
+        await txnRepo.updateTransaction(
+          opening.copyWith(amount: newAmount, walletId: newWalletId),
+        );
+      }
+      await _replaceInList(updated);
+      // Both the old and the new wallet need recalculating.
+      await _walletRepository.recalculateWalletBalance(debt.walletId);
+      if (newWalletId != debt.walletId) {
+        await _walletRepository.recalculateWalletBalance(newWalletId);
+      }
+      await _syncReminder(updated);
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      return 'Gagal menyimpan: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Edits a return leg of a titipan: its amount and/or wallet.
+  ///
+  /// Returns an error message when invalid, else null on success.
+  /// Validation: the sum of all returns may not exceed the titipan total, so
+  /// this return may not exceed `total - otherReturns`.
+  Future<String?> updateReturnLeg({
+    required Debt debt,
+    required DebtPayment payment,
+    required double newAmount,
+    required int newWalletId,
+  }) async {
+    final otherReturns = (debt.amount - debt.remainingAmount) - payment.amount;
+    final maxReturn = debt.amount - otherReturns;
+    if (newAmount > maxReturn) {
+      return 'Pengembalian tidak boleh melebihi sisa titipan '
+          '(${CurrencyFormatter.format(maxReturn)})';
+    }
+    if (payment.id == null || payment.txnId == null) {
+      return 'Data pengembalian tidak lengkap';
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final totalReturned = otherReturns + newAmount;
+      final newRemaining = debt.amount - totalReturned;
+      final updatedDebt = debt.copyWith(
+        remainingAmount: newRemaining,
+        status: newRemaining <= 0 ? 'paid' : 'active',
+      );
+      await _repository.updateDebt(updatedDebt);
+
+      await _repository.updateDebtPayment(
+        payment.copyWith(amount: newAmount, walletId: newWalletId),
+      );
+      final txnRepo = TransactionRepository();
+      final leg = await txnRepo.getTransactionById(payment.txnId!);
+      if (leg != null) {
+        await txnRepo.updateTransaction(
+          leg.copyWith(amount: newAmount, walletId: newWalletId),
+        );
+      }
+      await _replaceInList(updatedDebt);
+      await _walletRepository.recalculateWalletBalance(payment.walletId);
+      if (newWalletId != payment.walletId) {
+        await _walletRepository.recalculateWalletBalance(newWalletId);
+      }
+      await _syncReminder(updatedDebt);
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      return 'Gagal menyimpan: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _replaceInList(Debt debt) async {
+    if (debt.type == 'debt') {
+      final index = _debts.indexWhere((d) => d.id == debt.id);
+      if (index != -1) _debts[index] = debt;
+    } else {
+      final index = _receivables.indexWhere((d) => d.id == debt.id);
+      if (index != -1) _receivables[index] = debt;
+    }
+  }
+
   /// Keeps the due-date reminder in sync: cancelled once settled, else
   /// (re)scheduled when a due date exists.
-  Future<void> _syncReminder(Debt debt) async {
-    if (debt.id == null) return;
+  Future<void> _syncReminder(Debt debt) async {    if (debt.id == null) return;
     if (debt.status == 'paid' || debt.dueDate == null) {
       await NotificationService.instance.cancel(debt.id!);
       return;

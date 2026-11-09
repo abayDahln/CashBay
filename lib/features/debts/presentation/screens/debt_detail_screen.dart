@@ -51,6 +51,13 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     return Scaffold(
       appBar: CashBayAppBar(
         title: isDebt ? 'Detail Titipan' : 'Detail Titipan Orang',
+        actions: [
+          IconButton(
+            tooltip: 'Ubah nominal titipan',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _editOpeningLeg,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -331,6 +338,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         .firstOrNull;
 
     return ListTile(
+      onTap: () => _editReturnLeg(payment),
       leading: CircleAvatar(
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
@@ -349,6 +357,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
+      trailing: const Icon(Icons.edit_outlined, size: 18),
     );
   }
 
@@ -387,6 +396,211 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     ToastWidget.success(
       context,
       'Pengembalian berhasil dicatat',
+    );
+  }
+
+  Future<void> _editOpeningLeg() async {
+    final result = await showModalBottomSheet<_EditLegResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) => _EditLegSheet(
+        title: 'Ubah Nominal Titipan',
+        initialAmount: _debt.amount,
+        initialWalletId: _debt.walletId,
+        hint: 'Sisa saat ini ${CurrencyFormatter.format(_debt.remainingAmount)}',
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    final provider = context.read<DebtProvider>();
+    final error = await provider.updateOpeningLeg(
+      debt: _debt,
+      newAmount: result.amount,
+      newWalletId: result.walletId,
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ToastWidget.error(context, error);
+      return;
+    }
+    await _reloadDebt();
+    if (!mounted) return;
+    await context.read<WalletProvider>().refreshBalances();
+    if (mounted) ToastWidget.success(context, 'Nominal titipan diperbarui');
+  }
+
+  Future<void> _editReturnLeg(DebtPayment payment) async {
+    final result = await showModalBottomSheet<_EditLegResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) => _EditLegSheet(
+        title: 'Ubah Pengembalian',
+        initialAmount: payment.amount,
+        initialWalletId: payment.walletId,
+        hint:
+            'Maksimal ${CurrencyFormatter.format(_debt.amount - (_debt.amount - _debt.remainingAmount - payment.amount))}',
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    final provider = context.read<DebtProvider>();
+    final error = await provider.updateReturnLeg(
+      debt: _debt,
+      payment: payment,
+      newAmount: result.amount,
+      newWalletId: result.walletId,
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ToastWidget.error(context, error);
+      return;
+    }
+    await _loadPayments();
+    await _reloadDebt();
+    if (!mounted) return;
+    await context.read<WalletProvider>().refreshBalances();
+    if (mounted) ToastWidget.success(context, 'Pengembalian diperbarui');
+  }
+
+  Future<void> _reloadDebt() async {
+    final provider = context.read<DebtProvider>();
+    await provider.loadAllDebts();
+    final updated = [
+      ...provider.debts,
+      ...provider.receivables,
+    ].where((d) => d.id == _debt.id).firstOrNull;
+    if (updated != null && mounted) setState(() => _debt = updated);
+  }
+}
+
+/// Amount + wallet picked from an edit-leg sheet.
+class _EditLegResult {
+  final double amount;
+  final int walletId;
+  _EditLegResult(this.amount, this.walletId);
+}
+
+/// Bottom sheet to change the amount and wallet of a titipan leg.
+class _EditLegSheet extends StatefulWidget {
+  final String title;
+  final double initialAmount;
+  final int initialWalletId;
+  final String hint;
+  const _EditLegSheet({
+    required this.title,
+    required this.initialAmount,
+    required this.initialWalletId,
+    required this.hint,
+  });
+
+  @override
+  State<_EditLegSheet> createState() => _EditLegSheetState();
+}
+
+class _EditLegSheetState extends State<_EditLegSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountController;
+  late int? _walletId;
+  bool _submitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(
+      text: RupiahInputFormatter.formatValue(widget.initialAmount),
+    );
+    _walletId = widget.initialWalletId;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_submitted) setState(() => _submitted = true);
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(
+      context,
+      _EditLegResult(
+        InputValidation.parseAmount(_amountController.text)!,
+        _walletId!,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: _submitted
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.title, style: text.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [RupiahInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Nominal',
+                  prefixText: 'Rp ',
+                  hintText: '0',
+                  helperText: widget.hint,
+                  helperMaxLines: 2,
+                  errorMaxLines: 2,
+                ),
+                validator: InputValidation.amountInRange,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                initialValue: _walletId,
+                isExpanded: true,
+                items: [
+                  for (final w in context.watch<WalletProvider>().wallets)
+                    DropdownMenuItem(
+                      value: w.id,
+                      child: Text(
+                        w.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _walletId = v),
+                decoration: const InputDecoration(
+                  labelText: 'Dompet',
+                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                ),
+                validator: (v) => v == null ? 'Pilih dompet' : null,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _submit,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('Simpan'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

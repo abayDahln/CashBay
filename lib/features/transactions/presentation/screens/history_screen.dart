@@ -190,18 +190,6 @@ class HistoryScreenState extends State<HistoryScreen> {
                                 : hasQuery
                                 ? 'Coba kata kunci lain'
                                 : 'Tidak ada transaksi untuk filter ini',
-                            buttonLabel:
-                                !noData && (hasQuery || _typeFilter != 'all')
-                                ? 'Reset filter'
-                                : null,
-                            buttonIcon: Icons.filter_alt_off_outlined,
-                            onButtonTap: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                                _typeFilter = 'all';
-                              });
-                            },
                           ),
                         ),
                       ],

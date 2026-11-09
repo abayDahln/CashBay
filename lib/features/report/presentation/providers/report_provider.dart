@@ -101,8 +101,11 @@ class ReportProvider extends ChangeNotifier {
 
     try {
       final txs = await _txRepo.getAllTransactions(startDate: start, endDate: end);
-      _computeChartData(txs);
-      _computeSummaries(txs);
+      // Titipan moves the wallet but is not real income/expense, so it is
+      // excluded from the chart and the period totals.
+      final real = txs.where((t) => !t.isTitipan).toList();
+      _computeChartData(real);
+      _computeSummaries(real, recent: txs);
     } catch (e) {
       _chartData = [];
       _error = e.toString();
@@ -163,7 +166,10 @@ class ReportProvider extends ChangeNotifier {
     }).toList();
   }
 
-  void _computeSummaries(List<Transaction> txs) {
+  void _computeSummaries(
+    List<Transaction> txs, {
+    List<Transaction>? recent,
+  }) {
     _totalIncome = 0;
     _totalExpense = 0;
     _totalTransferOut = 0;
@@ -180,7 +186,7 @@ class ReportProvider extends ChangeNotifier {
       }
     }
 
-    _recentTransactions = txs
+    _recentTransactions = (recent ?? txs)
       .where((t) => t.type == 'income' || t.type == 'expense')
       .toList()
       ..sort((a, b) => b.date.compareTo(a.date));

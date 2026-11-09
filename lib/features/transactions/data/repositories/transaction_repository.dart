@@ -174,6 +174,7 @@ class TransactionRepository {
     int? toWalletId,
     DateTime? startDate,
     DateTime? endDate,
+    bool excludeTitipan = false,
   }) async {
     final db = await _db.database;
     
@@ -197,6 +198,10 @@ class TransactionRepository {
       whereArgs.add(toWalletId);
     }
 
+    if (excludeTitipan) {
+      where += ' AND is_titipan = 0';
+    }
+
     if (startDate != null) {
       if (where.isNotEmpty) where += ' AND ';
       where += 'date >= ?';
@@ -217,20 +222,36 @@ class TransactionRepository {
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
 
+  /// Income total. Pass [excludeTitipan] for real income only; the wallet
+  /// balance recalculation leaves it false so titipan still moves balances.
   Future<double> getTotalIncome({
     int? walletId,
     DateTime? startDate,
     DateTime? endDate,
+    bool excludeTitipan = false,
   }) async {
-    return _getTotalAmount(walletId: walletId, type: 'income', startDate: startDate, endDate: endDate);
+    return _getTotalAmount(
+      walletId: walletId,
+      type: 'income',
+      startDate: startDate,
+      endDate: endDate,
+      excludeTitipan: excludeTitipan,
+    );
   }
 
   Future<double> getTotalExpense({
     int? walletId,
     DateTime? startDate,
     DateTime? endDate,
+    bool excludeTitipan = false,
   }) async {
-    return _getTotalAmount(walletId: walletId, type: 'expense', startDate: startDate, endDate: endDate);
+    return _getTotalAmount(
+      walletId: walletId,
+      type: 'expense',
+      startDate: startDate,
+      endDate: endDate,
+      excludeTitipan: excludeTitipan,
+    );
   }
 
   Future<double> getTotalTransferOut({
