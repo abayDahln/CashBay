@@ -427,13 +427,6 @@ class _DebtsScreenState extends State<DebtsScreen>
 
     return AppCard(
       variant: AppCardVariant.outlined,
-      // Overdue titipan get a faint red wash so they stand out in the list.
-      color: isOverdue
-          ? Color.alphaBlend(
-              scheme.error.withValues(alpha: 0.10),
-              scheme.surface,
-            )
-          : null,
       padding: const EdgeInsets.all(16),
       onTap: () =>
           Navigator.push(context, fadeSlideRoute(DebtDetailScreen(debt: debt))),
