@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/theme_preferences_provider.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/theme/locale_provider.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../categories/presentation/screens/categories_screen.dart';
+import '../../../dashboard/data/repositories/wallet_repository.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import '../../../debts/presentation/providers/debt_provider.dart';
 import '../../../report/presentation/providers/report_provider.dart';
@@ -145,9 +148,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!mounted) return;
       await _reloadProviders();
-      if (mounted) ToastWidget.success(context, 'Semua data berhasil dihapus');
+      if (mounted) {
+        ToastWidget.success(context, L.of(context).allDeleted);
+      }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal menghapus data: $e');
+      if (mounted) {
+        ToastWidget.error(context, L.of(context).deleteAllFailed('$e'));
+      }
     } finally {
       if (mounted) setState(() => _isDeleting = false);
     }
@@ -173,17 +180,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'debt_payments': debtPayments,
       };
 
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/cashbay_backup.json');
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(exportData),
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(exportData);
+      final suggested =
+          'cashbay_backup_${DateTime.now().toIso8601String().split('T').first}.json';
+
+      // Let the user pick where to save the backup.
+      final location = await getSaveLocation(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+        suggestedName: suggested,
       );
+      if (location == null || !mounted) return; // cancelled
+
+      var path = location.path;
+      if (!path.toLowerCase().endsWith('.json')) path = '$path.json';
+      await File(path).writeAsString(jsonStr);
 
       if (mounted) {
-        ToastWidget.success(context, 'Data berhasil diexport ke ${file.path}');
+        ToastWidget.success(context, L.of(context).exportSuccess(path));
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal export: $e');
+      if (mounted) {
+        ToastWidget.error(context, L.of(context).exportFailed('$e'));
+      }
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
@@ -191,14 +211,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _importData() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/cashbay_backup.json');
-      if (!await file.exists()) {
-        if (mounted) ToastWidget.error(context, 'File backup tidak ditemukan');
-        return;
-      }
+      // Let the user pick the backup file.
+      final picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+      );
+      if (picked == null || !mounted) return; // cancelled
 
-      final jsonStr = await file.readAsString();
+      final jsonStr = await picked.readAsString();
       final Map<String, dynamic> data;
       try {
         data = json.decode(jsonStr) as Map<String, dynamic>;
@@ -207,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (_) {
         if (mounted) {
-          ToastWidget.error(context, 'Format file backup tidak valid');
+          ToastWidget.error(context, L.of(context).importInvalid);
         }
         return;
       }
@@ -223,6 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _isImporting = true);
       final db = await AppDatabase().database;
       await db.transaction((txn) async {
+        await txn.delete('transaction_tags');
         await txn.delete('debt_payments');
         await txn.delete('debts');
         await txn.delete('transactions');
@@ -235,12 +257,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
         }
       });
+      if (!mounted) return;
+      // The backup has no wallets only if it was made by an older build;
+      // guarantee the defaults so the app stays usable.
+      final walletProvider = context.read<WalletProvider>();
+      await walletProvider.ensureDefaultWallets();
+
+      if (!mounted) return;
+      // The stored balance column is not part of the backup, so recompute it
+      // from the imported transactions before refreshing the UI.
+      await WalletRepository().recalculateAllBalances();
 
       if (!mounted) return;
       await _reloadProviders();
-      if (mounted) ToastWidget.success(context, 'Data berhasil diimport');
+      if (mounted) {
+        ToastWidget.success(context, L.of(context).importSuccess);
+      }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal import: $e');
+      if (mounted) {
+        ToastWidget.error(context, L.of(context).importFailed('$e'));
+      }
     } finally {
       if (mounted) setState(() => _isImporting = false);
     }
@@ -254,6 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final t = L.of(context);
     final prefs = context.watch<ThemePreferencesProvider>();
     final seed = prefs.seedColor.toARGB32();
     final isCustomSeed = !_seedSwatches.any(
@@ -267,38 +304,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text(
-              'Pengaturan',
+              t.settings,
               style: theme.textTheme.headlineMedium?.copyWith(
                 color: scheme.onSurface,
               ),
             ),
           ),
-        const _SectionHeader('Tampilan & Tema'),
+        _SectionHeader(t.appearanceTheme),
         ListTile(
           leading: const Icon(Icons.brightness_6_outlined),
-          title: const Text('Mode Tema'),
-          subtitle: Text(_modeLabel(prefs.themeMode)),
+          title: Text(t.themeMode),
+          subtitle: Text(_modeLabel(t, prefs.themeMode)),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: SizedBox(
             width: double.infinity,
             child: SegmentedButton<ThemeMode>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: ThemeMode.system,
-                  icon: Icon(Icons.brightness_auto_outlined),
-                  label: Text('Sistem'),
+                  icon: const Icon(Icons.brightness_auto_outlined),
+                  label: Text(t.modeSystem),
                 ),
                 ButtonSegment(
                   value: ThemeMode.light,
-                  icon: Icon(Icons.light_mode_outlined),
-                  label: Text('Terang'),
+                  icon: const Icon(Icons.light_mode_outlined),
+                  label: Text(t.modeLight),
                 ),
                 ButtonSegment(
                   value: ThemeMode.dark,
-                  icon: Icon(Icons.dark_mode_outlined),
-                  label: Text('Gelap'),
+                  icon: const Icon(Icons.dark_mode_outlined),
+                  label: Text(t.modeDark),
                 ),
               ],
               selected: {prefs.themeMode},
@@ -310,13 +347,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 8),
         ListTile(
           leading: const Icon(Icons.palette_outlined),
-          title: const Text('Warna Aksen'),
+          title: Text(t.accentColor),
           subtitle: Text(
             isCustomSeed
-                ? 'Warna khusus'
-                : _seedSwatches
-                      .firstWhere((s) => s.color.toARGB32() == seed)
-                      .label,
+                ? t.customColor
+                : _seedSwatchLabel(
+                    t,
+                    _seedSwatches
+                        .firstWhere((s) => s.color.toARGB32() == seed)
+                        .label,
+                  ),
           ),
         ),
         Padding(
@@ -328,13 +368,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               for (final s in _seedSwatches)
                 _ColorSwatch(
                   color: s.color,
-                  label: s.label,
+                  label: _seedSwatchLabel(t, s.label),
                   selected: s.color.toARGB32() == seed,
                   onTap: () => _setSeed(s.color),
                 ),
               _ColorSwatch(
                 color: isCustomSeed ? prefs.seedColor : null,
-                label: 'Pilih warna khusus',
+                label: t.chooseCustomColor,
                 selected: isCustomSeed,
                 onTap: _showColorPicker,
               ),
@@ -342,18 +382,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         const Divider(),
-        const _SectionHeader('Manajemen Data'),
+        _SectionHeader(t.language),
+        ListTile(
+          leading: const Icon(Icons.translate_outlined),
+          title: Text(t.language),
+          subtitle: Text(_localeLabel(context)),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _showLanguagePicker,
+        ),
+        const Divider(),
+        _SectionHeader(t.dataManagement),
         ListTile(
           leading: const Icon(Icons.sell_outlined),
-          title: const Text('Kelola Tag Transaksi'),
-          subtitle: const Text('Tambah, ubah, atau hapus tag transaksi'),
+          title: Text(t.manageTags),
+          subtitle: Text(t.manageTagsSub),
           trailing: const Icon(Icons.chevron_right),
           onTap: _openCategories,
         ),
         ListTile(
           leading: const Icon(Icons.upload_outlined),
-          title: const Text('Export Data'),
-          subtitle: const Text('Simpan backup ke file JSON'),
+          title: Text(t.exportData),
+          subtitle: Text(t.exportSub),
           trailing: _isExporting
               ? const _BusyIndicator()
               : const Icon(Icons.chevron_right),
@@ -362,8 +411,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         ListTile(
           leading: const Icon(Icons.download_outlined),
-          title: const Text('Import Data'),
-          subtitle: const Text('Pulihkan dari file backup'),
+          title: Text(t.importData),
+          subtitle: Text(t.importSub),
           trailing: _isImporting
               ? const _BusyIndicator()
               : const Icon(Icons.chevron_right),
@@ -374,9 +423,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           iconColor: scheme.error,
           textColor: scheme.error,
           leading: const Icon(Icons.delete_forever_outlined),
-          title: const Text('Hapus Semua Data'),
+          title: Text(t.deleteAllData),
           subtitle: Text(
-            'Reset aplikasi ke kondisi awal',
+            t.resetApp,
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
           trailing: _isDeleting ? const _BusyIndicator() : null,
@@ -389,11 +438,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: LinearProgressIndicator(),
           ),
         const Divider(),
-        const _SectionHeader('Tentang'),
-        const ListTile(
-          leading: Icon(Icons.info_outline),
-          title: Text('CashBay'),
-          subtitle: Text('v1.0.0 — Personal Finance App'),
+        _SectionHeader(t.about),
+        ListTile(
+          leading: const Icon(Icons.info_outline),
+          title: Text(t.appTitle),
+          subtitle: Text(t.appVersion),
         ),
       ],
     );
@@ -402,15 +451,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return SafeArea(bottom: false, child: body);
     }
     return Scaffold(
-      appBar: const CashBayAppBar(title: 'Pengaturan'),
+      appBar: CashBayAppBar(title: t.settings),
       body: body,
     );
   }
 
-  String _modeLabel(ThemeMode mode) => switch (mode) {
-    ThemeMode.light => 'Terang',
-    ThemeMode.dark => 'Gelap',
-    ThemeMode.system => 'Ikuti sistem',
+  static String _seedSwatchLabel(L t, String raw) => switch (raw) {
+    'Biru' => t.colorBlue,
+    'Hijau' => t.colorGreen,
+    'Merah' => t.colorRed,
+    'Ungu' => t.colorPurple,
+    'Oranye' => t.colorOrange,
+    'Teal' => t.colorTeal,
+    _ => raw,
+  };
+
+  String _localeLabel(BuildContext context) {
+    final code = Localizations.localeOf(context).languageCode;
+    final t = L.of(context);
+    return code == 'en' ? t.languageEnglish : t.languageIndonesian;
+  }
+
+  Future<void> _showLanguagePicker() async {
+    final t = L.of(context);
+    final current = Localizations.localeOf(context).languageCode;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(t.language, style: Theme.of(ctx).textTheme.titleLarge),
+            ),
+            for (final (code, label) in [
+              ('id', t.languageIndonesian),
+              ('en', t.languageEnglish),
+            ])
+              ListTile(
+                title: Text(label),
+                trailing: current == code
+                    ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                    : null,
+                onTap: () => Navigator.pop(ctx, code),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await context.read<LocaleProvider>().setLocale(Locale(picked));
+  }
+
+  String _modeLabel(L t, ThemeMode mode) => switch (mode) {
+    ThemeMode.light => t.modeLight,
+    ThemeMode.dark => t.modeDark,
+    ThemeMode.system => t.followSystem,
   };
 }
 
@@ -515,8 +613,9 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final t = L.of(context);
     return AlertDialog(
-      title: const Text('Pilih Warna Aksen'),
+      title: Text(t.chooseAccentColor),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -530,19 +629,19 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Text('Rona', style: textTheme.labelLarge),
+            Text(t.hue, style: textTheme.labelLarge),
             Slider(
               value: _hsv.hue,
               max: 360,
               label: _hsv.hue.round().toString(),
               onChanged: (hue) => setState(() => _hsv = _hsv.withHue(hue)),
             ),
-            Text('Saturasi', style: textTheme.labelLarge),
+            Text(t.saturation, style: textTheme.labelLarge),
             Slider(
               value: _hsv.saturation,
               onChanged: (s) => setState(() => _hsv = _hsv.withSaturation(s)),
             ),
-            Text('Kecerahan', style: textTheme.labelLarge),
+            Text(t.brightness, style: textTheme.labelLarge),
             Slider(
               value: _hsv.value,
               min: 0.2,
@@ -554,11 +653,11 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _color.withValues(alpha: 1)),
-          child: const Text('Simpan'),
+          child: Text(t.save),
         ),
       ],
     );
@@ -579,7 +678,7 @@ class ColorPickerPreview extends StatelessWidget {
 }
 
 /// Destructive confirmation: the delete button only enables once the user
-/// types "HAPUS".
+/// types "CONFIRM".
 class _DeleteAllDialog extends StatefulWidget {
   const _DeleteAllDialog();
 
@@ -588,7 +687,7 @@ class _DeleteAllDialog extends StatefulWidget {
 }
 
 class _DeleteAllDialogState extends State<_DeleteAllDialog> {
-  static const _keyword = 'HAPUS';
+  static const _keyword = 'CONFIRM';
   final _controller = TextEditingController();
 
   bool get _confirmed => _controller.text.trim().toUpperCase() == _keyword;
@@ -602,18 +701,16 @@ class _DeleteAllDialogState extends State<_DeleteAllDialog> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = L.of(context);
     return AlertDialog(
       icon: Icon(Icons.warning_amber_rounded, color: scheme.error),
-      title: const Text('Hapus Semua Data?'),
+      title: Text(t.deleteAllQ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Semua data transaksi, dompet, kategori, dan titipan akan dihapus. '
-              'Tindakan ini tidak dapat dibatalkan.',
-            ),
+            Text(t.deleteAllDesc),
             const SizedBox(height: 16),
             TextField(
               controller: _controller,
@@ -621,8 +718,8 @@ class _DeleteAllDialogState extends State<_DeleteAllDialog> {
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
               enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Ketik HAPUS untuk konfirmasi',
+              decoration: InputDecoration(
+                labelText: t.typeDeleteConfirm,
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) {
@@ -635,7 +732,7 @@ class _DeleteAllDialogState extends State<_DeleteAllDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Batal'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: _confirmed ? () => Navigator.pop(context, true) : null,
@@ -643,7 +740,7 @@ class _DeleteAllDialogState extends State<_DeleteAllDialog> {
             backgroundColor: scheme.error,
             foregroundColor: scheme.onError,
           ),
-          child: const Text('Hapus Semua'),
+          child: Text(t.deleteAllConfirm),
         ),
       ],
     );
@@ -657,20 +754,20 @@ class _ImportConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final t = L.of(context);
     final when = exportedAt == null
         ? ''
-        : ' (backup ${MaterialLocalizations.of(context).formatMediumDate(exportedAt!)})';
+        : t.backupExportedAt(
+            MaterialLocalizations.of(context).formatMediumDate(exportedAt!),
+          );
     return AlertDialog(
       icon: const Icon(Icons.restore),
-      title: const Text('Import Data?'),
-      content: Text(
-        'Data saat ini akan diganti dengan isi file backup$when. '
-        'Tindakan ini tidak dapat dibatalkan.',
-      ),
+      title: Text(t.importQ),
+      content: Text(t.importDesc(when)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Batal'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
@@ -678,7 +775,7 @@ class _ImportConfirmDialog extends StatelessWidget {
             backgroundColor: scheme.error,
             foregroundColor: scheme.onError,
           ),
-          child: const Text('Ganti Data'),
+          child: Text(t.replaceData),
         ),
       ],
     );

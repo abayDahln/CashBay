@@ -39,11 +39,15 @@ class NotificationService {
     _initialized = true;
   }
 
-  /// Schedules (or reschedules) a due-date reminder for [titipanId].
+  /// Schedules (or reschedules) a due-date reminder for [titipanId]. The
+  /// title/body are baked in at schedule time so they match the app language
+  /// even though the notification fires later.
   Future<void> scheduleDueDate({
     required int titipanId,
     required String personName,
     required DateTime dueDate,
+    String title = 'Jatuh tempo titipan',
+    String? body,
   }) async {
     try {
       await init();
@@ -61,8 +65,8 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         titipanId,
-        'Jatuh tempo titipan',
-        'Titipan dengan $personName sudah jatuh tempo hari ini.',
+        title,
+        body ?? 'Titipan dengan $personName sudah jatuh tempo hari ini.',
         when,
         const NotificationDetails(
           android: AndroidNotificationDetails(

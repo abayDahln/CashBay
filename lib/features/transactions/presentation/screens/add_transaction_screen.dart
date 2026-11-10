@@ -17,6 +17,7 @@ import '../../../debts/presentation/providers/debt_provider.dart';
 import '../../../dashboard/data/models/wallet.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 
 enum DueDatePreset { days3, week1, weeks2, month1, months3, year1, custom }
 
@@ -84,8 +85,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String get _destinationWallet =>
       _paymentMethod == 'cash' ? 'ewallet' : 'cash';
 
-  static String _walletLabel(String type) =>
-      type == 'cash' ? 'Cash' : 'E-Wallet';
+  static String _walletLabel(L t, String type) =>
+      type == 'cash' ? t.cash : t.ewallet;
 
   @override
   void initState() {
@@ -134,12 +135,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Wallet? _walletOfType(List<Wallet> wallets, String type) =>
       wallets.where((w) => w.type == type).firstOrNull;
 
-  String? _validateAmount(String? v) => InputValidation.amountInRange(v);
+  String? _validateAmount(String? v) =>
+      InputValidation.amountInRange(v, l10n: L.of(context));
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     return Scaffold(
-      appBar: const CashBayAppBar(title: 'Tambah Transaksi'),
+      appBar: CashBayAppBar(title: t.addTransaction),
       body: Consumer3<WalletProvider, CategoryProvider, DebtProvider>(
         builder: (context, walletProvider, categoryProvider, debtProvider, _) {
           final wallets = walletProvider.wallets;
@@ -160,7 +163,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       children: [
                         _buildAnimatedField(0, _buildTypeSelector()),
                         const SizedBox(height: 24),
-                        _buildInsetGroup('Detail utama', [
+                        _buildInsetGroup(t.detailMain, [
                           _buildAmountField(),
                           const SizedBox(height: 16),
                           if (_isTagihan) ...[
@@ -180,7 +183,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           ],
                         ]),
                         const SizedBox(height: 24),
-                        _buildInsetGroup('Sumber dana & waktu', [
+                        _buildInsetGroup(t.fundAndTime, [
                           if (!_isTransfer) ...[
                             _buildPaymentMethod(wallets),
                             const SizedBox(height: 16),
@@ -188,7 +191,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           _buildDatePicker(),
                         ]),
                         const SizedBox(height: 24),
-                        _buildInsetGroup('Catatan & lampiran', [
+                        _buildInsetGroup(t.notesAndAttachment, [
                           if (!_isTagihan && !_isTransfer) ...[
                             _buildCategoryPicker(categoryProvider),
                             const SizedBox(height: 16),
@@ -254,11 +257,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildTypeSelector() {
-    const types = <(String, IconData, String)>[
-      ('income', Icons.south, 'Pendapatan'),
-      ('expense', Icons.north, 'Pengeluaran'),
-      ('tagihan', Icons.receipt_long, 'Titipan'),
-      ('transfer', Icons.swap_horiz, 'Transfer'),
+    final t = L.of(context);
+    final types = <(String, IconData, String)>[
+      ('income', Icons.south, t.income),
+      ('expense', Icons.north, t.expense),
+      ('tagihan', Icons.receipt_long, t.titipan),
+      ('transfer', Icons.swap_horiz, t.transfer),
     ];
     final scheme = Theme.of(context).colorScheme;
     // Horizontally scrollable so all four fit on 360dp / large text scale.
@@ -329,29 +333,30 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildDebtDirectionSelector() {
+    final t = L.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Arah Titipan', style: Theme.of(context).textTheme.labelLarge),
+        Text(t.titipanDirection, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'debt',
-                icon: Icon(Icons.north),
+                icon: const Icon(Icons.north),
                 label: Text(
-                  'Titipan Saya',
+                  t.titipanSaya,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               ButtonSegment(
                 value: 'receivable',
-                icon: Icon(Icons.south),
+                icon: const Icon(Icons.south),
                 label: Text(
-                  'Titipan Orang',
+                  t.titipanOrang,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -367,6 +372,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildAmountField() {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final hasValue = _amountValue > 0;
@@ -381,7 +387,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           onChanged: (_) => setState(() {}),
           style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
           decoration: InputDecoration(
-            labelText: 'Nominal transaksi',
+            labelText: t.amountTransaction,
             prefixText: 'Rp ',
             prefixStyle: text.headlineSmall?.copyWith(
               color: scheme.onSurfaceVariant,
@@ -389,7 +395,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             suffixIcon: hasValue
                 ? IconButton(
-                    tooltip: 'Kosongkan nominal',
+                    tooltip: t.clearAmount,
                     icon: const Icon(Icons.cancel),
                     onPressed: () => _setAmount(0),
                   )
@@ -420,12 +426,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     labelPadding: EdgeInsets.zero,
     padding: const EdgeInsets.symmetric(horizontal: 6),
-    tooltip: 'Tambah ${CurrencyFormatter.format(amount.toDouble())}',
+    tooltip: L.of(context).addAmountTooltip(
+      CurrencyFormatter.format(amount.toDouble()),
+    ),
     selected: false,
     onSelected: (_) => _setAmount(_amountValue + amount),
   );
 
   Widget _buildCategoryPicker(CategoryProvider provider) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final categories = _transactionType == 'income'
@@ -435,7 +444,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Tag (opsional)',
+          t.tagOptional,
           style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
@@ -457,7 +466,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ActionChip(
               avatar: const Icon(Icons.add, size: 18),
-              label: const Text('Tag baru'),
+              label: Text(t.newTag),
               onPressed: () => _addCustomTag(provider),
             ),
           ],
@@ -467,30 +476,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _addCustomTag(CategoryProvider provider) async {
+    final t = L.of(context);
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Tag baru'),
+        title: Text(t.newTag),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
           maxLength: InputValidation.maxCategory,
-          decoration: const InputDecoration(
-            labelText: 'Nama tag',
-            hintText: 'Contoh: Liburan',
+          decoration: InputDecoration(
+            labelText: t.tagName,
+            hintText: t.tagNameHint,
           ),
           onSubmitted: (v) => Navigator.pop(context, v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: Text(t.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Simpan'),
+            child: Text(t.save),
           ),
         ],
       ),
@@ -499,8 +509,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     final trimmed = name.trim();
     final err =
-        InputValidation.name(trimmed, 'Nama tag', max: InputValidation.maxCategory) ??
-        provider.hasCategoryNamed(trimmed, _transactionType);
+        InputValidation.name(trimmed, t.tagName, max: InputValidation.maxCategory, l10n: t) ??
+        provider.hasCategoryNamed(trimmed, _transactionType, l10n: t);
     if (err != null) {
       ToastWidget.error(context, err);
       return;
@@ -516,6 +526,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildDescriptionField() {
+    final t = L.of(context);
     final isIncome = _transactionType == 'income';
     return TextFormField(
       controller: _descriptionController,
@@ -523,33 +534,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         labelText: _isTransfer
-            ? 'Keterangan (opsional)'
+            ? t.descriptionTransfer
             : isIncome
-            ? 'Sumber Pendapatan'
-            : 'Nama Transaksi',
+            ? t.descriptionIncome
+            : t.descriptionExpense,
         hintText: _isTransfer
-            ? 'Contoh: Pindah ke E-Wallet'
+            ? t.descriptionHintTransfer
             : isIncome
-            ? 'Contoh: Gaji, Freelance'
-            : 'Contoh: Makan siang, Bensin',
+            ? t.descriptionHintIncome
+            : t.descriptionHintExpense,
         prefixIcon: const Icon(Icons.edit_note),
       ),
       maxLength: InputValidation.maxDescription,
       validator: (v) {
         if (!_isTransfer) {
-          final req = InputValidation.required(v, 'Deskripsi');
+          final req = InputValidation.required(v, t.description, l10n: t);
           if (req != null) return req;
         }
         return InputValidation.maxLength(
           v,
-          'Deskripsi',
+          t.description,
           InputValidation.maxDescription,
+          l10n: t,
         );
       },
     );
   }
 
   Widget _buildTransferSelector() {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
@@ -573,7 +586,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  _walletLabel(type),
+                  _walletLabel(t, type),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: text.titleSmall,
@@ -588,21 +601,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Row(
       children: [
         Expanded(
-          child: walletTile('Dari', _paymentMethod, CrossAxisAlignment.start),
+          child: walletTile(t.from, _paymentMethod, CrossAxisAlignment.start),
         ),
         IconButton.filledTonal(
-          tooltip: 'Tukar dompet',
+          tooltip: t.swapWallet,
           icon: const Icon(Icons.swap_horiz),
           onPressed: () => setState(() => _paymentMethod = _destinationWallet),
         ),
         Expanded(
-          child: walletTile('Ke', _destinationWallet, CrossAxisAlignment.end),
+          child: walletTile(t.to, _destinationWallet, CrossAxisAlignment.end),
         ),
       ],
     );
   }
 
   Widget _buildPaymentMethod(List<Wallet> wallets) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final selected = _walletOfType(wallets, _paymentMethod);
@@ -611,26 +625,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       children: [
         Text(
           _isTagihan
-              ? 'Metode Pembayaran'
+              ? t.paymentMethod
               : _transactionType == 'income'
-              ? 'Tujuan Dana'
-              : 'Sumber Dana',
+              ? t.destinationFund
+              : t.sourceFund,
           style: text.labelLarge,
         ),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'cash',
-                icon: Icon(Icons.payments_outlined),
-                label: Text('Cash'),
+                icon: const Icon(Icons.payments_outlined),
+                label: Text(t.cash),
               ),
               ButtonSegment(
                 value: 'ewallet',
-                icon: Icon(Icons.phone_android),
-                label: Text('E-Wallet'),
+                icon: const Icon(Icons.phone_android),
+                label: Text(t.ewallet),
               ),
             ],
             selected: {_paymentMethod},
@@ -643,7 +657,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 16),
             child: Text(
-              'Saldo: ${CurrencyFormatter.format(selected.balance)}',
+              t.balanceLabel(CurrencyFormatter.format(selected.balance)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -655,56 +669,60 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildBillNameField() {
+    final t = L.of(context);
     return TextFormField(
       controller: _billNameController,
       textCapitalization: TextCapitalization.sentences,
       textInputAction: TextInputAction.next,
-      decoration: const InputDecoration(
-        labelText: 'Nama Titipan',
-        hintText: 'Contoh: Titip uang ke Budi',
-        prefixIcon: Icon(Icons.description_outlined),
+      decoration: InputDecoration(
+        labelText: t.titipanName,
+        hintText: t.titipanNameHint,
+        prefixIcon: const Icon(Icons.description_outlined),
       ),
       maxLength: InputValidation.maxBillName,
       validator: (v) => InputValidation.name(
         v,
-        'Nama Titipan',
+        t.titipanName,
         max: InputValidation.maxBillName,
+        l10n: t,
       ),
     );
   }
 
   Widget _buildPersonNameField() {
+    final t = L.of(context);
     final isDebt = _debtDirection == 'debt';
     return TextFormField(
       controller: _personNameController,
       textCapitalization: TextCapitalization.words,
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(
-        labelText: isDebt ? 'Nama Penerima Titipan' : 'Nama Penitip',
-        hintText: isDebt ? 'Ke siapa Anda titip?' : 'Siapa yang nitip?',
+        labelText: isDebt ? t.titipanReceiver : t.titipanGiver,
+        hintText: isDebt ? t.titipanReceiverHint : t.titipanGiverHint,
         prefixIcon: const Icon(Icons.person_outline),
       ),
       maxLength: InputValidation.maxPersonName,
       validator: (v) =>
-          InputValidation.name(v, 'Nama', max: InputValidation.maxPersonName),
+          InputValidation.name(v, t.nameLabel, max: InputValidation.maxPersonName, l10n: t),
     );
   }
 
   Widget _buildDueDatePresets() {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    const presets = <(String, DueDatePreset)>[
-      ('3 Hari', DueDatePreset.days3),
-      ('1 Minggu', DueDatePreset.week1),
-      ('2 Minggu', DueDatePreset.weeks2),
-      ('1 Bulan', DueDatePreset.month1),
-      ('3 Bulan', DueDatePreset.months3),
-      ('1 Tahun', DueDatePreset.year1),
+    final presets = <(String, DueDatePreset)>[
+      (t.preset3Days, DueDatePreset.days3),
+      (t.preset1Week, DueDatePreset.week1),
+      (t.preset2Weeks, DueDatePreset.weeks2),
+      (t.preset1Month, DueDatePreset.month1),
+      (t.preset3Months, DueDatePreset.months3),
+      (t.preset1Year, DueDatePreset.year1),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tanggal Jatuh Tempo', style: text.labelLarge),
+        Text(t.dueDate, style: text.labelLarge),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -792,10 +810,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       },
       borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Tanggal Transaksi',
-          prefixIcon: Icon(Icons.calendar_today_outlined),
-          suffixIcon: Icon(Icons.arrow_drop_down),
+        decoration: InputDecoration(
+          labelText: L.of(context).transactionDate,
+          prefixIcon: const Icon(Icons.calendar_today_outlined),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
         child: Text(
           DateFormatter.formatDate(_selectedDate),
@@ -806,6 +824,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildNoteField() {
+    final t = L.of(context);
     return TextFormField(
       controller: _noteController,
       minLines: 2,
@@ -814,16 +833,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       textCapitalization: TextCapitalization.sentences,
       keyboardType: TextInputType.multiline,
       decoration: InputDecoration(
-        labelText: 'Catatan (opsional)',
-        hintText: _isTagihan ? 'Catatan titipan...' : 'Tambahkan catatan...',
+        labelText: t.noteOptional,
+        hintText: _isTagihan ? t.noteHintTitipan : t.noteHint,
         alignLabelWithHint: true,
       ),
       validator: (v) =>
-          InputValidation.maxLength(v, 'Catatan', InputValidation.maxNote),
+          InputValidation.maxLength(v, t.note, InputValidation.maxNote, l10n: t),
     );
   }
 
   Widget _buildPhotoPicker() {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return Column(
@@ -839,7 +859,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Lampiran Foto (opsional)',
+                t.attachmentOptional,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: text.bodyMedium?.copyWith(
@@ -849,7 +869,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             if (_attachmentPath != null)
               IconButton(
-                tooltip: 'Hapus foto',
+                tooltip: t.removePhoto,
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _attachmentPath = null),
               ),
@@ -866,7 +886,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 child: Image.file(
                   File(_attachmentPath!),
                   fit: BoxFit.cover,
-                  semanticLabel: 'Lampiran foto',
+                  semanticLabel: t.attachmentPhoto,
                 ),
               ),
             ),
@@ -877,7 +897,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                  label: const Text('Kamera'),
+                  label: Text(t.camera),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),
@@ -888,7 +908,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.photo_library_outlined, size: 18),
-                  label: const Text('Galeri'),
+                  label: Text(t.gallery),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),
@@ -918,7 +938,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       imageQuality: 80,
     );
     if (file == null || !mounted) return;
-    final err = InputValidation.imageFile(file.path);
+    final err = InputValidation.imageFile(file.path, l10n: L.of(context));
     if (err != null) {
       ToastWidget.error(context, err);
       return;
@@ -935,7 +955,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               dimension: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : const Text('Simpan'),
+          : Text(L.of(context).save),
     );
   }
 
@@ -948,6 +968,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!_submitted) setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
 
+    final t = L.of(context);
     final walletProvider = context.read<WalletProvider>();
     final transactionProvider = context.read<TransactionProvider>();
     final debtProvider = context.read<DebtProvider>();
@@ -961,8 +982,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ToastWidget.error(
         context,
         walletProvider.wallets.isEmpty
-            ? 'Dompet belum tersedia, muat ulang aplikasi'
-            : 'Dompet ${_paymentMethod == 'cash' ? 'Cash' : 'E-Wallet'} tidak ditemukan',
+            ? t.walletUnavailable
+            : t.walletNotFound(_walletLabel(t, _paymentMethod)),
       );
       return;
     }
@@ -970,7 +991,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ? _walletOfType(walletProvider.wallets, _destinationWallet)
         : null;
     if (_isTransfer && (destWallet == null || destWallet.id == wallet.id)) {
-      ToastWidget.error(context, 'Dompet asal dan tujuan harus berbeda');
+      ToastWidget.error(context, t.walletMustDiffer);
       return;
     }
 
@@ -1012,7 +1033,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         createdAt: DateTime.now(),
         description:
             _optionalText(_descriptionController) ??
-            'Transfer ke ${_walletLabel(_destinationWallet)}',
+            t.transferTo(_walletLabel(t, _destinationWallet)),
         paymentMethod: _paymentMethod,
         attachmentPath: _attachmentPath,
       );
@@ -1039,10 +1060,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (success) {
       if (_isTagihan) debtProvider.loadActiveDebts();
       walletProvider.loadWallets();
-      ToastWidget.success(context, 'Berhasil disimpan');
+      ToastWidget.success(context, t.saved);
       Navigator.pop(context, true);
     } else {
-      ToastWidget.error(context, 'Gagal menyimpan');
+      ToastWidget.error(context, t.saveFailed);
     }
   }
 }
@@ -1075,7 +1096,7 @@ class _FullScreenImage extends StatelessWidget {
             top: MediaQuery.paddingOf(context).top + 8,
             left: 8,
             child: IconButton(
-              tooltip: 'Kembali',
+              tooltip: L.of(context).back,
               color: Colors.white,
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.pop(context),

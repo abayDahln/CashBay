@@ -7,6 +7,7 @@ import '../../../transactions/data/repositories/transaction_repository.dart';
 import '../../../dashboard/data/repositories/wallet_repository.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/utils/formatters.dart' show CurrencyFormatter;
+import '../../../../l10n/app_localizations.dart';
 
 class DebtProvider extends ChangeNotifier {
   final DebtRepository _repository = DebtRepository();
@@ -227,14 +228,16 @@ class DebtProvider extends ChangeNotifier {
     required Debt debt,
     required double newAmount,
     required int newWalletId,
+    L? l10n,
   }) async {
     final returned = debt.amount - debt.remainingAmount;
     if (newAmount < returned) {
-      return 'Total tidak boleh kurang dari yang sudah dikembalikan '
-          '(${CurrencyFormatter.format(returned)})';
+      final formatted = CurrencyFormatter.format(returned);
+      return l10n?.totalBelowReturned(formatted) ??
+          'Total tidak boleh kurang dari yang sudah dikembalikan ($formatted)';
     }
     if (debt.id == null || debt.openTxnId == null) {
-      return 'Data titipan tidak lengkap';
+      return l10n?.titipanIncomplete ?? 'Data titipan tidak lengkap';
     }
 
     _isLoading = true;
@@ -267,7 +270,7 @@ class DebtProvider extends ChangeNotifier {
       return null;
     } catch (e) {
       _error = e.toString();
-      return 'Gagal menyimpan: $e';
+      return l10n?.saveFailedError('$e') ?? 'Gagal menyimpan: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -284,15 +287,17 @@ class DebtProvider extends ChangeNotifier {
     required DebtPayment payment,
     required double newAmount,
     required int newWalletId,
+    L? l10n,
   }) async {
     final otherReturns = (debt.amount - debt.remainingAmount) - payment.amount;
     final maxReturn = debt.amount - otherReturns;
     if (newAmount > maxReturn) {
-      return 'Pengembalian tidak boleh melebihi sisa titipan '
-          '(${CurrencyFormatter.format(maxReturn)})';
+      final formatted = CurrencyFormatter.format(maxReturn);
+      return l10n?.returnExceedsTotal(formatted) ??
+          'Pengembalian tidak boleh melebihi sisa titipan ($formatted)';
     }
     if (payment.id == null || payment.txnId == null) {
-      return 'Data pengembalian tidak lengkap';
+      return l10n?.returnIncomplete ?? 'Data pengembalian tidak lengkap';
     }
 
     _isLoading = true;
@@ -326,7 +331,7 @@ class DebtProvider extends ChangeNotifier {
       return null;
     } catch (e) {
       _error = e.toString();
-      return 'Gagal menyimpan: $e';
+      return l10n?.saveFailedError('$e') ?? 'Gagal menyimpan: $e';
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
@@ -57,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       floatingActionButton: _selectedIndex <= 1
           ? FloatingActionButton(
-              tooltip: 'Tambah transaksi',
+              tooltip: t.addTransaction,
               onPressed: () async {
                 final saved = await Navigator.push(
                   context,
@@ -145,12 +147,13 @@ class DashboardHomeState extends State<_DashboardHome> {
         }
         final scheme = Theme.of(context).colorScheme;
         final text = Theme.of(context).textTheme;
+        final t = L.of(context);
         return RefreshIndicator(
           onRefresh: _onRefresh,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              const SliverAppBar.medium(title: Text('Dashboard')),
+              SliverAppBar.medium(title: Text(t.dashboard)),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 sliver: SliverList.list(
@@ -158,7 +161,7 @@ class DashboardHomeState extends State<_DashboardHome> {
                     _BalanceHeroCard(provider: walletProvider),
                     const SizedBox(height: 16),
                     _SectionHeader(
-                      title: 'Bulan Ini',
+                      title: t.thisMonth,
                       trailing: Text(
                         DateFormatter.formatMonthYear(DateTime.now()),
                         style: text.labelMedium?.copyWith(
@@ -185,11 +188,17 @@ class DashboardHomeState extends State<_DashboardHome> {
     return Row(
       children: [
         Expanded(
-          child: _SummaryTile(label: 'Pendapatan', amount: _monthIncome),
+          child: _SummaryTile(
+            label: L.of(context).incomeLabel,
+            amount: _monthIncome,
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _SummaryTile(label: 'Pengeluaran', amount: _monthExpense),
+          child: _SummaryTile(
+            label: L.of(context).expenseLabel,
+            amount: _monthExpense,
+          ),
         ),
       ],
     );
@@ -197,13 +206,14 @@ class DashboardHomeState extends State<_DashboardHome> {
 
   Widget _buildTagihanSection(DebtProvider provider) {
     final scheme = Theme.of(context).colorScheme;
+    final t = L.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
-          title: 'Titipan & Piutang',
+          title: t.titipanPiutang,
           trailing: Text(
-            '${provider.debts.length} Terbuka',
+            t.titipanOpenCount(provider.debts.length),
             style: Theme.of(
               context,
             ).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
@@ -213,7 +223,7 @@ class DashboardHomeState extends State<_DashboardHome> {
           children: [
             Expanded(
               child: _TagihanCard(
-                title: 'Titipan Saya',
+                title: t.titipanSaya,
                 amount: provider.totalActiveDebt,
                 icon: Icons.north,
                 container: scheme.primaryContainer,
@@ -227,7 +237,7 @@ class DashboardHomeState extends State<_DashboardHome> {
             const SizedBox(width: 8),
             Expanded(
               child: _TagihanCard(
-                title: 'Titipan Orang',
+                title: t.titipanOrang,
                 amount: provider.totalActiveReceivable,
                 icon: Icons.south,
                 container: scheme.primaryContainer,
@@ -249,6 +259,7 @@ class DashboardHomeState extends State<_DashboardHome> {
     TransactionProvider provider,
   ) {
     final recentTransactions = provider.transactions.take(10).toList();
+    final t = L.of(context);
     final catProvider = context.watch<CategoryProvider>();
     final categoryOf = <int, String>{
       for (final c in [
@@ -262,9 +273,9 @@ class DashboardHomeState extends State<_DashboardHome> {
     if (recentTransactions.isEmpty && provider.isLoading) {
       content = const _TransactionSkeleton();
     } else if (recentTransactions.isEmpty) {
-      content = const EmptyState(
+      content = EmptyState(
         icon: Icons.receipt_long_outlined,
-        message: 'Belum ada transaksi',
+        message: t.noTransactions,
       );
     } else {
       content = Column(
@@ -294,10 +305,10 @@ class DashboardHomeState extends State<_DashboardHome> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
-          title: 'Transaksi Terbaru',
+          title: t.recentTransactions,
           trailing: TextButton(
             onPressed: widget.onLihatSemua,
-            child: const Text('Lihat Semua'),
+            child: Text(t.viewAll),
           ),
         ),
         AppCard(
@@ -325,6 +336,7 @@ class _BalanceHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final t = L.of(context);
     final onColor = scheme.onPrimaryContainer;
     return RepaintBoundary(
       child: AppCard(
@@ -343,7 +355,7 @@ class _BalanceHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Total Saldo',
+                  t.totalBalance,
                   style: text.titleSmall?.copyWith(color: onColor),
                 ),
               ],
@@ -367,7 +379,7 @@ class _BalanceHeroCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _WalletBreakdown(
-                    label: 'Cash',
+                    label: t.cash,
                     icon: Icons.payments_outlined,
                     balance: provider.cashWallet?.balance ?? 0,
                   ),
@@ -375,7 +387,7 @@ class _BalanceHeroCard extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _WalletBreakdown(
-                    label: 'E-Wallet',
+                    label: t.ewallet,
                     icon: Icons.smartphone_outlined,
                     balance: provider.ewalletWallet?.balance ?? 0,
                   ),

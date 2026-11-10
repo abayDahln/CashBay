@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart' show InputValidation;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/category.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../providers/category_provider.dart';
 
 const _incomeIcons = ['salary', 'business', 'gift', 'investment', 'other'];
@@ -31,22 +32,22 @@ IconData _categoryIcon(String? iconName) => switch (iconName) {
   _ => Icons.category_outlined,
 };
 
-String _iconLabel(String iconName) => switch (iconName) {
-  'salary' => 'Gaji',
-  'business' => 'Bisnis',
-  'gift' => 'Hadiah',
-  'investment' => 'Investasi',
-  'food' => 'Makanan',
-  'transport' => 'Transportasi',
-  'shopping' => 'Belanja',
-  'health' => 'Kesehatan',
-  'education' => 'Pendidikan',
-  'entertainment' => 'Hiburan',
-  _ => 'Lainnya',
+String _iconLabel(String iconName, L t) => switch (iconName) {
+  'salary' => t.iconSalary,
+  'business' => t.iconBusiness,
+  'gift' => t.iconGift,
+  'investment' => t.iconInvestment,
+  'food' => t.iconFood,
+  'transport' => t.iconTransport,
+  'shopping' => t.iconShopping,
+  'health' => t.iconHealth,
+  'education' => t.iconEducation,
+  'entertainment' => t.iconEntertainment,
+  _ => t.iconOther,
 };
 
-String _typeLabel(String type) =>
-    type == 'income' ? 'pendapatan' : 'pengeluaran';
+String _typeLabel(String type, L t) =>
+    type == 'income' ? t.pendapatanLower : t.pengeluaranLower;
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -80,14 +81,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     return Scaffold(
       appBar: CashBayAppBar(
-        title: 'Tag Transaksi',
+        title: t.tagTransactions,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Pendapatan'),
-            Tab(text: 'Pengeluaran'),
+          tabs: [
+            Tab(text: t.income),
+            Tab(text: t.expense),
           ],
         ),
       ),
@@ -108,7 +110,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         },
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Tambah tag',
+        tooltip: t.addTag,
         onPressed: () => _showCategorySheet(initialType: _currentType),
         child: const Icon(Icons.add),
       ),
@@ -116,12 +118,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   Widget _buildCategoryList(List<Category> categories, String type) {
+    final t = L.of(context);
     if (categories.isEmpty) {
       return EmptyState(
         icon: type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-        message: 'Belum ada tag ${_typeLabel(type)}',
-        subtitle: 'Tambah tag untuk mengelompokkan transaksi',
-        buttonLabel: 'Tambah Tag',
+        message: t.noTag(_typeLabel(type, t)),
+        subtitle: t.addTagHint,
+        buttonLabel: t.addTagLabel,
         onButtonTap: () => _showCategorySheet(initialType: type),
       );
     }
@@ -142,6 +145,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   Widget _buildCategoryTile(Category category, String type) {
+    final t = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final finance = FinanceColors.of(context);
@@ -169,7 +173,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Bawaan',
+                  t.defaultBadge,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSecondaryContainer,
                   ),
@@ -179,7 +183,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           : null,
       onTap: () => _showCategorySheet(category: category),
       trailing: PopupMenuButton<String>(
-        tooltip: 'Opsi tag',
+        tooltip: t.tagOptions,
         onSelected: (value) {
           if (value == 'edit') {
             _showCategorySheet(category: category);
@@ -188,12 +192,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           }
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'edit',
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.edit_outlined),
-              title: Text('Edit'),
+              title: Text(t.edit),
             ),
           ),
           PopupMenuItem(
@@ -203,7 +207,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               iconColor: scheme.error,
               textColor: scheme.error,
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Hapus'),
+              title: Text(t.delete),
             ),
           ),
         ],
@@ -248,29 +252,25 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     );
 
     if (saved == true && mounted) {
-      ToastWidget.success(
-        context,
-        isEdit ? 'Tag diperbarui' : 'Tag ditambahkan',
-      );
+      final t = L.of(context);
+      ToastWidget.success(context, isEdit ? t.tagUpdated : t.tagAdded);
     }
   }
 
   Future<void> _deleteCategory(Category category) async {
+    final t = L.of(context);
     final provider = context.read<CategoryProvider>();
     final scheme = Theme.of(context).colorScheme;
 
     try {
       if (await provider.isCategoryInUse(category.id!)) {
         if (mounted) {
-          ToastWidget.error(
-            context,
-            'Tag "${category.name}" masih digunakan transaksi',
-          );
+          ToastWidget.error(context, t.tagInUse(category.name));
         }
         return;
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal memeriksa tag: $e');
+      if (mounted) ToastWidget.error(context, t.checkTagFailed('$e'));
       return;
     }
     if (!mounted) return;
@@ -279,16 +279,16 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         icon: Icon(Icons.delete_outline, color: scheme.error),
-        title: const Text('Hapus Tag?'),
+        title: Text(t.deleteTagQ),
         content: Text(
           category.isDefault
-              ? 'Tag bawaan "${category.name}" akan dihapus permanen.'
-              : 'Tag "${category.name}" akan dihapus permanen.',
+              ? t.deleteTagDefault(category.name)
+              : t.deleteTagConfirm(category.name),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(t.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -296,7 +296,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               backgroundColor: scheme.error,
               foregroundColor: scheme.onError,
             ),
-            child: const Text('Hapus'),
+            child: Text(t.delete),
           ),
         ],
       ),
@@ -307,15 +307,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       final success = await provider.deleteCategory(category.id!);
       if (!mounted) return;
       if (success) {
-        ToastWidget.success(context, 'Tag dihapus');
+        ToastWidget.success(context, t.tagDeleted);
       } else {
-        ToastWidget.error(
-          context,
-          'Tag tidak bisa dihapus (masih digunakan)',
-        );
+        ToastWidget.error(context, t.tagCannotDelete);
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal menghapus tag: $e');
+      if (mounted) ToastWidget.error(context, t.deleteTagFailed('$e'));
     }
   }
 }
@@ -362,10 +359,12 @@ class _CategorySheetState extends State<_CategorySheet> {
   }
 
   String? _validateName(String? value) {
+    final t = L.of(context);
     final base = InputValidation.name(
       value,
-      'Nama tag',
+      t.tagName,
       max: InputValidation.maxCategory,
+      l10n: t,
     );
     if (base != null) return base;
 
@@ -379,12 +378,13 @@ class _CategorySheetState extends State<_CategorySheet> {
           c.id != widget.category?.id && c.name.trim().toLowerCase() == name,
     );
     if (duplicate) {
-      return 'Tag ${_typeLabel(_selectedType)} dengan nama ini sudah ada';
+      return t.tagDuplicate(_typeLabel(_selectedType, t));
     }
     return null;
   }
 
   Future<void> _submit() async {
+    final t = L.of(context);
     if (_saving) return;
     setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
@@ -400,10 +400,10 @@ class _CategorySheetState extends State<_CategorySheet> {
       if (ok) {
         Navigator.pop(context, true);
       } else {
-        ToastWidget.error(context, 'Gagal menyimpan tag');
+        ToastWidget.error(context, t.tagSaveFailed);
       }
     } catch (e) {
-      if (mounted) ToastWidget.error(context, 'Gagal menyimpan tag: $e');
+      if (mounted) ToastWidget.error(context, t.tagSaveFailedDetail('$e'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -411,6 +411,7 @@ class _CategorySheetState extends State<_CategorySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     final textTheme = Theme.of(context).textTheme;
     final icons = _selectedType == 'income' ? _incomeIcons : _expenseIcons;
 
@@ -430,20 +431,20 @@ class _CategorySheetState extends State<_CategorySheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _isEdit ? 'Edit Tag' : 'Tambah Tag',
+                _isEdit ? t.editTag : t.addTagLabel,
                 style: textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
               SegmentedButton<String>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: 'income',
-                    label: Text('Pendapatan'),
+                    label: Text(t.income),
                     icon: Icon(Icons.arrow_downward),
                   ),
                   ButtonSegment(
                     value: 'expense',
-                    label: Text('Pengeluaran'),
+                    label: Text(t.expense),
                     icon: Icon(Icons.arrow_upward),
                   ),
                 ],
@@ -473,15 +474,15 @@ class _CategorySheetState extends State<_CategorySheet> {
                 maxLength: InputValidation.maxCategory,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'Nama Tag',
-                  hintText: 'Contoh: Gaji, Makan, Transport',
+                decoration: InputDecoration(
+                  labelText: t.tagNameField,
+                  hintText: t.tagNameSample,
                 ),
                 validator: _validateName,
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 8),
-              Text('Ikon', style: textTheme.titleSmall),
+              Text(t.iconSection, style: textTheme.titleSmall),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -490,7 +491,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                   for (final iconName in icons)
                     ChoiceChip(
                       avatar: Icon(_categoryIcon(iconName), size: 18),
-                      label: Text(_iconLabel(iconName)),
+                      label: Text(_iconLabel(iconName, t)),
                       selected: _selectedIcon == iconName,
                       showCheckmark: false,
                       onSelected: _saving
@@ -507,7 +508,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _saving ? null : () => Navigator.pop(context),
-                      child: const Text('Batal'),
+                      child: Text(t.cancel),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -520,7 +521,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_isEdit ? 'Simpan' : 'Tambah'),
+                          : Text(_isEdit ? t.save : t.add),
                     ),
                   ),
                 ],

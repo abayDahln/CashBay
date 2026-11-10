@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -10,11 +11,18 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
-  final _messages = <_ChatMessage>[
-    const _ChatMessage(
-      'Halo! Saya asisten keuangan Anda. Tanyakan apa saja tentang transaksi dan keuangan Anda.',
-    ),
-  ];
+  final _messages = <_ChatMessage>[];
+
+  @override
+  void initState() {
+    super.initState();
+    // Deferred: greeting needs L.of(context), unavailable in field initializer.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _messages.add(_ChatMessage(L.of(context).chatGreeting)));
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -27,48 +35,51 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
     setState(() {
       _messages.add(_ChatMessage(text, isMe: true));
-      _messages.add(const _ChatMessage('Fitur chat bot sedang dikembangkan.'));
+      _messages.add(_ChatMessage(L.of(context).chatDeveloping));
       _controller.clear();
     });
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Expanded(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _messages.length,
-          itemBuilder: (context, index) => _buildBubble(_messages[index]),
-        ),
-      ),
-      const Divider(height: 1),
-      SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  textInputAction: TextInputAction.send,
-                  decoration: const InputDecoration(hintText: 'Ketik pesan...'),
-                  onSubmitted: (_) => _send(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                tooltip: 'Kirim pesan',
-                onPressed: _send,
-                icon: const Icon(Icons.send),
-              ),
-            ],
+  Widget build(BuildContext context) {
+    final t = L.of(context);
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _messages.length,
+            itemBuilder: (context, index) => _buildBubble(_messages[index]),
           ),
         ),
-      ),
-    ],
-  );
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    textInputAction: TextInputAction.send,
+                    decoration: InputDecoration(hintText: t.chatHint),
+                    onSubmitted: (_) => _send(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  tooltip: t.sendMessage,
+                  onPressed: _send,
+                  icon: const Icon(Icons.send),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildBubble(_ChatMessage message) {
     final scheme = Theme.of(context).colorScheme;

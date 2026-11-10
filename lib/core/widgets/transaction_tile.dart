@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../../features/transactions/data/models/transaction.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
@@ -22,6 +23,7 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final isIncome = transaction.type == 'income';
     final isTransfer = transaction.type == 'transfer';
@@ -32,22 +34,22 @@ class TransactionTile extends StatelessWidget {
     final (icon, label) = transaction.isTagihanRelated
         ? (
             Icons.receipt_long,
-            transaction.description ?? 'Titipan',
+            transaction.description ?? t.titipan,
           )
         : isTransfer
-        ? (Icons.swap_horiz, description.isNotEmpty ? description : 'Transfer')
+        ? (Icons.swap_horiz, description.isNotEmpty ? description : t.transfer)
         : isIncome
         ? (
             Icons.south,
             description.isNotEmpty
                 ? description
-                : (note.isNotEmpty ? note : 'Pendapatan'),
+                : (note.isNotEmpty ? note : t.incomeLabel),
           )
         : (
             Icons.north,
             description.isNotEmpty
                 ? description
-                : (note.isNotEmpty ? note : 'Pengeluaran'),
+                : (note.isNotEmpty ? note : t.expenseLabel),
           );
     final dateText = DateFormatter.formatDate(transaction.date);
     final subtitle = isTagihan && note.isNotEmpty

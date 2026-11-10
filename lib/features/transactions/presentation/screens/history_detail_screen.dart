@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart'
-    show CurrencyFormatter, DateFormatter, InputValidation, RupiahInputFormatter;
+    show CurrencyFormatter, InputValidation, RupiahInputFormatter;
 import '../../../../core/widgets/widgets.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/models/transaction.dart';
 import '../providers/transaction_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
@@ -58,12 +60,25 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   String get _typeLabel {
-    if (_transaction.isTagihan) return 'Detail Titipan';
-    if (_transaction.isPembayaranTagihan) return 'Detail Pengembalian';
-    if (_transaction.isPenerimaanTagihan) return 'Detail Penerimaan';
-    if (_isTransfer) return 'Detail Transfer';
-    if (_isIncome) return 'Detail Pendapatan';
-    return 'Detail Pengeluaran';
+    final t = L.of(context);
+    if (_transaction.isTagihan) return t.detailTitipan;
+    if (_transaction.isPembayaranTagihan) return t.detailPengembalian;
+    if (_transaction.isPenerimaanTagihan) return t.detailPenerimaan;
+    if (_isTransfer) return t.detailTransfer;
+    if (_isIncome) return t.detailIncome;
+    return t.detailExpense;
+  }
+
+  /// Plain type name used when a transaction has no description.
+  String _typeLabelFallback(L t) {
+    if (_transaction.isTagihan ||
+        _transaction.isPembayaranTagihan ||
+        _transaction.isPenerimaanTagihan) {
+      return t.titipan;
+    }
+    if (_isTransfer) return t.transfer;
+    if (_isIncome) return t.incomeLabel;
+    return t.expenseLabel;
   }
 
   /// Colour type used for FinanceColors: penerimaan tagihan counts as income.
@@ -83,7 +98,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   String get _paymentMethodLabel =>
-      _transaction.paymentMethod == 'ewallet' ? 'E-Wallet' : 'Cash';
+      _transaction.paymentMethod == 'ewallet'
+      ? L.of(context).ewallet
+      : L.of(context).cash;
 
   String _walletName(int? id) {
     if (id == null) return '-';
@@ -91,10 +108,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     for (final w in walletProvider.wallets) {
       if (w.id == id) return w.name;
     }
-    return 'ID: $id';
+    return L.of(context).idLabel(id);
   }
 
   Widget _buildHero() {
+    final t = L.of(context);
     final title = _transaction.description?.trim() ?? '';
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
@@ -117,7 +135,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            title.isNotEmpty ? title : _typeLabel.replaceFirst('Detail ', ''),
+            title.isNotEmpty ? title : _typeLabelFallback(t),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -161,7 +179,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _sectionLabel('Lampiran'),
+        _sectionLabel(L.of(context).attachment),
         AppCard(
           variant: AppCardVariant.outlined,
           padding: EdgeInsets.zero,
@@ -176,6 +194,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   Widget _buildDetailCard() {
+    final t = L.of(context);
     final sourceWallet = _walletName(_transaction.walletId);
     final isMainTagihan = _transaction.isTagihan;
     final scheme = Theme.of(context).colorScheme;
@@ -183,36 +202,39 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final rows = <Widget>[
       _detailRow(
         Icons.calendar_today_outlined,
-        'Tanggal',
-        DateFormatter.formatDateTime(_transaction.date),
+        t.date,
+        DateFormat(
+          'dd MMM yyyy HH:mm',
+          Localizations.localeOf(context).toLanguageTag(),
+        ).format(_transaction.date),
       ),
-      _detailRow(Icons.credit_card_outlined, 'Metode', _paymentMethodLabel),
+      _detailRow(Icons.credit_card_outlined, t.method, _paymentMethodLabel),
       if (_isTransfer) ...[
-        _detailRow(Icons.wallet_outlined, 'Dompet Asal', sourceWallet),
+        _detailRow(Icons.wallet_outlined, t.sourceWallet, sourceWallet),
         _detailRow(
           Icons.wallet_outlined,
-          'Dompet Tujuan',
+          t.destinationWallet,
           _walletName(_transaction.toWalletId),
         ),
       ] else
-        _detailRow(Icons.wallet_outlined, 'Dompet', sourceWallet),
+        _detailRow(Icons.wallet_outlined, t.wallet, sourceWallet),
       if (_transaction.description?.trim().isNotEmpty == true)
         _detailRow(
           Icons.notes_outlined,
-          isMainTagihan ? 'Nama Titipan' : 'Deskripsi',
+          isMainTagihan ? t.titipanName : t.description,
           _transaction.description!,
         ),
       if (_transaction.note?.trim().isNotEmpty == true)
         _detailRow(
           isMainTagihan ? Icons.person_outline : Icons.sticky_note_2_outlined,
-          isMainTagihan ? 'Nama Orang' : 'Catatan',          _transaction.note!,
+          isMainTagihan ? t.personName : t.note,          _transaction.note!,
         ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _sectionLabel('Informasi transaksi'),
+        _sectionLabel(t.transactionInfo),
         AppCard(
           variant: AppCardVariant.outlined,
           padding: EdgeInsets.zero,
@@ -249,6 +271,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   Widget _buildActions() {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -257,7 +280,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           onPressed: _openEditSheet,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           icon: const Icon(Icons.edit_outlined),
-          label: const Text('Ubah Transaksi'),
+          label: Text(t.editTransaction),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -267,7 +290,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             foregroundColor: scheme.error,
           ),
           icon: const Icon(Icons.delete_outline),
-          label: const Text('Hapus Transaksi'),
+          label: Text(t.deleteTransaction),
         ),
       ],
     );
@@ -297,20 +320,19 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    final t = L.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
         return AlertDialog(
           icon: const Icon(Icons.delete_outline),
-          title: const Text('Hapus Riwayat?'),
-          content: const Text(
-            'Riwayat ini akan disembunyikan dan tidak akan memengaruhi saldo saat ini.',
-          ),
+          title: Text(t.deleteHistoryQ),
+          content: Text(t.deleteHistoryDesc),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal'),
+              child: Text(t.cancel),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -318,7 +340,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 foregroundColor: scheme.onError,
               ),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Hapus'),
+              child: Text(t.delete),
             ),
           ],
         );
@@ -333,11 +355,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final success = await provider.softDeleteTransaction(_transaction.id!);
     if (!mounted) return;
     if (success) {
-      ToastWidget.success(context, 'Riwayat berhasil dihapus');
+      ToastWidget.success(context, L.of(context).historyDeleted);
       Navigator.pop(context);
     } else {
       setState(() => _isDeleting = false);
-      ToastWidget.error(context, 'Gagal menghapus');
+      ToastWidget.error(context, L.of(context).deleteFailed);
     }
   }
 }
@@ -398,7 +420,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
       imageQuality: 80,
     );
     if (picked == null || !mounted) return;
-    final err = InputValidation.imageFile(picked.path);
+    final err = InputValidation.imageFile(picked.path, l10n: L.of(context));
     if (err != null) {
       ToastWidget.error(context, err);
       return;
@@ -462,16 +484,17 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
       // Keep the dashboard totals in sync with the new amount/wallet.
       await context.read<WalletProvider>().refreshBalances();
       if (!mounted) return;
-      ToastWidget.success(context, 'Berhasil disimpan');
+      ToastWidget.success(context, L.of(context).saved);
       Navigator.pop(context, updated);
     } else {
       setState(() => _isSaving = false);
-      ToastWidget.error(context, 'Gagal menyimpan');
+      ToastWidget.error(context, L.of(context).saveFailed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final photo = _newAttachmentPath ?? _transaction.attachmentPath;
@@ -488,12 +511,10 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Ubah Transaksi', style: text.titleLarge),
+              Text(t.editTransaction, style: text.titleLarge),
               const SizedBox(height: 4),
               Text(
-                _canEditAmount
-                    ? 'Jenis transaksi tidak dapat diubah.'
-                    : 'Titipan diubah dari layar detail titipan.',
+                _canEditAmount ? t.kindNotEditable : t.titipanEditHint,
                 style: text.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -505,13 +526,14 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
                   inputFormatters: [RupiahInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: 'Nominal',
+                  decoration: InputDecoration(
+                    labelText: t.amount,
                     prefixText: 'Rp ',
-                    prefixIcon: Icon(Icons.payments_outlined),
+                    prefixIcon: const Icon(Icons.payments_outlined),
                     errorMaxLines: 2,
                   ),
-                  validator: InputValidation.amountInRange,
+                  validator: (v) =>
+                      InputValidation.amountInRange(v, l10n: L.of(context)),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
@@ -533,11 +555,11 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                       : (v) => setState(() => _walletId = v),
                   decoration: InputDecoration(
                     labelText: _transaction.type == 'transfer'
-                        ? 'Dompet Asal'
-                        : 'Dompet',
+                        ? t.sourceWallet
+                        : t.wallet,
                     prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
                   ),
-                  validator: (v) => v == null ? 'Pilih dompet' : null,
+                  validator: (v) => v == null ? t.chooseWallet : null,
                 ),
                 const SizedBox(height: 16),
               ],
@@ -546,14 +568,15 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                 maxLength: InputValidation.maxDescription,
                 textCapitalization: TextCapitalization.sentences,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Deskripsi',
-                  prefixIcon: Icon(Icons.edit_note),
+                decoration: InputDecoration(
+                  labelText: t.description,
+                  prefixIcon: const Icon(Icons.edit_note),
                 ),
                 validator: (v) => InputValidation.maxLength(
                   v,
-                  'Deskripsi',
+                  t.description,
                   InputValidation.maxDescription,
+                  l10n: t,
                 ),
               ),
               const SizedBox(height: 8),
@@ -564,18 +587,19 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                 maxLength: InputValidation.maxNote,
                 keyboardType: TextInputType.multiline,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Catatan',
+                decoration: InputDecoration(
+                  labelText: t.note,
                   alignLabelWithHint: true,
                 ),
                 validator: (v) => InputValidation.maxLength(
                   v,
-                  'Catatan',
+                  t.note,
                   InputValidation.maxNote,
+                  l10n: t,
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Lampiran', style: text.labelLarge),
+              Text(t.attachment, style: text.labelLarge),
               const SizedBox(height: 8),
               if (photo != null) ...[
                 ClipRRect(
@@ -594,7 +618,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                   OutlinedButton.icon(
                     onPressed: _isSaving ? null : _pickImage,
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(photo == null ? 'Tambah Foto' : 'Ganti Foto'),
+                    label: Text(photo == null ? t.addPhoto : t.changePhoto),
                   ),
                   if (_newAttachmentPath != null)
                     TextButton.icon(
@@ -602,7 +626,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                           ? null
                           : () => setState(() => _newAttachmentPath = null),
                       icon: const Icon(Icons.undo),
-                      label: const Text('Batalkan Foto Baru'),
+                      label: Text(t.undoNewPhoto),
                     ),
                 ],
               ),
@@ -617,7 +641,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                         dimension: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Simpan'),
+                    : Text(t.save),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -625,7 +649,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
                 style: TextButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
-                child: const Text('Batal'),
+                child: Text(t.cancel),
               ),
             ],
           ),
@@ -656,7 +680,7 @@ class _AttachmentImage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Tidak ada foto',
+                L.of(context).noPhoto,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -672,14 +696,14 @@ class _AttachmentImage extends StatelessWidget {
             path,
             fit: BoxFit.cover,
             width: double.infinity,
-            semanticLabel: 'Lampiran foto',
+            semanticLabel: L.of(context).attachmentPhoto,
             errorBuilder: fallback,
           )
         : Image.file(
             File(path),
             fit: BoxFit.cover,
             width: double.infinity,
-            semanticLabel: 'Lampiran foto',
+            semanticLabel: L.of(context).attachmentPhoto,
             errorBuilder: fallback,
           );
   }
@@ -716,7 +740,7 @@ class _FullScreenImage extends StatelessWidget {
             top: MediaQuery.paddingOf(context).top + 8,
             left: 8,
             child: IconButton(
-              tooltip: 'Kembali',
+              tooltip: L.of(context).back,
               color: Colors.white,
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.pop(context),

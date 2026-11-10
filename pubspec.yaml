@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Localization (Indonesian + English)
+  flutter_localizations:
+    sdk: flutter
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -44,7 +48,7 @@ dependencies:
   shared_preferences: ^2.5.3
 
   # Formatting (Rupiah, dates)
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # Image picker
   image_picker: ^1.0.7
@@ -52,12 +56,18 @@ dependencies:
   # File system
   path_provider: ^2.1.2
 
+  # Save/open file dialogs (backup import/export)
+  file_selector: ^1.0.3
+
   # Charts
   fl_chart: ^0.69.2
 
   # Local notifications for titipan due dates
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
+
+  # Desktop SQLite backend (Windows/Linux/macOS); no-op on mobile
+  sqflite_common_ffi: ^2.3.3+1
 
 dev_dependencies:
   flutter_test:
@@ -72,9 +82,6 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-
-  # For testing with sqflite
-  sqflite_common_ffi: ^2.3.3+1
 
   # App icon generation
   flutter_launcher_icons: ^0.14.3
@@ -104,6 +111,8 @@ flutter_native_splash:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Generates AppLocalizations from lib/l10n/*.arb
+  generate: true
 
   uses-material-design: true
   shaders:

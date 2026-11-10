@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' hide Category;
 import '../../data/models/category.dart';
 import '../../data/repositories/category_repository.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class CategoryProvider extends ChangeNotifier {
   final CategoryRepository _repository = CategoryRepository();
@@ -75,12 +76,14 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   /// Duplicate-name message for a new category, or null when it is unique.
-  String? hasCategoryNamed(String name, String type) {
+  String? hasCategoryNamed(String name, String type, {L? l10n}) {
     final lower = name.trim().toLowerCase();
     final sameType = type == 'income' ? _incomeCategories : _expenseCategories;
     final duplicate = sameType.any(
       (c) => c.name.trim().toLowerCase() == lower,
     );
-    return duplicate ? 'Tag dengan nama ini sudah ada' : null;
+    return duplicate
+        ? (l10n?.tagExists ?? 'Tag dengan nama ini sudah ada')
+        : null;
   }
 }

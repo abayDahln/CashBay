@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,14 +20,13 @@ void main() {
     await tester.pumpWidget(const CashBayApp());
     await tester.pump(const Duration(seconds: 2));
 
-    expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('Riwayat'), findsWidgets);
-    expect(find.text('Analytics'), findsWidgets);
-    expect(find.text('Pengaturan'), findsWidgets);
+    // Locale-independent: four destinations in the navigation bar.
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
 
     // Switch to each tab and make sure it renders without throwing.
-    for (final label in ['Riwayat', 'Analytics', 'Pengaturan']) {
-      await tester.tap(find.text(label).last);
+    final destinations = find.byType(NavigationDestination);
+    for (var i = 1; i < 4; i++) {
+      await tester.tap(destinations.at(i));
       await tester.pump(const Duration(milliseconds: 600));
       expect(tester.takeException(), isNull);
     }

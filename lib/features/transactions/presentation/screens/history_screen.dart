@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/widgets/widgets.dart';
 import 'history_detail_screen.dart';
 import '../../data/models/transaction.dart';
@@ -15,13 +16,21 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class HistoryScreenState extends State<HistoryScreen> {
-  static const _filters = <(String, String)>[
-    ('Semua', 'all'),
-    ('Pendapatan', 'income'),
-    ('Pengeluaran', 'expense'),
-    ('Titipan', 'tagihan'),
-    ('Transfer', 'transfer'),
+  static const _filterValues = <String>[
+    'all',
+    'income',
+    'expense',
+    'tagihan',
+    'transfer',
   ];
+
+  String _filterLabel(String value, L t) => switch (value) {
+    'income' => t.income,
+    'expense' => t.expense,
+    'tagihan' => t.titipan,
+    'transfer' => t.transfer,
+    _ => t.all,
+  };
 
   String _typeFilter = 'all';
   final _searchController = TextEditingController();
@@ -83,11 +92,10 @@ class HistoryScreenState extends State<HistoryScreen> {
     }).toList();
   }
 
-  List<_DateSection> _buildSections(List<Transaction> transactions) {
+  List<_DateSection> _buildSections(List<Transaction> transactions, L t) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final buckets = <DateTime, List<Transaction>>{};
     for (final transaction in transactions) {
       final date = DateTime(
@@ -98,23 +106,13 @@ class HistoryScreenState extends State<HistoryScreen> {
       buckets.putIfAbsent(date, () => []).add(transaction);
     }
     final dates = buckets.keys.toList()..sort((a, b) => b.compareTo(a));
+    final locale = Localizations.localeOf(context).toLanguageTag();
     return dates.map((date) {
-      const weekdays = [
-        'Senin',
-        'Selasa',
-        'Rabu',
-        'Kamis',
-        'Jumat',
-        'Sabtu',
-        'Minggu',
-      ];
       final label = date == today
-          ? 'Hari Ini'
+          ? t.today
           : date == yesterday
-          ? 'Kemarin'
-          : date.isAfter(weekStart.subtract(const Duration(days: 1)))
-          ? weekdays[date.weekday - 1]
-          : DateFormat('EEEE', 'id_ID').format(date);
+          ? t.yesterday
+          : DateFormat('EEEE', locale).format(date);
       return _DateSection(label, date, buckets[date]!);
     }).toList();
   }
@@ -128,6 +126,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final t = L.of(context);
     return SafeArea(
       bottom: false,
       child: Column(
@@ -136,7 +135,7 @@ class HistoryScreenState extends State<HistoryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              'Riwayat',
+              t.history,
               style: text.headlineMedium?.copyWith(color: scheme.onSurface),
             ),
           ),
@@ -144,7 +143,7 @@ class HistoryScreenState extends State<HistoryScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: SearchBar(
               controller: _searchController,
-              hintText: 'Cari transaksi...',
+              hintText: t.searchTransaction,
               elevation: const WidgetStatePropertyAll(0),
               padding: const WidgetStatePropertyAll(
                 EdgeInsets.symmetric(horizontal: 16),
@@ -154,7 +153,7 @@ class HistoryScreenState extends State<HistoryScreen> {
               trailing: [
                 if (_searchQuery.isNotEmpty)
                   IconButton(
-                    tooltip: 'Hapus pencarian',
+                    tooltip: t.clearSearch,
                     onPressed: _clearSearch,
                     icon: const Icon(Icons.close),
                   ),
@@ -162,7 +161,7 @@ class HistoryScreenState extends State<HistoryScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          _buildFilterChips(),
+          _buildFilterChips(t),
           Expanded(
             child: Consumer<TransactionProvider>(
               builder: (context, provider, _) {
@@ -186,14 +185,12 @@ class HistoryScreenState extends State<HistoryScreen> {
                             icon: noData
                                 ? Icons.receipt_long_outlined
                                 : Icons.search_off,
-                            message: noData
-                                ? 'Belum ada transaksi'
-                                : 'Tidak ditemukan',
+                            message: noData ? t.noTransactions : t.notFound,
                             subtitle: noData
-                                ? 'Transaksi yang kamu catat akan muncul di sini'
+                                ? t.noTransactionsHint
                                 : hasQuery
-                                ? 'Coba kata kunci lain'
-                                : 'Tidak ada transaksi untuk filter ini',
+                                ? t.tryOtherKeyword
+                                : t.noTxForFilter,
                           ),
                         ),
                       ],
@@ -208,7 +205,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                   ])
                     if (category.id != null) category.id!: category.name,
                 };
-                final sections = _buildSections(transactions);
+                final sections = _buildSections(transactions, t);
                 return RefreshIndicator(
                   onRefresh: _loadTransactions,
                   child: ListView.builder(
@@ -279,7 +276,7 @@ class HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildFilterChips() {
+  Widget _buildFilterChips(L t) {
     final scheme = Theme.of(context).colorScheme;
     // Horizontally scrollable; edge fades hint at more chips and each side
     // hides once the row reaches that scroll end.
@@ -300,11 +297,11 @@ class HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
               child: Row(
                 children: [
-                  for (final (label, value) in _filters)
+                  for (final value in _filterValues)
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(label),
+                        label: Text(_filterLabel(value, t)),
                         selected: _typeFilter == value,
                         onSelected: (_) => setState(() => _typeFilter = value),
                       ),
@@ -347,6 +344,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   void showFilterDialog() {
+    final t = L.of(context);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -357,14 +355,14 @@ class HistoryScreenState extends State<HistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Filter', style: Theme.of(context).textTheme.titleLarge),
+              Text(t.filter, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final (label, value) in _filters)
-                    _chip(label, value, sheetContext),
+                  for (final value in _filterValues)
+                    _chip(_filterLabel(value, t), value, sheetContext),
                 ],
               ),
             ],
@@ -417,7 +415,10 @@ class _SectionHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            DateFormat('dd MMM yyyy', 'id_ID').format(date),
+            DateFormat(
+              'dd MMM yyyy',
+              Localizations.localeOf(context).toLanguageTag(),
+            ).format(date),
             style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ],

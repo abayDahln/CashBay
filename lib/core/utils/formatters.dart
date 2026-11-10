@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Formats digits as Rupiah thousands ("1500000" → "1.500.000") while typing.
 /// Non-digits are stripped; the caret is kept relative to the typed digits.
@@ -70,39 +71,52 @@ class InputValidation {
     return double.tryParse(digits);
   }
 
-  static String? required(String? v, String label) {
-    if (v == null || v.trim().isEmpty) return '$label tidak boleh kosong';
+  static String? required(String? v, String label, {L? l10n}) {
+    if (v == null || v.trim().isEmpty) {
+      return l10n?.fieldRequired(label) ?? '$label tidak boleh kosong';
+    }
     return null;
   }
 
   /// Required + trimmed length check + must contain a letter or digit.
-  static String? name(String? v, String label, {int max = maxName}) {
-    final req = required(v, label);
+  static String? name(String? v, String label, {int max = maxName, L? l10n}) {
+    final req = required(v, label, l10n: l10n);
     if (req != null) return req;
     final t = v!.trim();
-    if (t.length < 2) return '$label minimal 2 karakter';
-    if (t.length > max) return '$label maksimal $max karakter';
+    if (t.length < 2) {
+      return l10n?.fieldMinChars(label, 2) ?? '$label minimal 2 karakter';
+    }
+    if (t.length > max) {
+      return l10n?.fieldMaxChars(label, max) ?? '$label maksimal $max karakter';
+    }
     if (!RegExp(r'[A-Za-z0-9]').hasMatch(t)) {
-      return '$label harus mengandung huruf atau angka';
+      return l10n?.fieldNeedsLetterOrDigit(label) ??
+          '$label harus mengandung huruf atau angka';
     }
     return null;
   }
 
   /// Optional text with a max length.
-  static String? maxLength(String? v, String label, int max) {
+  static String? maxLength(String? v, String label, int max, {L? l10n}) {
     if (v != null && v.trim().length > max) {
-      return '$label maksimal $max karakter';
+      return l10n?.fieldMaxChars(label, max) ?? '$label maksimal $max karakter';
     }
     return null;
   }
 
-  static String? imageFile(String? path) {
+  static String? imageFile(String? path, {L? l10n}) {
     if (path == null || path.isEmpty) return null;
     final ext = path.split('.').last.toLowerCase();
-    if (!allowedImageExt.contains(ext)) return 'Format foto harus JPG atau PNG';
+    if (!allowedImageExt.contains(ext)) {
+      return l10n?.photoFormat ?? 'Format foto harus JPG atau PNG';
+    }
     final file = File(path);
-    if (!file.existsSync()) return 'File foto tidak ditemukan';
-    if (file.lengthSync() > maxFileSize) return 'Ukuran foto maksimal 10 MB';
+    if (!file.existsSync()) {
+      return l10n?.photoNotFound ?? 'File foto tidak ditemukan';
+    }
+    if (file.lengthSync() > maxFileSize) {
+      return l10n?.photoTooLarge ?? 'Ukuran foto maksimal 10 MB';
+    }
     return null;
   }
 
@@ -115,16 +129,21 @@ class InputValidation {
     double? min,
     double? max,
     String? maxMessage,
+    L? l10n,
   }) {
     final amount = parseAmount(v);
-    if (amount == null) return 'Nominal tidak boleh kosong';
-    if (amount <= 0) return 'Nominal harus lebih dari 0';
+    if (amount == null) return l10n?.amountRequired ?? 'Nominal tidak boleh kosong';
+    if (amount <= 0) return l10n?.amountPositive ?? 'Nominal harus lebih dari 0';
     if (min != null && amount < min) {
-      return 'Nominal minimal ${CurrencyFormatter.format(min)}';
+      final formatted = CurrencyFormatter.format(min);
+      return l10n?.amountMin(formatted) ?? 'Nominal minimal $formatted';
     }
-    if (amount > maxAmount) return 'Nominal terlalu besar';
+    if (amount > maxAmount) {
+      return l10n?.amountTooLarge ?? 'Nominal terlalu besar';
+    }
     if (max != null && amount > max) {
-      return maxMessage ?? 'Nominal maksimal ${CurrencyFormatter.format(max)}';
+      final formatted = CurrencyFormatter.format(max);
+      return maxMessage ?? l10n?.amountMax(formatted) ?? 'Nominal maksimal $formatted';
     }
     return null;
   }

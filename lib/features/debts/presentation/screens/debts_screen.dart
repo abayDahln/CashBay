@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/models/debt.dart';
 import '../../../transactions/presentation/screens/add_transaction_screen.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
@@ -58,6 +60,7 @@ class _DebtsScreenState extends State<DebtsScreen>
       useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
+          final t = L.of(context);
           final textTheme = Theme.of(context).textTheme;
           void update(VoidCallback fn) {
             setSheetState(fn);
@@ -70,18 +73,18 @@ class _DebtsScreenState extends State<DebtsScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Filter', style: textTheme.titleLarge),
+                Text(t.filter, style: textTheme.titleLarge),
                 const SizedBox(height: 16),
-                Text('Status', style: textTheme.titleSmall),
+                Text(t.status, style: textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final option in const [
-                      ('Semua', 'all'),
-                      ('Belum Lunas', 'active'),
-                      ('Lunas', 'paid'),
+                    for (final option in [
+                      (t.all, 'all'),
+                      (t.belumLunas, 'active'),
+                      (t.lunas, 'paid'),
                     ])
                       ChoiceChip(
                         label: Text(option.$1),
@@ -92,7 +95,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text('Rentang Tanggal', style: textTheme.titleSmall),
+                Text(t.dateRange, style: textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -105,7 +108,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                             firstDate: DateTime(2020),
                             lastDate: DateTime(now.year + 10, 12, 31),
                             initialDateRange: _dateRange,
-                            helpText: 'Pilih rentang tanggal',
+                            helpText: t.chooseDateRange,
                           );
                           if (range != null) {
                             update(() => _dateRange = range);
@@ -115,7 +118,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                         label: Text(
                           _dateRange != null
                               ? '${DateFormatter.formatShortDate(_dateRange!.start)} - ${DateFormatter.formatShortDate(_dateRange!.end)}'
-                              : 'Pilih tanggal',
+                              : t.chooseDate,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -124,7 +127,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                     if (_dateRange != null) ...[
                       const SizedBox(width: 8),
                       IconButton(
-                        tooltip: 'Hapus filter tanggal',
+                        tooltip: t.clearDateFilter,
                         onPressed: () => update(() => _dateRange = null),
                         icon: const Icon(Icons.close),
                       ),
@@ -142,14 +145,14 @@ class _DebtsScreenState extends State<DebtsScreen>
                                 _dateRange = null;
                               })
                             : null,
-                        child: const Text('Reset'),
+                        child: Text(t.reset),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: FilledButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Terapkan'),
+                        child: Text(t.apply),
                       ),
                     ),
                   ],
@@ -185,12 +188,13 @@ class _DebtsScreenState extends State<DebtsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     return Scaffold(
       appBar: CashBayAppBar(
-        title: 'Titipan',
+        title: t.titipan,
         actions: [
           IconButton(
-            tooltip: 'Filter titipan',
+            tooltip: t.filterTitipan,
             isSelected: _hasFilter,
             icon: Badge(
               isLabelVisible: _hasFilter,
@@ -201,9 +205,9 @@ class _DebtsScreenState extends State<DebtsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.arrow_upward), text: 'Titipan Saya'),
-            Tab(icon: Icon(Icons.arrow_downward), text: 'Titipan Orang'),
+          tabs: [
+            Tab(icon: const Icon(Icons.arrow_upward), text: t.titipanSaya),
+            Tab(icon: const Icon(Icons.arrow_downward), text: t.titipanOrang),
           ],
         ),
       ),
@@ -228,7 +232,7 @@ class _DebtsScreenState extends State<DebtsScreen>
         },
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Tambah titipan',
+        tooltip: t.addTitipan,
         onPressed: () =>
             _openAddTitipan(_tabController.index == 0 ? 'debt' : 'receivable'),
         child: const Icon(Icons.add),
@@ -268,6 +272,7 @@ class _DebtsScreenState extends State<DebtsScreen>
   }
 
   Widget _buildSummaryCard(String type, double total, int activeCount) {
+    final t = L.of(context);
     final isDebt = type == 'debt';
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -288,7 +293,7 @@ class _DebtsScreenState extends State<DebtsScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isDebt ? 'Sisa titipan saya' : 'Sisa titipan orang',
+                  isDebt ? t.remainingTitipanSaya : t.remainingTitipanOrang,
                   style: textTheme.titleSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -312,8 +317,8 @@ class _DebtsScreenState extends State<DebtsScreen>
           const SizedBox(height: 4),
           Text(
             activeCount == 0
-                ? 'Tidak ada titipan belum lunas'
-                : '$activeCount titipan belum lunas',
+                ? t.noActiveTitipan
+                : t.activeTitipanCount(activeCount),
             style: textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -324,6 +329,7 @@ class _DebtsScreenState extends State<DebtsScreen>
   }
 
   List<_DateGroup> _groupByDate(List<Debt> debts) {
+    final t = L.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
@@ -348,26 +354,27 @@ class _DebtsScreenState extends State<DebtsScreen>
     }
 
     final groups = <_DateGroup>[];
-    if (todayList.isNotEmpty) groups.add(_DateGroup('Hari Ini', todayList));
+    if (todayList.isNotEmpty) groups.add(_DateGroup(t.today, todayList));
     if (thisWeekList.isNotEmpty) {
-      groups.add(_DateGroup('Minggu Ini', thisWeekList));
+      groups.add(_DateGroup(t.thisWeek, thisWeekList));
     }
     if (thisMonthList.isNotEmpty) {
-      groups.add(_DateGroup('Bulan Ini', thisMonthList));
+      groups.add(_DateGroup(t.thisMonth, thisMonthList));
     }
     if (earlierList.isNotEmpty) {
-      groups.add(_DateGroup('Sebelumnya', earlierList));
+      groups.add(_DateGroup(t.previous, earlierList));
     }
     return groups;
   }
 
   Widget _buildEmptyState(String type, {required bool filtered}) {
+    final t = L.of(context);
     if (filtered) {
       return EmptyState(
         icon: Icons.filter_list_off,
-        message: 'Tidak ada titipan yang cocok',
-        subtitle: 'Coba ubah atau reset filter',
-        buttonLabel: 'Reset Filter',
+        message: t.noTitipanMatch,
+        subtitle: t.changeOrResetFilter,
+        buttonLabel: t.resetFilter,
         buttonIcon: Icons.restart_alt,
         onButtonTap: _resetFilter,
       );
@@ -375,11 +382,9 @@ class _DebtsScreenState extends State<DebtsScreen>
     final isDebt = type == 'debt';
     return EmptyState(
       icon: isDebt ? Icons.receipt_long_outlined : Icons.people_outline,
-      message: isDebt ? 'Belum ada titipan' : 'Belum ada titipan orang',
-      subtitle: isDebt
-          ? 'Catat uang yang Anda titipkan ke orang lain'
-          : 'Catat uang orang lain yang Anda pegang',
-      buttonLabel: isDebt ? 'Tambah Titipan' : 'Tambah Titipan Orang',
+      message: isDebt ? t.noTitipan : t.noTitipanOrang,
+      subtitle: isDebt ? t.noTitipanHint : t.noTitipanOrangHint,
+      buttonLabel: isDebt ? t.addTitipanTitle : t.addTitipanOrang,
       onButtonTap: () => _openAddTitipan(isDebt ? 'debt' : 'receivable'),
     );
   }
@@ -407,10 +412,15 @@ class _DebtsScreenState extends State<DebtsScreen>
   }
 
   Widget _buildDebtTile(Debt debt) {
+    final t = L.of(context);
     final isDebt = debt.type == 'debt';
     final isPaid = debt.status == 'paid';
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final dateFormat = DateFormat(
+      'dd MMM yyyy',
+      Localizations.localeOf(context).toLanguageTag(),
+    );
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final isOverdue =
@@ -418,9 +428,7 @@ class _DebtsScreenState extends State<DebtsScreen>
         debt.dueDate != null &&
         DateTime(debt.dueDate!.year, debt.dueDate!.month, debt.dueDate!.day)
             .isBefore(today);
-    final subtitle = debt.dueDate != null
-        ? DateFormatter.formatDate(debt.dueDate!)
-        : DateFormatter.formatDate(debt.date);
+    final subtitle = dateFormat.format(debt.dueDate ?? debt.date);
     final paidRatio = debt.amount > 0
         ? ((debt.amount - debt.remainingAmount) / debt.amount).clamp(0.0, 1.0)
         : 0.0;
@@ -498,7 +506,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                   child: LinearProgressIndicator(
                     value: paidRatio,
                     borderRadius: BorderRadius.circular(4),
-                    semanticsLabel: 'Progres pembayaran',
+                    semanticsLabel: t.progressPayment,
                     semanticsValue: '${(paidRatio * 100).round()}%',
                   ),
                 ),
@@ -516,7 +524,19 @@ class _DebtsScreenState extends State<DebtsScreen>
               children: [
                 Expanded(
                   child: Text(
-                    '${CurrencyFormatter.format(debt.amount - debt.remainingAmount)} ${isDebt ? 'dibayar' : 'diterima'} dari ${CurrencyFormatter.format(debt.amount)}',
+                    isDebt
+                        ? t.paidFrom(
+                            CurrencyFormatter.format(
+                              debt.amount - debt.remainingAmount,
+                            ),
+                            CurrencyFormatter.format(debt.amount),
+                          )
+                        : t.receivedFrom(
+                            CurrencyFormatter.format(
+                              debt.amount - debt.remainingAmount,
+                            ),
+                            CurrencyFormatter.format(debt.amount),
+                          ),
                     style: textTheme.labelSmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -533,7 +553,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Lunas',
+                    t.lunas,
                     style: textTheme.labelSmall?.copyWith(
                       color: const Color(0xFF2E7D32),
                       fontWeight: FontWeight.w600,
@@ -577,7 +597,7 @@ class DebtStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Badge(
-      label: Text(isPaid ? 'Lunas' : 'Belum Lunas'),
+      label: Text(isPaid ? L.of(context).lunas : L.of(context).belumLunas),
       largeSize: 20,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       textStyle: Theme.of(context).textTheme.labelSmall,

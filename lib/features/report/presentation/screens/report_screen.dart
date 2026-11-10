@@ -8,21 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
-
-const _monthNames = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
+import '../../../../l10n/app_localizations.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -42,6 +28,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return Consumer<ReportProvider>(
@@ -51,7 +38,7 @@ class _ReportScreenState extends State<ReportScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              const SliverAppBar.medium(title: Text('Analytics')),
+              SliverAppBar.medium(title: Text(t.analytics)),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 sliver: SliverList.list(
@@ -78,7 +65,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Error: ${report.error}',
+                                  t.errorPrefix('${report.error}'),
                                   style: text.bodyMedium?.copyWith(
                                     color: scheme.onErrorContainer,
                                   ),
@@ -91,22 +78,22 @@ class _ReportScreenState extends State<ReportScreen> {
                       ],
                       _summaryCards(report),
                       const SizedBox(height: 8),
-                      const _SectionHeader('Grafik Arus Kas'),
+                      _SectionHeader(t.chartCashFlow),
                       if (report.chartData.isNotEmpty)
                         _divergingChart(report)
                       else
-                        const AppCard(
+                        AppCard(
                           variant: AppCardVariant.outlined,
                           padding: EdgeInsets.zero,
                           child: EmptyState(
                             icon: Icons.bar_chart_outlined,
-                            message: 'Tidak ada data',
-                            subtitle: 'Belum ada transaksi pada periode ini',
+                            message: t.noData,
+                            subtitle: t.noDataPeriod,
                           ),
                         ),
                       if (report.recentTransactions.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        const _SectionHeader('Transaksi Terbaru'),
+                        _SectionHeader(t.recentTransactions),
                         AppCard(
                           variant: AppCardVariant.outlined,
                           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -156,18 +143,19 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _periodNavigator(ReportProvider report) {
     if (report.chartMode == ChartMode.yearly) return const SizedBox.shrink();
 
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final isDaily = report.chartMode == ChartMode.daily;
     final label = isDaily
-        ? '${_monthNames[report.selectedMonth - 1]} ${report.selectedYear}'
+        ? '${_monthLabel(context, report.selectedMonth)} ${report.selectedYear}'
         : '${report.selectedYear}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          tooltip: 'Sebelumnya',
+          tooltip: t.previousPeriod,
           icon: const Icon(Icons.chevron_left),
           onPressed: () => report.shiftPeriod(-1),
         ),
@@ -181,7 +169,7 @@ class _ReportScreenState extends State<ReportScreen> {
           child: Text(label),
         ),
         IconButton(
-          tooltip: 'Berikutnya',
+          tooltip: t.nextPeriod,
           icon: const Icon(Icons.chevron_right),
           onPressed: () => report.shiftPeriod(1),
         ),
@@ -189,9 +177,15 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  static String _monthLabel(BuildContext context, int month) => DateFormat(
+    'MMMM',
+    Localizations.localeOf(context).toLanguageTag(),
+  ).format(DateTime(2000, month));
+
   /// Month picker modal: year stepper on top, 12-month grid below. Tapping a
   /// month returns it; there is no day step.
   Future<void> _pickMonth(ReportProvider report) async {
+    final t = L.of(context);
     var year = report.selectedYear;
     final picked = await showModalBottomSheet<(int, int)>(
       context: context,
@@ -207,7 +201,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      tooltip: 'Tahun sebelumnya',
+                      tooltip: t.previousYear,
                       icon: const Icon(Icons.chevron_left),
                       onPressed: () => setSheetState(() => year--),
                     ),
@@ -218,7 +212,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Tahun berikutnya',
+                      tooltip: t.nextYear,
                       icon: const Icon(Icons.chevron_right),
                       onPressed: () => setSheetState(() => year++),
                     ),
@@ -239,7 +233,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             label: SizedBox(
                               width: double.infinity,
                               child: Text(
-                                _monthNames[m - 1],
+                                _monthLabel(context, m),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -305,17 +299,19 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   String _modeLabel(ChartMode m) {
+    final t = L.of(context);
     switch (m) {
       case ChartMode.daily:
-        return 'Harian';
+        return t.modeDaily;
       case ChartMode.monthly:
-        return 'Bulanan';
+        return t.modeMonthly;
       case ChartMode.yearly:
-        return 'Tahunan';
+        return t.modeYearly;
     }
   }
 
   Widget _summaryCards(ReportProvider report) {
+    final t = L.of(context);
     final finance = FinanceColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
@@ -326,7 +322,7 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             Expanded(
               child: _SummaryTile(
-                label: 'Pendapatan',
+                label: t.incomeLabel,
                 amount: report.totalIncome,
                 icon: Icons.trending_up,
                 container: finance.income,
@@ -335,7 +331,7 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: _SummaryTile(
-                label: 'Pengeluaran',
+                label: t.expenseLabel,
                 amount: report.totalExpense,
                 icon: Icons.trending_down,
                 container: finance.expense,
@@ -360,7 +356,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Selisih',
+                      t.difference,
                       style: text.titleSmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -391,8 +387,9 @@ class _ReportScreenState extends State<ReportScreen> {
     if (d.date == null) return d.label;
     switch (mode) {
       case ChartMode.daily:
-        final dayName = DateFormat('EEEE', 'id_ID').format(d.date!);
-        final shortDate = DateFormat('dd MMM', 'id_ID').format(d.date!);
+        final locale = Localizations.localeOf(context).toLanguageTag();
+        final dayName = DateFormat('EEEE', locale).format(d.date!);
+        final shortDate = DateFormat('dd MMM', locale).format(d.date!);
         return '$dayName, $shortDate';
       case ChartMode.monthly:
         return DateFormatter.formatMonthYear(d.date!);
@@ -402,6 +399,7 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _divergingChart(ReportProvider report) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
@@ -556,8 +554,8 @@ class _ReportScreenState extends State<ReportScreen> {
             spacing: 24,
             runSpacing: 8,
             children: [
-              _legendItem(finance.income, 'Surplus'),
-              _legendItem(finance.expense, 'Defisit'),
+              _legendItem(finance.income, t.surplus),
+              _legendItem(finance.expense, t.deficit),
             ],
           ),
         ],
