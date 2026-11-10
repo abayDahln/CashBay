@@ -45,6 +45,10 @@ class HistoryScreenState extends State<HistoryScreen> {
     if (mounted) await context.read<TransactionProvider>().loadTransactions();
   }
 
+  /// Reloads the full (unlimited) list. Called when the tab becomes visible so
+  /// it never shows a list truncated by the dashboard's limited load.
+  Future<void> reload() => _loadTransactions();
+
   List<Transaction> _filtered(List<Transaction> transactions) {
     if (_typeFilter == 'all') return transactions;
     if (_typeFilter == 'tagihan') {

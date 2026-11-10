@@ -26,6 +26,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final _historyKey = GlobalKey<HistoryScreenState>();
+  final _homeKey = GlobalKey<DashboardHomeState>();
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +35,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         index: _selectedIndex,
         children: [
           _DashboardHome(
-            onLihatSemua: () => setState(() => _selectedIndex = 1),
+            key: _homeKey,
+            onLihatSemua: () {
+              setState(() => _selectedIndex = 1);
+              _historyKey.currentState?.reload();
+            },
           ),
           HistoryScreen(key: _historyKey),
           const ReportScreen(),
@@ -43,16 +48,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+          // Reload the full list when opening Riwayat so it never shows the
+          // truncated (limit: 10) list loaded for the dashboard.
+          if (index == 1) _historyKey.currentState?.reload();
+        },
       ),
       floatingActionButton: _selectedIndex <= 1
           ? FloatingActionButton(
               tooltip: 'Tambah transaksi',
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final saved = await Navigator.push(
                   context,
                   fadeSlideRoute(const AddTransactionScreen()),
                 );
+                // Refresh once so every tab shows the new data without a manual
+                // pull-to-refresh.
+                if (saved == true && mounted) {
+                  await _homeKey.currentState?.refresh();
+                  if (mounted) _historyKey.currentState?.reload();
+                }
               },
               child: const Icon(Icons.add),
             )
@@ -63,13 +79,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class _DashboardHome extends StatefulWidget {
   final VoidCallback? onLihatSemua;
-  const _DashboardHome({this.onLihatSemua});
+  const _DashboardHome({super.key, this.onLihatSemua});
 
   @override
-  State<_DashboardHome> createState() => _DashboardHomeState();
+  State<_DashboardHome> createState() => DashboardHomeState();
 }
 
-class _DashboardHomeState extends State<_DashboardHome> {
+class DashboardHomeState extends State<_DashboardHome> {
   final _txRepository = TransactionRepository();
   double _monthIncome = 0;
   double _monthExpense = 0;
@@ -83,6 +99,10 @@ class _DashboardHomeState extends State<_DashboardHome> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _onRefresh());
   }
+
+  /// Reloads wallets, transactions and debts. Public so the shell can trigger
+  /// it after a new transaction is saved.
+  Future<void> refresh() => _onRefresh();
 
   Future<void> _onRefresh() async {
     final walletProvider = context.read<WalletProvider>();

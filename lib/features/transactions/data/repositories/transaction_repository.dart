@@ -267,6 +267,8 @@ class TransactionRepository {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    return _getTotalAmount(walletId: walletId, type: 'transfer', toWalletId: walletId, startDate: startDate, endDate: endDate);
+    // Only the destination column matters for money coming in; passing
+    // walletId too would require source == destination, which never matches.
+    return _getTotalAmount(toWalletId: walletId, type: 'transfer', startDate: startDate, endDate: endDate);
   }
 }

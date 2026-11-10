@@ -4,6 +4,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
 import '../../../transactions/presentation/screens/add_transaction_screen.dart';
+import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import '../providers/debt_provider.dart';
 import 'debt_detail_screen.dart';
 
@@ -568,6 +569,8 @@ class _DebtsScreenState extends State<DebtsScreen>
     );
     if (saved == true && mounted) {
       await context.read<DebtProvider>().loadAllDebts();
+      if (!mounted) return;
+      await context.read<WalletProvider>().refreshBalances();
     }
   }
 }
