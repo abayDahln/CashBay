@@ -692,10 +692,10 @@ class LId extends L {
   String get modeDaily => 'Harian';
 
   @override
-  String get modeMonthly => 'Bulanan';
+  String get modeMonthly => 'Bulan';
 
   @override
-  String get modeYearly => 'Tahunan';
+  String get modeYearly => 'Tahun';
 
   @override
   String get previousPeriod => 'Sebelumnya';
@@ -708,6 +708,48 @@ class LId extends L {
 
   @override
   String get nextYear => 'Tahun berikutnya';
+
+  @override
+  String get customRange => 'Rentang Kustom';
+
+  @override
+  String get customFilter => 'Filter';
+
+  @override
+  String get rangeStart => 'Mulai';
+
+  @override
+  String get rangeEnd => 'Sampai';
+
+  @override
+  String get resetRange => 'Reset';
+
+  @override
+  String get applyRange => 'Terapkan';
+
+  @override
+  String get selectMonthStart => 'Pilih bulan mulai';
+
+  @override
+  String get selectMonthEnd => 'Pilih bulan sampai';
+
+  @override
+  String get selectYearStart => 'Pilih tahun mulai';
+
+  @override
+  String get selectYearEnd => 'Pilih tahun sampai';
+
+  @override
+  String get rangeMaxMonths => 'Rentang maksimal 12 bulan';
+
+  @override
+  String get rangeMaxYears => 'Rentang maksimal 12 tahun';
+
+  @override
+  String get rangeEndBeforeStart => 'Bulan/tahun akhir harus setelah awal';
+
+  @override
+  String get allTime => 'Semua';
 
   @override
   String get difference => 'Selisih';

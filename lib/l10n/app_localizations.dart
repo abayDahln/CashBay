@@ -1378,13 +1378,13 @@ abstract class L {
   /// No description provided for @modeMonthly.
   ///
   /// In id, this message translates to:
-  /// **'Bulanan'**
+  /// **'Bulan'**
   String get modeMonthly;
 
   /// No description provided for @modeYearly.
   ///
   /// In id, this message translates to:
-  /// **'Tahunan'**
+  /// **'Tahun'**
   String get modeYearly;
 
   /// No description provided for @previousPeriod.
@@ -1410,6 +1410,90 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Tahun berikutnya'**
   String get nextYear;
+
+  /// No description provided for @customRange.
+  ///
+  /// In id, this message translates to:
+  /// **'Rentang Kustom'**
+  String get customRange;
+
+  /// No description provided for @customFilter.
+  ///
+  /// In id, this message translates to:
+  /// **'Filter'**
+  String get customFilter;
+
+  /// No description provided for @rangeStart.
+  ///
+  /// In id, this message translates to:
+  /// **'Mulai'**
+  String get rangeStart;
+
+  /// No description provided for @rangeEnd.
+  ///
+  /// In id, this message translates to:
+  /// **'Sampai'**
+  String get rangeEnd;
+
+  /// No description provided for @resetRange.
+  ///
+  /// In id, this message translates to:
+  /// **'Reset'**
+  String get resetRange;
+
+  /// No description provided for @applyRange.
+  ///
+  /// In id, this message translates to:
+  /// **'Terapkan'**
+  String get applyRange;
+
+  /// No description provided for @selectMonthStart.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih bulan mulai'**
+  String get selectMonthStart;
+
+  /// No description provided for @selectMonthEnd.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih bulan sampai'**
+  String get selectMonthEnd;
+
+  /// No description provided for @selectYearStart.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih tahun mulai'**
+  String get selectYearStart;
+
+  /// No description provided for @selectYearEnd.
+  ///
+  /// In id, this message translates to:
+  /// **'Pilih tahun sampai'**
+  String get selectYearEnd;
+
+  /// No description provided for @rangeMaxMonths.
+  ///
+  /// In id, this message translates to:
+  /// **'Rentang maksimal 12 bulan'**
+  String get rangeMaxMonths;
+
+  /// No description provided for @rangeMaxYears.
+  ///
+  /// In id, this message translates to:
+  /// **'Rentang maksimal 12 tahun'**
+  String get rangeMaxYears;
+
+  /// No description provided for @rangeEndBeforeStart.
+  ///
+  /// In id, this message translates to:
+  /// **'Bulan/tahun akhir harus setelah awal'**
+  String get rangeEndBeforeStart;
+
+  /// No description provided for @allTime.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua'**
+  String get allTime;
 
   /// No description provided for @difference.
   ///

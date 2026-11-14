@@ -146,77 +146,69 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       body: Consumer3<WalletProvider, CategoryProvider, DebtProvider>(
         builder: (context, walletProvider, categoryProvider, debtProvider, _) {
           final wallets = walletProvider.wallets;
-          return Column(
-            children: [
-              Expanded(
-                child: Form(
-                  key: _formKey,
-                  autovalidateMode: _submitted
-                      ? AutovalidateMode.onUserInteraction
-                      : AutovalidateMode.disabled,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildAnimatedField(0, _buildTypeSelector()),
-                        const SizedBox(height: 24),
-                        _buildInsetGroup(t.detailMain, [
-                          _buildAmountField(),
-                          const SizedBox(height: 16),
-                          if (_isTagihan) ...[
-                            _buildDebtDirectionSelector(),
-                            const SizedBox(height: 16),
-                            _buildBillNameField(),
-                            const SizedBox(height: 8),
-                            _buildPersonNameField(),
-                            const SizedBox(height: 8),
-                            _buildDueDatePresets(),
-                          ] else if (_isTransfer) ...[
-                            _buildTransferSelector(),
-                            const SizedBox(height: 16),
-                            _buildDescriptionField(),
-                          ] else ...[
-                            _buildDescriptionField(),
-                          ],
-                        ]),
-                        const SizedBox(height: 24),
-                        _buildInsetGroup(t.fundAndTime, [
-                          if (!_isTransfer) ...[
-                            _buildPaymentMethod(wallets),
-                            const SizedBox(height: 16),
-                          ],
-                          _buildDatePicker(),
-                        ]),
-                        const SizedBox(height: 24),
-                        _buildInsetGroup(t.notesAndAttachment, [
-                          if (!_isTagihan && !_isTransfer) ...[
-                            _buildCategoryPicker(categoryProvider),
-                            const SizedBox(height: 16),
-                          ],
-                          _buildNoteField(),
-                          const SizedBox(height: 8),
-                          _buildPhotoPicker(),
-                        ]),
-                      ],
-                    ),
-                  ),
-                ),
+          return Form(
+            key: _formKey,
+            autovalidateMode: _submitted
+                ? AutovalidateMode.onUserInteraction
+                : AutovalidateMode.disabled,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildAnimatedField(0, _buildTypeSelector()),
+                  const SizedBox(height: 24),
+                  _buildInsetGroup(t.detailMain, [
+                    _buildAmountField(),
+                    const SizedBox(height: 16),
+                    if (_isTagihan) ...[
+                      _buildDebtDirectionSelector(),
+                      const SizedBox(height: 16),
+                      _buildBillNameField(),
+                      const SizedBox(height: 8),
+                      _buildPersonNameField(),
+                      const SizedBox(height: 8),
+                      _buildDueDatePresets(),
+                    ] else if (_isTransfer) ...[
+                      _buildTransferSelector(),
+                      const SizedBox(height: 16),
+                      _buildDescriptionField(),
+                    ] else ...[
+                      _buildDescriptionField(),
+                    ],
+                  ]),
+                  const SizedBox(height: 24),
+                  _buildInsetGroup(t.fundAndTime, [
+                    if (!_isTransfer) ...[
+                      _buildPaymentMethod(wallets),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildDatePicker(),
+                  ]),
+                  const SizedBox(height: 24),
+                  _buildInsetGroup(t.notesAndAttachment, [
+                    if (!_isTagihan && !_isTransfer) ...[
+                      _buildCategoryPicker(categoryProvider),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildNoteField(),
+                    const SizedBox(height: 8),
+                    _buildPhotoPicker(),
+                  ]),
+                ],
               ),
-              // Pinned save button: the Scaffold body shrinks above the
-              // keyboard, so this stays visible while typing.
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: _buildSubmitButton(),
-                ),
-              ),
-            ],
+            ),
           );
         },
+      ),
+      // Pinned save button as a bottom bar so SnackBars/FAB dock above it.
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: _buildSubmitButton(),
+        ),
       ),
     );
   }

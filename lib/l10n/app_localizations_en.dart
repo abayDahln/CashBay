@@ -692,10 +692,10 @@ class LEn extends L {
   String get modeDaily => 'Daily';
 
   @override
-  String get modeMonthly => 'Monthly';
+  String get modeMonthly => 'Month';
 
   @override
-  String get modeYearly => 'Yearly';
+  String get modeYearly => 'Year';
 
   @override
   String get previousPeriod => 'Previous';
@@ -708,6 +708,49 @@ class LEn extends L {
 
   @override
   String get nextYear => 'Next year';
+
+  @override
+  String get customRange => 'Custom Range';
+
+  @override
+  String get customFilter => 'Filter';
+
+  @override
+  String get rangeStart => 'Start';
+
+  @override
+  String get rangeEnd => 'End';
+
+  @override
+  String get resetRange => 'Reset';
+
+  @override
+  String get applyRange => 'Apply';
+
+  @override
+  String get selectMonthStart => 'Select start month';
+
+  @override
+  String get selectMonthEnd => 'Select end month';
+
+  @override
+  String get selectYearStart => 'Select start year';
+
+  @override
+  String get selectYearEnd => 'Select end year';
+
+  @override
+  String get rangeMaxMonths => 'Maximum range is 12 months';
+
+  @override
+  String get rangeMaxYears => 'Maximum range is 12 years';
+
+  @override
+  String get rangeEndBeforeStart =>
+      'The end month/year must be after the start';
+
+  @override
+  String get allTime => 'All';
 
   @override
   String get difference => 'Difference';

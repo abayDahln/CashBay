@@ -45,7 +45,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   children: [
                     _modeSelector(report),
                     const SizedBox(height: 8),
-                    _periodNavigator(report),
+                    _periodBar(report),
                     const SizedBox(height: 8),
                     if (report.isLoading)
                       const Padding(
@@ -127,54 +127,84 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _modeSelector(ReportProvider report) {
+    final t = L.of(context);
     return SegmentedButton<ChartMode>(
       showSelectedIcon: false,
       segments: [
-        for (final m in ChartMode.values)
-          ButtonSegment(value: m, label: Text(_modeLabel(m))),
+        ButtonSegment(value: ChartMode.month, label: Text(t.modeMonthly)),
+        ButtonSegment(value: ChartMode.year, label: Text(t.modeYearly)),
       ],
       selected: {report.chartMode},
       onSelectionChanged: (s) => report.setChartMode(s.first),
     );
   }
 
-  /// Compact period navigator: `< November 2026 >`, adapting to the tab.
-  /// Hidden entirely on the yearly tab, where every year is shown at once.
-  Widget _periodNavigator(ReportProvider report) {
-    if (report.chartMode == ChartMode.yearly) return const SizedBox.shrink();
-
+  /// Row with the period navigator (default) and a custom-range filter button.
+  Widget _periodBar(ReportProvider report) {
     final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final isDaily = report.chartMode == ChartMode.daily;
-    final label = isDaily
-        ? '${_monthLabel(context, report.selectedMonth)} ${report.selectedYear}'
-        : '${report.selectedYear}';
+    final isMonth = report.chartMode == ChartMode.month;
+    final isCustom = isMonth ? report.isMonthCustom : report.isYearCustom;
+
+    final String label = isMonth
+        ? (report.isMonthCustom
+              ? _monthRangeLabel(
+                  report.monthRangeStart!,
+                  report.monthRangeEnd!,
+                )
+              : '${_monthLabel(context, report.selectedMonth)} ${report.selectedYear}')
+        : (report.isYearCustom
+              ? '${report.yearRangeStart} – ${report.yearRangeEnd}'
+              : '${report.selectedYear}');
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
           tooltip: t.previousPeriod,
           icon: const Icon(Icons.chevron_left),
-          onPressed: () => report.shiftPeriod(-1),
+          onPressed: isCustom ? null : () => report.shiftPeriod(-1),
         ),
-        TextButton(
-          onPressed: () =>
-              isDaily ? _pickMonth(report) : _pickYear(report),
-          style: TextButton.styleFrom(
-            foregroundColor: scheme.onSurface,
-            textStyle: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        Expanded(
+          child: TextButton(
+            onPressed: isCustom
+                ? null
+                : () => isMonth ? _pickMonth(report) : _pickYear(report),
+            style: TextButton.styleFrom(
+              foregroundColor: scheme.onSurface,
+              textStyle: text.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
-          child: Text(label),
         ),
         IconButton(
           tooltip: t.nextPeriod,
           icon: const Icon(Icons.chevron_right),
-          onPressed: () => report.shiftPeriod(1),
+          onPressed: isCustom ? null : () => report.shiftPeriod(1),
+        ),
+        // Custom-range filter button (M3 tonal; filled when custom is active).
+        IconButton.filledTonal(
+          tooltip: t.customFilter,
+          isSelected: isCustom,
+          onPressed: () =>
+              isMonth ? _showMonthRangeSheet(report) : _showYearRangeSheet(report),
+          icon: const Icon(Icons.tune),
         ),
       ],
     );
+  }
+
+  String _monthRangeLabel(DateTime start, DateTime end) {
+    final s = '${_monthLabel(context, start.month)} ${start.year}';
+    final e = '${_monthLabel(context, end.month)} ${end.year}';
+    return '$s – $e';
   }
 
   static String _monthLabel(BuildContext context, int month) => DateFormat(
@@ -185,9 +215,257 @@ class _ReportScreenState extends State<ReportScreen> {
   /// Month picker modal: year stepper on top, 12-month grid below. Tapping a
   /// month returns it; there is no day step.
   Future<void> _pickMonth(ReportProvider report) async {
+    final picked = await _showMonthGrid(
+      initialYear: report.selectedYear,
+      selected: (report.selectedYear, report.selectedMonth),
+    );
+    if (picked != null) {
+      report.setYear(picked.$1);
+      report.setMonth(picked.$2);
+    }
+  }
+
+  Future<void> _pickYear(ReportProvider report) async {
+    final picked = await _showYearGrid(selected: report.selectedYear);
+    if (picked != null) report.setYear(picked);
+  }
+
+  /// Custom month range: two month pickers (start + end) with validation
+  /// (end >= start, max [_maxRangeMonths] months).
+  Future<void> _showMonthRangeSheet(ReportProvider report) async {
     final t = L.of(context);
-    var year = report.selectedYear;
-    final picked = await showModalBottomSheet<(int, int)>(
+    var start = report.monthRangeStart ??
+        DateTime(report.selectedYear, report.selectedMonth);
+    var end = report.monthRangeEnd ?? start;
+
+    final result = await showModalBottomSheet<({DateTime? start, DateTime? end})>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t.customRange,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                _rangePickRow(
+                  label: t.rangeStart,
+                  value: '${_monthLabel(context, start.month)} ${start.year}',
+                  onTap: () async {
+                    final picked = await _showMonthGrid(
+                      initialYear: start.year,
+                      selected: (start.year, start.month),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => start = DateTime(picked.$1, picked.$2));
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                _rangePickRow(
+                  label: t.rangeEnd,
+                  value: '${_monthLabel(context, end.month)} ${end.year}',
+                  onTap: () async {
+                    final picked = await _showMonthGrid(
+                      initialYear: end.year,
+                      selected: (end.year, end.month),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => end = DateTime(picked.$1, picked.$2));
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        // Reset clears the custom range back to the default
+                        // single-month period.
+                        onPressed: () => Navigator.pop(
+                          context,
+                          (start: null, end: null),
+                        ),
+                        child: Text(t.resetRange),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _monthRangeValid(start, end)
+                            ? () => Navigator.pop(
+                                context,
+                                (start: start, end: end),
+                              )
+                            : null,
+                        child: Text(t.applyRange),
+                      ),
+                    ),
+                  ],
+                ),
+                if (!_monthRangeValid(start, end))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _monthRangeError(t, start, end),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result == null) return; // dismissed
+    if (result.start == null || result.end == null) {
+      report.clearMonthRange();
+    } else {
+      report.setMonthRange(result.start!, result.end!);
+    }
+  }
+
+  bool _monthRangeValid(DateTime start, DateTime end) {
+    if (end.isBefore(start)) return false;
+    return ReportProvider.monthsBetween(start, end) <=
+        ReportProvider.maxRangeMonths;
+  }
+
+  String _monthRangeError(L t, DateTime start, DateTime end) {
+    if (end.isBefore(start)) return t.rangeEndBeforeStart;
+    return t.rangeMaxMonths;
+  }
+
+  /// Custom year range sheet (end >= start, max 12 years).
+  Future<void> _showYearRangeSheet(ReportProvider report) async {
+    final t = L.of(context);
+    var start = report.yearRangeStart ?? report.selectedYear;
+    var end = report.yearRangeEnd ?? report.selectedYear;
+
+    final result = await showModalBottomSheet<({int? start, int? end})>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t.customRange,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                _rangePickRow(
+                  label: t.rangeStart,
+                  value: '$start',
+                  onTap: () async {
+                    final picked = await _showYearGrid(selected: start);
+                    if (picked != null) setSheetState(() => start = picked);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _rangePickRow(
+                  label: t.rangeEnd,
+                  value: '$end',
+                  onTap: () async {
+                    final picked = await _showYearGrid(selected: end);
+                    if (picked != null) setSheetState(() => end = picked);
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        // Reset clears the custom range back to the default
+                        // single-year period.
+                        onPressed: () => Navigator.pop(
+                          context,
+                          (start: null, end: null),
+                        ),
+                        child: Text(t.resetRange),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _yearRangeValid(start, end)
+                            ? () => Navigator.pop(
+                                context,
+                                (start: start, end: end),
+                              )
+                            : null,
+                        child: Text(t.applyRange),
+                      ),
+                    ),
+                  ],
+                ),
+                if (!_yearRangeValid(start, end))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      end < start ? t.rangeEndBeforeStart : t.rangeMaxYears,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result == null) return; // dismissed
+    if (result.start == null || result.end == null) {
+      report.clearYearRange();
+    } else {
+      report.setYearRange(result.start!, result.end!);
+    }
+  }
+
+  bool _yearRangeValid(int start, int end) =>
+      end >= start && (end - start + 1) <= ReportProvider.maxRangeMonths;
+
+  Widget _rangePickRow({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+
+  /// Month grid modal, returns `(year, month)` or null.
+  Future<(int, int)?> _showMonthGrid({
+    required int initialYear,
+    required (int, int) selected,
+  }) {
+    final t = L.of(context);
+    var year = initialYear;
+    return showModalBottomSheet<(int, int)>(
       context: context,
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
@@ -237,9 +515,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                            selected:
-                                year == report.selectedYear &&
-                                m == report.selectedMonth,
+                            selected: year == selected.$1 && m == selected.$2,
                             onSelected: (_) =>
                                 Navigator.pop(context, (year, m)),
                           ),
@@ -253,15 +529,12 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ),
     );
-    if (picked != null) {
-      report.setYear(picked.$1);
-      report.setMonth(picked.$2);
-    }
   }
 
-  Future<void> _pickYear(ReportProvider report) async {
-    final years = report.availableYears;
-    final picked = await showModalBottomSheet<int>(
+  /// Year grid modal, returns the year or null.
+  Future<int?> _showYearGrid({required int selected}) {
+    final years = ReportProvider().availableYears;
+    return showModalBottomSheet<int>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
@@ -285,7 +558,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      selected: year == report.selectedYear,
+                      selected: year == selected,
                       onSelected: (_) => Navigator.pop(context, year),
                     ),
                   ),
@@ -295,20 +568,8 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ),
     );
-    if (picked != null) report.setYear(picked);
   }
 
-  String _modeLabel(ChartMode m) {
-    final t = L.of(context);
-    switch (m) {
-      case ChartMode.daily:
-        return t.modeDaily;
-      case ChartMode.monthly:
-        return t.modeMonthly;
-      case ChartMode.yearly:
-        return t.modeYearly;
-    }
-  }
 
   Widget _summaryCards(ReportProvider report) {
     final t = L.of(context);
@@ -383,17 +644,17 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  String _tooltipLabel(ChartBarData d, ChartMode mode) {
+  String _tooltipLabel(ChartBarData d, ChartBucket bucket) {
     if (d.date == null) return d.label;
-    switch (mode) {
-      case ChartMode.daily:
-        final locale = Localizations.localeOf(context).toLanguageTag();
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    switch (bucket) {
+      case ChartBucket.day:
         final dayName = DateFormat('EEEE', locale).format(d.date!);
         final shortDate = DateFormat('dd MMM', locale).format(d.date!);
         return '$dayName, $shortDate';
-      case ChartMode.monthly:
-        return DateFormatter.formatMonthYear(d.date!);
-      case ChartMode.yearly:
+      case ChartBucket.month:
+        return DateFormat('MMMM yyyy', locale).format(d.date!);
+      case ChartBucket.year:
         return d.date!.year.toString();
     }
   }
@@ -405,34 +666,13 @@ class _ReportScreenState extends State<ReportScreen> {
     final finance = FinanceColors.of(context);
     final axisStyle = text.labelSmall?.copyWith(color: scheme.onSurfaceVariant);
     final data = report.chartData;
-    final mode = report.chartMode;
-    final barGroups = <BarChartGroupData>[];
+    final mode = report.chartBucket;
     double minVal = 0, maxVal = 0;
 
-    for (var i = 0; i < data.length; i++) {
-      final v = data[i].netBalance;
+    for (final d in data) {
+      final v = d.netBalance;
       if (v < minVal) minVal = v;
       if (v > maxVal) maxVal = v;
-
-      barGroups.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: v,
-              color: v >= 0 ? finance.income : finance.expense,
-              width: 16,
-              borderRadius: v >= 0
-                  ? const BorderRadius.vertical(
-                      top: Radius.circular(AppTheme.radiusXs),
-                    )
-                  : const BorderRadius.vertical(
-                      bottom: Radius.circular(AppTheme.radiusXs),
-                    ),
-            ),
-          ],
-        ),
-      );
     }
 
     final range = maxVal.abs() > minVal.abs() ? maxVal.abs() : minVal.abs();
@@ -445,13 +685,44 @@ class _ReportScreenState extends State<ReportScreen> {
       padding: const EdgeInsets.fromLTRB(8, 24, 16, 16),
       child: Column(
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                height: 240,
-                width: math.max(constraints.maxWidth, data.length * 40.0),
-                child: BarChart(
+          SizedBox(
+            height: 240,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Fit every bar in the available width; bars get thinner as
+                // the count grows (e.g. up to 31 daily bars). Labels thin out
+                // so they never overlap.
+                final n = data.length;
+                final chartWidth = constraints.maxWidth - 48;
+                final slot = n == 0 ? chartWidth : chartWidth / n;
+                final barWidth = (slot * 0.6).clamp(2.0, 16.0);
+                final labelEvery = (30 / slot).ceil().clamp(1, 999);
+
+                final barGroups = <BarChartGroupData>[];
+                for (var i = 0; i < n; i++) {
+                  final v = data[i].netBalance;
+                  barGroups.add(
+                    BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: v,
+                          color: v >= 0 ? finance.income : finance.expense,
+                          width: barWidth,
+                          borderRadius: v >= 0
+                              ? const BorderRadius.vertical(
+                                  top: Radius.circular(AppTheme.radiusXs),
+                                )
+                              : const BorderRadius.vertical(
+                                  bottom: Radius.circular(AppTheme.radiusXs),
+                                ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
                     barGroups: barGroups,
@@ -502,6 +773,10 @@ class _ReportScreenState extends State<ReportScreen> {
                             if (i < 0 || i >= data.length) {
                               return const SizedBox.shrink();
                             }
+                            // Thin labels when bars are dense.
+                            if (i % labelEvery != 0) {
+                              return const SizedBox.shrink();
+                            }
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(data[i].label, style: axisStyle),
@@ -517,7 +792,9 @@ class _ReportScreenState extends State<ReportScreen> {
                           getTitlesWidget: (val, _) => Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: Text(
-                              val == 0 ? '0' : CurrencyFormatter.formatShort(val),
+                              val == 0
+                                  ? '0'
+                                  : CurrencyFormatter.formatShort(val),
                               textAlign: TextAlign.right,
                               style: axisStyle,
                             ),
@@ -544,8 +821,8 @@ class _ReportScreenState extends State<ReportScreen> {
                     borderData: FlBorderData(show: false),
                   ),
                   duration: const Duration(milliseconds: 300),
-                ),
-              ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),
