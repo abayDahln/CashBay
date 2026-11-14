@@ -193,13 +193,16 @@ class AppTheme {
         minVerticalPadding: 8,
       ),
       snackBarTheme: SnackBarThemeData(
+        // Floating card, inset from the edges, resting above the bottom nav.
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: scheme.onInverseSurface,
         ),
         actionTextColor: scheme.inversePrimary,
-        shape: rounded(radiusXs),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+        ),
       ),
       searchBarTheme: SearchBarThemeData(
         backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
