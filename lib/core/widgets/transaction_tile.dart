@@ -105,7 +105,8 @@ class TransactionTile extends StatelessWidget {
                 ),
                 formatter: (value) => CurrencyFormatter.formatWithSign(
                   value,
-                  showPlus: isIncome || isTagihan || isTransfer,
+                  // Transfers neither add nor subtract: show the plain nominal.
+                  showPlus: !isTransfer && (isIncome || isTagihan),
                 ),
               ),
             ),

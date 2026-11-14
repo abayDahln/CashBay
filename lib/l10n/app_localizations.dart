@@ -271,6 +271,12 @@ abstract class L {
   /// **'Transaksi Terbaru'**
   String get recentTransactions;
 
+  /// No description provided for @transactionsLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi'**
+  String get transactionsLabel;
+
   /// No description provided for @viewAll.
   ///
   /// In id, this message translates to:
@@ -1512,6 +1518,18 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Bulan/tahun akhir harus setelah awal'**
   String get rangeEndBeforeStart;
+
+  /// No description provided for @rangeFuture.
+  ///
+  /// In id, this message translates to:
+  /// **'Tidak boleh melewati bulan/tahun ini'**
+  String get rangeFuture;
+
+  /// No description provided for @allData.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua data'**
+  String get allData;
 
   /// No description provided for @allTime.
   ///

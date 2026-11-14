@@ -9,9 +9,9 @@ import 'package:cashbay/features/report/presentation/providers/report_provider.d
 import 'package:cashbay/features/transactions/data/models/transaction.dart';
 import 'package:cashbay/features/transactions/data/repositories/transaction_repository.dart';
 
-/// Covers the simplified Analytics time filter: month default (per day),
-/// month custom (per month), year default (per month Jan–Dec) and year custom
-/// (per year), plus the 12-unit cap.
+/// Covers the Analytics chart: per-year view where only months that have data
+/// appear (no zero bars), series toggled between income and expense, and year
+/// navigation limited to years that hold data.
 void main() {
   late String path;
   final repo = TransactionRepository();
@@ -36,103 +36,85 @@ void main() {
     if (File(path).existsSync()) File(path).deleteSync();
     await AppDatabase().database;
 
-    // Two days in Mar 2026, plus months in 2025 and a year 2020.
-    await seed('income', 100, DateTime(2026, 3, 5));
-    await seed('expense', 40, DateTime(2026, 3, 5));
-    await seed('income', 10, DateTime(2026, 3, 20));
-    await seed('income', 200, DateTime(2026, 7, 1));
-    await seed('income', 5, DateTime(2025, 12, 31));
-    await seed('expense', 7, DateTime(2020, 6, 1));
+    final thisYear = DateTime.now().year;
+    // Two months in the current year (Mar + Jul), nothing in between.
+    await seed('income', 110, DateTime(thisYear, 3, 5));
+    await seed('expense', 40, DateTime(thisYear, 3, 5));
+    await seed('income', 200, DateTime(thisYear, 7, 1));
+    // An earlier year with a single expense.
+    await seed('expense', 7, DateTime(thisYear - 2, 6, 1));
   });
 
   tearDownAll(() async {
     await AppDatabase().close();
   });
 
-  test('month default buckets per day and sums the whole month', () async {
-    provider.setChartMode(ChartMode.month);
-    provider.setYear(2026);
-    provider.setMonth(3);
+  test('only months with data appear, no zero bars', () async {
+    provider.init(); // starts on the current year
     await provider.loadChartData();
 
-    // Bars are per-day: 5th (100-40=60) and 20th (10).
-    expect(provider.chartBucket, ChartBucket.day);
-    expect(provider.chartData.length, 2);
-    expect(provider.totalIncome, 110);
-    expect(provider.totalExpense, 40);
+    expect(provider.chartData.length, 2); // Mar + Jul only
+    expect(provider.chartData[0].value, 110);
+    expect(provider.chartData[1].value, 200);
+    expect(provider.total, 310);
   });
 
-  test('month custom buckets per month across the range', () async {
-    provider.setMonthRange(DateTime(2026, 3), DateTime(2026, 7));
+  test('default selected month is the latest bar (Jul)', () async {
+    provider.setSeries(ChartSeries.income);
     await provider.loadChartData();
 
-    expect(provider.chartBucket, ChartBucket.month);
-    // Mar and Jul have data => two bars.
-    expect(provider.chartData.length, 2);
-    expect(provider.totalIncome, 310); // 110 + 200
-    expect(provider.totalExpense, 40);
+    expect(provider.selectedMonth, 7);
+    expect(provider.selectedMonthTransactions.length, 1);
+    expect(provider.selectedMonthTransactions.first.amount, 200);
   });
 
-  test('year default buckets per month (Jan–Dec)', () async {
-    provider.clearMonthRange();
-    provider.setChartMode(ChartMode.year);
-    provider.setYear(2026);
+  test('selectMonth lists only that month of the active series', () async {
+    provider.setSeries(ChartSeries.income);
+    await provider.loadChartData();
+    provider.selectMonth(DateTime(provider.year, 3));
+    expect(provider.selectedMonth, 3);
+    expect(provider.selectedMonthTransactions.length, 1);
+    expect(provider.selectedMonthTransactions.first.type, 'income');
+
+    provider.setSeries(ChartSeries.expense);
+    await provider.loadChartData();
+    provider.selectMonth(DateTime(provider.year, 3));
+    expect(provider.selectedMonthTransactions.length, 1);
+    expect(provider.selectedMonthTransactions.first.type, 'expense');
+  });
+
+  test('expense series excludes income', () async {
+    provider.setSeries(ChartSeries.expense);
     await provider.loadChartData();
 
-    expect(provider.chartBucket, ChartBucket.month);
-    // Mar and Jul => two bars.
-    expect(provider.chartData.length, 2);
-    expect(provider.totalIncome, 310);
+    expect(provider.chartData.length, 1); // only Mar has expense
+    expect(provider.chartData.first.value, 40);
+    expect(provider.total, 40);
   });
 
-  test('year custom buckets per year across the range', () async {
-    provider.setYearRange(2020, 2026);
+  test('shiftYear only reaches years that have data', () async {
+    provider.setSeries(ChartSeries.income);
     await provider.loadChartData();
+    final thisYear = DateTime.now().year;
+    expect(provider.year, thisYear);
+    expect(provider.canGoNext, isFalse); // never past the current year
+    expect(provider.canGoPrevious, isTrue);
 
-    expect(provider.chartBucket, ChartBucket.year);
-    // 2020, 2025, 2026 have data => three bars.
-    expect(provider.chartData.length, 3);
-    expect(provider.totalExpense, 47); // 40 + 7
-  });
-
-  test('range cap is 12 units', () {
-    expect(
-      ReportProvider.monthsBetween(DateTime(2026, 1), DateTime(2026, 12)),
-      12,
-    );
-    expect(
-      ReportProvider.monthsBetween(DateTime(2026, 1), DateTime(2026, 12)),
-      lessThanOrEqualTo(ReportProvider.maxRangeMonths),
-    );
-  });
-
-  test('mode switch preserves each mode custom state', () async {
-    // Year is custom (2020–2026) from the previous test; switch to month and
-    // back, custom must persist.
-    provider.setChartMode(ChartMode.month);
+    provider.shiftYear(-1); // no data the year before
     await provider.loadChartData();
-    provider.setChartMode(ChartMode.year);
+    expect(provider.year, thisYear - 1);
+    expect(provider.chartData, isEmpty);
+    expect(provider.totalIncome, 0);
+
+    provider.shiftYear(-1); // reaches the year with data
     await provider.loadChartData();
+    expect(provider.year, thisYear - 2);
+    expect(provider.canGoPrevious, isFalse);
 
-    expect(provider.isYearCustom, isTrue);
-    expect(provider.chartBucket, ChartBucket.year);
-  });
-
-  test('clearing custom ranges returns to the default bucket', () {
-    provider.setChartMode(ChartMode.month);
-    provider.setMonthRange(DateTime(2026, 3), DateTime(2026, 7));
-    expect(provider.isMonthCustom, isTrue);
-    expect(provider.chartBucket, ChartBucket.month);
-    provider.clearMonthRange();
-    expect(provider.isMonthCustom, isFalse);
-    expect(provider.chartBucket, ChartBucket.day);
-
-    provider.setChartMode(ChartMode.year);
-    provider.setYearRange(2020, 2026);
-    expect(provider.isYearCustom, isTrue);
-    expect(provider.chartBucket, ChartBucket.year);
-    provider.clearYearRange();
-    expect(provider.isYearCustom, isFalse);
-    expect(provider.chartBucket, ChartBucket.month);
+    provider.setSeries(ChartSeries.expense);
+    await provider.loadChartData();
+    expect(provider.chartData.length, 1);
+    expect(provider.totalExpense, 7);
+    expect(provider.total, 7);
   });
 }

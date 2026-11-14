@@ -96,6 +96,9 @@ class LId extends L {
   String get recentTransactions => 'Transaksi Terbaru';
 
   @override
+  String get transactionsLabel => 'Transaksi';
+
+  @override
   String get viewAll => 'Lihat Semua';
 
   @override
@@ -761,6 +764,12 @@ class LId extends L {
 
   @override
   String get rangeEndBeforeStart => 'Bulan/tahun akhir harus setelah awal';
+
+  @override
+  String get rangeFuture => 'Tidak boleh melewati bulan/tahun ini';
+
+  @override
+  String get allData => 'Semua data';
 
   @override
   String get allTime => 'Semua';

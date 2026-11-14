@@ -153,10 +153,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               ),
               formatter: (v) => CurrencyFormatter.formatWithSign(
                 v,
+                // Transfers neither add nor subtract: show the plain nominal.
                 showPlus:
-                    _isIncome ||
-                    _transaction.isPenerimaanTagihan ||
-                    _isTransfer,
+                    !_isTransfer &&
+                    (_isIncome || _transaction.isPenerimaanTagihan),
               ),
             ),
           ),

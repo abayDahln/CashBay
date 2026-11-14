@@ -96,6 +96,9 @@ class LEn extends L {
   String get recentTransactions => 'Recent Transactions';
 
   @override
+  String get transactionsLabel => 'Transactions';
+
+  @override
   String get viewAll => 'View All';
 
   @override
@@ -762,6 +765,12 @@ class LEn extends L {
   @override
   String get rangeEndBeforeStart =>
       'The end month/year must be after the start';
+
+  @override
+  String get rangeFuture => 'Cannot go past the current month/year';
+
+  @override
+  String get allData => 'All data';
 
   @override
   String get allTime => 'All';

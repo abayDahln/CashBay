@@ -67,6 +67,17 @@ class TransactionRepository {
     return _withTags(db, maps.map((map) => Transaction.fromMap(map)).toList());
   }
 
+  /// Earliest transaction date (live, non-titipan), or null when empty.
+  Future<DateTime?> getFirstTransactionDate() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      'SELECT MIN(date) AS d FROM transactions '
+      'WHERE is_deleted = 0 AND is_titipan = 0',
+    );
+    final raw = rows.first['d'] as String?;
+    return raw == null ? null : DateTime.parse(raw);
+  }
+
   /// Loads each transaction's tag ids in one query.
   Future<List<Transaction>> _withTags(
     Database db,
