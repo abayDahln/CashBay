@@ -559,6 +559,18 @@ abstract class L {
   /// **'Dompet asal dan tujuan harus berbeda'**
   String get walletMustDiffer;
 
+  /// No description provided for @transferExceedsBalance.
+  ///
+  /// In id, this message translates to:
+  /// **'Nominal melebihi saldo ({amount})'**
+  String transferExceedsBalance(String amount);
+
+  /// No description provided for @allBalance.
+  ///
+  /// In id, this message translates to:
+  /// **'Semua'**
+  String get allBalance;
+
   /// No description provided for @transferTo.
   ///
   /// In id, this message translates to:
@@ -576,6 +588,18 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Gagal menyimpan'**
   String get saveFailed;
+
+  /// No description provided for @cashIn.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang Masuk'**
+  String get cashIn;
+
+  /// No description provided for @cashOut.
+  ///
+  /// In id, this message translates to:
+  /// **'Uang Keluar'**
+  String get cashOut;
 
   /// No description provided for @searchTransaction.
   ///

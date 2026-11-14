@@ -135,8 +135,24 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Wallet? _walletOfType(List<Wallet> wallets, String type) =>
       wallets.where((w) => w.type == type).firstOrNull;
 
-  String? _validateAmount(String? v) =>
-      InputValidation.amountInRange(v, l10n: L.of(context));
+  String? _validateAmount(String? v) {
+    final t = L.of(context);
+    if (_isTransfer) {
+      final wallets = context.read<WalletProvider>().wallets;
+      final source = _walletOfType(wallets, _paymentMethod);
+      if (source != null) {
+        return InputValidation.amountInRange(
+          v,
+          max: source.balance,
+          maxMessage: t.transferExceedsBalance(
+            CurrencyFormatter.format(source.balance),
+          ),
+          l10n: t,
+        );
+      }
+    }
+    return InputValidation.amountInRange(v, l10n: t);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +176,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   _buildAnimatedField(0, _buildTypeSelector()),
                   const SizedBox(height: 24),
                   _buildInsetGroup(t.detailMain, [
-                    _buildAmountField(),
+                    _buildAmountField(wallets),
                     const SizedBox(height: 16),
                     if (_isTagihan) ...[
                       _buildDebtDirectionSelector(),
@@ -363,12 +379,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildAmountField() {
+  Widget _buildAmountField(List<Wallet> wallets) {
     final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final hasValue = _amountValue > 0;
-    const quickAmounts = <int>[10000, 20000, 50000, 100000, 200000];
+    // Five equal-width chips in one row. In transfer mode the last one is
+    // "All" (moves the whole source-wallet balance) instead of +200rb.
+    const quickAmounts = <int>[10000, 20000, 50000, 100000];
+    final source = _isTransfer
+        ? _walletOfType(wallets, _paymentMethod)
+        : null;
+    final canUseAll = source != null && source.balance > 0;
     return Column(
       children: [
         TextFormField(
@@ -396,33 +418,54 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
           validator: _validateAmount,
         ),
+        if (_isTransfer && source != null) ...[
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              t.balanceLabel(CurrencyFormatter.format(source.balance)),
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Row(
           spacing: 8,
           children: [
             for (final amount in quickAmounts)
-              Expanded(child: _quickAmountChip(amount)),
+              Expanded(child: _quickAmountChip('+${CurrencyFormatter.formatShort(amount.toDouble())}', () => _setAmount(_amountValue + amount))),
+            Expanded(
+              child: _isTransfer
+                  ? _quickAmountChip(
+                      t.allBalance,
+                      canUseAll ? () => _setAmount(source.balance) : null,
+                    )
+                  : _quickAmountChip(
+                      '+${CurrencyFormatter.formatShort(200000)}',
+                      () => _setAmount(_amountValue + 200000),
+                    ),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _quickAmountChip(int amount) => ChoiceChip(
-    label: Text(
-      '+${CurrencyFormatter.formatShort(amount.toDouble())}',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+  Widget _quickAmountChip(String label, VoidCallback? onTap) => SizedBox(
+    width: double.infinity,
+    child: ChoiceChip(
+      label: SizedBox(
+        width: double.infinity,
+        child: Text(label, maxLines: 1, textAlign: TextAlign.center),
+      ),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      labelPadding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      tooltip: onTap == null ? null : label,
+      selected: false,
+      onSelected: onTap == null ? null : (_) => onTap(),
     ),
-    visualDensity: VisualDensity.compact,
-    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    labelPadding: EdgeInsets.zero,
-    padding: const EdgeInsets.symmetric(horizontal: 6),
-    tooltip: L.of(context).addAmountTooltip(
-      CurrencyFormatter.format(amount.toDouble()),
-    ),
-    selected: false,
-    onSelected: (_) => _setAmount(_amountValue + amount),
   );
 
   Widget _buildCategoryPicker(CategoryProvider provider) {
@@ -538,18 +581,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         prefixIcon: const Icon(Icons.edit_note),
       ),
       maxLength: InputValidation.maxDescription,
-      validator: (v) {
-        if (!_isTransfer) {
-          final req = InputValidation.required(v, t.description, l10n: t);
-          if (req != null) return req;
-        }
-        return InputValidation.maxLength(
-          v,
-          t.description,
-          InputValidation.maxDescription,
-          l10n: t,
-        );
-      },
+      validator: (v) => InputValidation.maxLength(
+        v,
+        t.description,
+        InputValidation.maxDescription,
+        l10n: t,
+      ),
     );
   }
 
@@ -672,10 +709,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         prefixIcon: const Icon(Icons.description_outlined),
       ),
       maxLength: InputValidation.maxBillName,
-      validator: (v) => InputValidation.name(
+      validator: (v) => InputValidation.maxLength(
         v,
         t.titipanName,
-        max: InputValidation.maxBillName,
+        InputValidation.maxBillName,
         l10n: t,
       ),
     );
@@ -1007,7 +1044,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         status: 'active',
         note: note,
         date: _selectedDate,
-        billName: _billNameController.text.trim(),
+        billName: _optionalText(_billNameController),
         dueDate: _dueDate,
         reminderEnabled: true,
         paymentMethod: _paymentMethod,
@@ -1031,6 +1068,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       success = await transactionProvider.addTransaction(transaction);
     } else {
+      final defaultDesc = _transactionType == 'income' ? t.cashIn : t.cashOut;
       final transaction = Transaction(
         type: _transactionType,
         amount: amount,
@@ -1039,7 +1077,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         note: note,
         date: _selectedDate,
         createdAt: DateTime.now(),
-        description: _descriptionController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? defaultDesc
+            : _descriptionController.text.trim(),
         paymentMethod: _paymentMethod,
         attachmentPath: _attachmentPath,
       );

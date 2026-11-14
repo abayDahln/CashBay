@@ -162,6 +162,7 @@ class _ReportScreenState extends State<ReportScreen> {
       children: [
         IconButton(
           tooltip: t.previousPeriod,
+          visualDensity: VisualDensity.compact,
           icon: const Icon(Icons.chevron_left),
           onPressed: isCustom ? null : () => report.shiftPeriod(-1),
         ),
@@ -172,6 +173,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 : () => isMonth ? _pickMonth(report) : _pickYear(report),
             style: TextButton.styleFrom(
               foregroundColor: scheme.onSurface,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               textStyle: text.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -186,6 +188,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
         IconButton(
           tooltip: t.nextPeriod,
+          visualDensity: VisualDensity.compact,
           icon: const Icon(Icons.chevron_right),
           onPressed: isCustom ? null : () => report.shiftPeriod(1),
         ),
@@ -193,6 +196,7 @@ class _ReportScreenState extends State<ReportScreen> {
         IconButton.filledTonal(
           tooltip: t.customFilter,
           isSelected: isCustom,
+          visualDensity: VisualDensity.compact,
           onPressed: () =>
               isMonth ? _showMonthRangeSheet(report) : _showYearRangeSheet(report),
           icon: const Icon(Icons.tune),

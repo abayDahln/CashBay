@@ -87,32 +87,38 @@ class TransactionTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: AnimatedBalance(
-              value: isIncome || isTransfer
-                  ? transaction.amount
-                  : -transaction.amount,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.labelLarge?.copyWith(
-                color: nominalColor,
-                fontWeight: FontWeight.w600,
-              ),
-              formatter: (value) => CurrencyFormatter.formatWithSign(
-                value,
-                showPlus: isIncome || isTagihan || isTransfer,
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 132),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: AnimatedBalance(
+                value: isIncome || isTransfer
+                    ? transaction.amount
+                    : -transaction.amount,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.labelLarge?.copyWith(
+                  color: nominalColor,
+                  fontWeight: FontWeight.w600,
+                ),
+                formatter: (value) => CurrencyFormatter.formatWithSign(
+                  value,
+                  showPlus: isIncome || isTagihan || isTransfer,
+                ),
               ),
             ),
-          ),
-          if (showChevron) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant),
+            if (showChevron) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

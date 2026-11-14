@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, File, Directory;
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
@@ -20,9 +20,26 @@ Future<void> main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     final dir = await getApplicationSupportDirectory();
-    await databaseFactory.setDatabasesPath(
-      p.join(dir.path, 'databases'),
+    final newDir = p.join(dir.path, 'databases');
+    await databaseFactory.setDatabasesPath(newDir);
+
+    // One-time migration: an older build stored the database under the project
+    // `.dart_tool` folder. If the new location has no database yet, move the
+    // old one over so existing data is not lost.
+    final newDb = File(p.join(newDir, 'cashbay.db'));
+    final oldDb = File(
+      p.join(
+        Directory.current.path,
+        '.dart_tool',
+        'sqflite_common_ffi',
+        'databases',
+        'cashbay.db',
+      ),
     );
+    if (!newDb.existsSync() && oldDb.existsSync()) {
+      newDb.parent.createSync(recursive: true);
+      oldDb.copySync(newDb.path);
+    }
   }
   await initializeDateFormatting('id_ID', null);
   await initializeDateFormatting('en_US', null);

@@ -246,6 +246,14 @@ class LEn extends L {
   String get walletMustDiffer => 'Source and destination wallets must differ';
 
   @override
+  String transferExceedsBalance(String amount) {
+    return 'Amount exceeds balance ($amount)';
+  }
+
+  @override
+  String get allBalance => 'All';
+
+  @override
   String transferTo(String name) {
     return 'Transfer to $name';
   }
@@ -255,6 +263,12 @@ class LEn extends L {
 
   @override
   String get saveFailed => 'Failed to save';
+
+  @override
+  String get cashIn => 'Cash In';
+
+  @override
+  String get cashOut => 'Cash Out';
 
   @override
   String get searchTransaction => 'Search transactions...';

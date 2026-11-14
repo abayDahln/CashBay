@@ -247,6 +247,14 @@ class LId extends L {
   String get walletMustDiffer => 'Dompet asal dan tujuan harus berbeda';
 
   @override
+  String transferExceedsBalance(String amount) {
+    return 'Nominal melebihi saldo ($amount)';
+  }
+
+  @override
+  String get allBalance => 'Semua';
+
+  @override
   String transferTo(String name) {
     return 'Transfer ke $name';
   }
@@ -256,6 +264,12 @@ class LId extends L {
 
   @override
   String get saveFailed => 'Gagal menyimpan';
+
+  @override
+  String get cashIn => 'Uang Masuk';
+
+  @override
+  String get cashOut => 'Uang Keluar';
 
   @override
   String get searchTransaction => 'Cari transaksi...';
