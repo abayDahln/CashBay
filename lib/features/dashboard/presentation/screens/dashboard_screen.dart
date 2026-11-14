@@ -13,8 +13,8 @@ import '../../../transactions/presentation/screens/add_transaction_screen.dart';
 import '../../../debts/presentation/screens/debts_screen.dart';
 import '../../../transactions/presentation/screens/history_screen.dart';
 import '../../../transactions/presentation/screens/history_detail_screen.dart';
-import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../report/presentation/screens/report_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -45,7 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           HistoryScreen(key: _historyKey),
           const ReportScreen(),
-          const SettingsScreen(embedded: true),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: AppBottomNav(

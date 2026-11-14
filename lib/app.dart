@@ -12,6 +12,7 @@ import 'features/transactions/presentation/providers/transaction_provider.dart';
 import 'features/debts/presentation/providers/debt_provider.dart';
 import 'features/categories/presentation/providers/category_provider.dart';
 import 'features/report/presentation/providers/report_provider.dart';
+import 'features/profile/presentation/providers/profile_provider.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 
 class CashBayApp extends StatelessWidget {
@@ -44,6 +45,7 @@ class CashBayApp extends StatelessWidget {
           create: (_) => CategoryProvider()..loadCategories(),
         ),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()..load()),
       ],
       child: Consumer2<ThemePreferencesProvider, LocaleProvider>(
         builder: (context, preferences, locale, child) {

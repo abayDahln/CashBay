@@ -16,13 +16,13 @@ class AppBottomNav extends StatelessWidget {
     (Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
     (Icons.receipt_long_outlined, Icons.receipt_long),
     (Icons.insights_outlined, Icons.insights),
-    (Icons.settings_outlined, Icons.settings),
+    (Icons.person_outline, Icons.person),
   ];
 
   @override
   Widget build(BuildContext context) {
     final t = L.of(context);
-    final labels = [t.dashboard, t.history, t.analytics, t.settings];
+    final labels = [t.dashboard, t.history, t.analytics, t.profile];
     return NavigationBar(
       selectedIndex: currentIndex,
       onDestinationSelected: onTap,

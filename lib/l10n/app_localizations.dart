@@ -118,7 +118,7 @@ abstract class L {
   /// No description provided for @analytics.
   ///
   /// In id, this message translates to:
-  /// **'Analytics'**
+  /// **'Analitik'**
   String get analytics;
 
   /// No description provided for @settings.
@@ -126,6 +126,78 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Pengaturan'**
   String get settings;
+
+  /// No description provided for @profile.
+  ///
+  /// In id, this message translates to:
+  /// **'Profil'**
+  String get profile;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In id, this message translates to:
+  /// **'Edit Profil'**
+  String get editProfile;
+
+  /// No description provided for @profileName.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama'**
+  String get profileName;
+
+  /// No description provided for @profileNameRequired.
+  ///
+  /// In id, this message translates to:
+  /// **'Nama tidak boleh kosong'**
+  String get profileNameRequired;
+
+  /// No description provided for @profileBio.
+  ///
+  /// In id, this message translates to:
+  /// **'Bio'**
+  String get profileBio;
+
+  /// No description provided for @profileGender.
+  ///
+  /// In id, this message translates to:
+  /// **'Jenis Kelamin'**
+  String get profileGender;
+
+  /// No description provided for @profileGenderMale.
+  ///
+  /// In id, this message translates to:
+  /// **'Laki-laki'**
+  String get profileGenderMale;
+
+  /// No description provided for @profileGenderFemale.
+  ///
+  /// In id, this message translates to:
+  /// **'Perempuan'**
+  String get profileGenderFemale;
+
+  /// No description provided for @profileGenderOther.
+  ///
+  /// In id, this message translates to:
+  /// **'Lainnya'**
+  String get profileGenderOther;
+
+  /// No description provided for @profileBirthDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Tanggal Lahir'**
+  String get profileBirthDate;
+
+  /// No description provided for @profileNotSet.
+  ///
+  /// In id, this message translates to:
+  /// **'Belum diisi'**
+  String get profileNotSet;
+
+  /// No description provided for @profileChangePhoto.
+  ///
+  /// In id, this message translates to:
+  /// **'Ganti Foto'**
+  String get profileChangePhoto;
 
   /// No description provided for @back.
   ///

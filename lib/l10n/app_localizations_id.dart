@@ -18,10 +18,46 @@ class LId extends L {
   String get history => 'Riwayat';
 
   @override
-  String get analytics => 'Analytics';
+  String get analytics => 'Analitik';
 
   @override
   String get settings => 'Pengaturan';
+
+  @override
+  String get profile => 'Profil';
+
+  @override
+  String get editProfile => 'Edit Profil';
+
+  @override
+  String get profileName => 'Nama';
+
+  @override
+  String get profileNameRequired => 'Nama tidak boleh kosong';
+
+  @override
+  String get profileBio => 'Bio';
+
+  @override
+  String get profileGender => 'Jenis Kelamin';
+
+  @override
+  String get profileGenderMale => 'Laki-laki';
+
+  @override
+  String get profileGenderFemale => 'Perempuan';
+
+  @override
+  String get profileGenderOther => 'Lainnya';
+
+  @override
+  String get profileBirthDate => 'Tanggal Lahir';
+
+  @override
+  String get profileNotSet => 'Belum diisi';
+
+  @override
+  String get profileChangePhoto => 'Ganti Foto';
 
   @override
   String get back => 'Kembali';

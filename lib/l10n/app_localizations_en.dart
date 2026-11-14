@@ -24,6 +24,42 @@ class LEn extends L {
   String get settings => 'Settings';
 
   @override
+  String get profile => 'Profile';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get profileName => 'Name';
+
+  @override
+  String get profileNameRequired => 'Name cannot be empty';
+
+  @override
+  String get profileBio => 'Bio';
+
+  @override
+  String get profileGender => 'Gender';
+
+  @override
+  String get profileGenderMale => 'Male';
+
+  @override
+  String get profileGenderFemale => 'Female';
+
+  @override
+  String get profileGenderOther => 'Other';
+
+  @override
+  String get profileBirthDate => 'Date of Birth';
+
+  @override
+  String get profileNotSet => 'Not set';
+
+  @override
+  String get profileChangePhoto => 'Change Photo';
+
+  @override
   String get back => 'Back';
 
   @override
