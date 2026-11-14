@@ -31,7 +31,8 @@ class AppTheme {
     );
     final finance = FinanceColors.forBrightness(brightness);
 
-    // M3 2021 type scale, rendered with the app's brand typeface.
+    // M3 2021 type scale with the default typeface (Roboto on Android,
+    // SF Pro on iOS) — no brand font override.
     final textTheme = Typography.material2021(platform: TargetPlatform.android)
         .englishLike
         .merge(
@@ -40,7 +41,6 @@ class AppTheme {
               : Typography.material2021().black,
         )
         .apply(
-          fontFamily: AppTypography.family,
           bodyColor: scheme.onSurface,
           displayColor: scheme.onSurface,
         );
@@ -60,7 +60,6 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: brightness,
-      fontFamily: AppTypography.family,
       textTheme: textTheme,
       scaffoldBackgroundColor: scheme.surface,
       visualDensity: VisualDensity.standard,

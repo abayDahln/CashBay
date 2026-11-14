@@ -129,12 +129,3 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  fonts:
-    - family: SF Pro Display
-      fonts:
-        - asset: public/font/SFPRODISPLAYREGULAR.OTF
-        - asset: public/font/SFPRODISPLAYMEDIUM.OTF
-          weight: 500
-        - asset: public/font/SFPRODISPLAYBOLD.OTF
-          weight: 700

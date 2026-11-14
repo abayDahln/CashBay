@@ -32,15 +32,12 @@ void main() {
     }
   });
 
-  test('both themes use SF Pro Display', () {
-    expect(AppTheme.darkTheme.appBarTheme.titleTextStyle?.fontFamily,
-        'SF Pro Display');
-    expect(AppTheme.lightTheme.appBarTheme.titleTextStyle?.fontFamily,
-        'SF Pro Display');
-    expect(AppTheme.darkTheme.textTheme.bodyMedium?.fontFamily,
-        'SF Pro Display');
-    expect(AppTheme.lightTheme.textTheme.headlineMedium?.fontFamily,
-        'SF Pro Display');
+  test('both themes use the platform default typeface (Roboto)', () {
+    // No fontFamily override: null means Flutter's default font is used.
+    expect(AppTheme.darkTheme.appBarTheme.titleTextStyle?.fontFamily, isNot('SF Pro Display'));
+    expect(AppTheme.lightTheme.appBarTheme.titleTextStyle?.fontFamily, isNot('SF Pro Display'));
+    expect(AppTheme.darkTheme.textTheme.bodyMedium?.fontFamily, isNot('SF Pro Display'));
+    expect(AppTheme.lightTheme.textTheme.headlineMedium?.fontFamily, isNot('SF Pro Display'));
   });
 
   test('add-transaction form no longer asks for a category', () {

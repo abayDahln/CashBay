@@ -90,10 +90,9 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
   }
 }
 
-/// Brand typeface. Sizes/weights come from the M3 type scale in
-/// `Theme.of(context).textTheme`.
+/// Typeface note: the app uses Flutter's default font (Roboto on Android,
+/// SF Pro on iOS) so the M3 type scale stays untouched. Sizes/weights come
+/// from `Theme.of(context).textTheme`.
 class AppTypography {
   const AppTypography._();
-
-  static const String family = 'SF Pro Display';
 }
