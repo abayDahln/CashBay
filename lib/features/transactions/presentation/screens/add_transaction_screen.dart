@@ -124,7 +124,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       InputValidation.parseAmount(_amountController.text) ?? 0;
 
   void _setAmount(double value) {
-    final formatted = RupiahInputFormatter.formatValue(value);
+    // Quick-amount chips add to the current value, which can overshoot the
+    // validated limit, so clamp before it reaches the field.
+    final formatted = RupiahInputFormatter.formatValue(
+      value.clamp(0, InputValidation.maxAmount),
+    );
     _amountController.value = TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),

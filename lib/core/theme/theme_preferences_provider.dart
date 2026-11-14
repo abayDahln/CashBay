@@ -15,6 +15,11 @@ class ThemePreferencesProvider extends ChangeNotifier {
   Color get seedColor => _seedColor;
   ThemeMode get themeMode => _themeMode;
 
+  /// Last loaded/persisted language code, or null for "follow the system".
+  /// Set by [LocaleProvider] so non-widget code can localise short currency
+  /// units without a BuildContext.
+  static String? localeCode;
+
   Future<void> load() async {
     _preferences ??= await SharedPreferences.getInstance();
     final seed = _preferences!.getInt(_seedKey);

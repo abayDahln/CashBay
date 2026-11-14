@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'theme_preferences_provider.dart';
 
 /// Persists the chosen UI language and exposes it as a [Locale].
 ///
@@ -22,12 +23,14 @@ class LocaleProvider extends ChangeNotifier {
     _preferences ??= await SharedPreferences.getInstance();
     final code = _preferences!.getString(_key);
     _locale = code == null ? null : Locale(code);
+    ThemePreferencesProvider.localeCode = code;
     notifyListeners();
   }
 
   Future<void> setLocale(Locale? locale) async {
     _preferences ??= await SharedPreferences.getInstance();
     _locale = locale;
+    ThemePreferencesProvider.localeCode = locale?.languageCode;
     if (locale == null) {
       await _preferences!.remove(_key);
     } else {

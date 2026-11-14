@@ -1,9 +1,10 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../l10n/app_localizations.dart';
+import '../theme/theme_preferences_provider.dart';
 
-/// Formats digits as Rupiah thousands ("1500000" → "1.500.000") while typing.
+/// Formats digits as Rupiah thousands ("1500000" â†’ "1.500.000") while typing.
 /// Non-digits are stripped; the caret is kept relative to the typed digits.
 class RupiahInputFormatter extends TextInputFormatter {
   static final NumberFormat _format = NumberFormat.decimalPattern('id_ID');
@@ -49,7 +50,11 @@ class RupiahInputFormatter extends TextInputFormatter {
   static bool _isDigit(int codeUnit) => codeUnit >= 0x30 && codeUnit <= 0x39;
 
   static String formatValue(double value) =>
-      value <= 0 ? '' : _format.format(value.toInt());
+      !value.isFinite || value <= 0
+      ? ''
+      : _format.format(
+          value.clamp(0, InputValidation.maxAmount).toInt(),
+        );
 }
 
 class InputValidation {
@@ -177,22 +182,56 @@ class CurrencyFormatter {
     return formatted;
   }
 
+  /// True when English short units (k / m / b) should be used instead of the
+  /// Indonesian ones (rb / jt / m / T). Driven by the persisted language.
+  static bool get _english =>
+      (ThemePreferencesProvider.localeCode ?? Platform.localeName)
+          .toLowerCase()
+          .startsWith('en');
+
   static String formatShort(double amount) {
     final a = amount.abs();
-    if (a >= 100000000) {
-      return _maybeSign(amount, '${_formatWithSep(a / 1000000000)}m');
-    }
-    if (a >= 1000000) {
-      return _maybeSign(amount, '${_formatWithSep(a / 1000000)}jt');
-    }
-    if (a >= 1000) {
-      return _maybeSign(amount, '${_formatWithSep(a / 1000)}rb');
+    if (_english) {
+      if (a >= 1000000000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000000000)}b');
+      }
+      if (a >= 1000000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000000)}m');
+      }
+      if (a >= 1000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000)}k');
+      }
+    } else {
+      if (a >= 100000000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000000000)}m');
+      }
+      if (a >= 1000000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000000)}jt');
+      }
+      if (a >= 1000) {
+        return _maybeSign(amount, '${_formatWithSep(a / 1000)}rb');
+      }
     }
     return _maybeSign(amount, _formatWithSep(a));
   }
 
   static String formatMedium(double amount) {
     final a = amount.abs();
+    if (_english) {
+      if (a >= 1000000000000) {
+        return _maybeSign(amount, 'Rp ${_formatWithSep(a / 1000000000000)}T');
+      }
+      if (a >= 1000000000) {
+        return _maybeSign(amount, 'Rp ${_formatWithSep(a / 1000000000)}B');
+      }
+      if (a >= 1000000) {
+        return _maybeSign(amount, 'Rp ${_formatWithSep(a / 1000000)}M');
+      }
+      if (a >= 1000) {
+        return _maybeSign(amount, 'Rp ${_formatWithSep(a / 1000)}K');
+      }
+      return format(amount);
+    }
     if (a >= 1000000000000000) {
       return _maybeSign(amount, 'Rp ${_formatWithSep(a / 1000000000000000)} Kuadriliun');
     }

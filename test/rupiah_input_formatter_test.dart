@@ -32,4 +32,34 @@ void main() {
     final r = f.formatEditUpdate(_edit('', 0), _edit('007', 3));
     expect(r.text, '7');
   });
+
+  test('rejects input past the digit limit', () {
+    const max = '999.999.999.999.999'; // 15 digits
+    final r = f.formatEditUpdate(_edit(max, max.length), _edit('${max}0', max.length + 1));
+    expect(r.text, max);
+  });
+
+  group('formatValue', () {
+    test('clamps to maxAmount instead of throwing', () {
+      expect(RupiahInputFormatter.formatValue(double.maxFinite), '999.999.999.999.999');
+      expect(
+        RupiahInputFormatter.formatValue(InputValidation.maxAmount + 1000),
+        '999.999.999.999.999',
+      );
+      // Non-finite values have no meaningful amount: empty, never a crash.
+      expect(RupiahInputFormatter.formatValue(double.infinity), '');
+      expect(RupiahInputFormatter.formatValue(double.negativeInfinity), '');
+      expect(RupiahInputFormatter.formatValue(double.nan), '');
+    });
+
+    test('keeps values at or below the limit untouched', () {
+      expect(RupiahInputFormatter.formatValue(1500), '1.500');
+      expect(
+        RupiahInputFormatter.formatValue(InputValidation.maxAmount),
+        '999.999.999.999.999',
+      );
+      expect(RupiahInputFormatter.formatValue(0), '');
+      expect(RupiahInputFormatter.formatValue(-5), '');
+    });
+  });
 }
