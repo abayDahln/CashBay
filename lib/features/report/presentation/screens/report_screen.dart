@@ -256,8 +256,12 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final d in data) {
       if (d.value > maxVal) maxVal = d.value;
     }
-    final step = maxVal == 0 ? 2000.0 : _niceStep(maxVal);
-    final actualMax = ((maxVal / step).ceil() + 1) * step;
+    // Aim for twice the tallest bar so there's headroom, then round that down
+    // to a tidy value and pick a step that lands on ~3-4 gridlines (e.g. peak
+    // 4.2m -> target 8.4m -> axis 8m, step 2m: 0/2/4/6/8m).
+    final axis = _axisPlan(maxVal);
+    final step = axis.step;
+    final actualMax = axis.max;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -415,20 +419,33 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  static double _niceStep(double range) {
+  /// Picks a round axis max and gridline step for [peak]. The axis is set to
+  /// twice the peak (headroom) rounded down to a tidy multiple, and the step is
+  /// the largest round value that yields roughly four gridlines.
+  static ({double max, double step}) _axisPlan(double peak) {
+    if (peak <= 0) return (max: 2000, step: 1000);
+    final target = peak * 2;
+    final step = _niceFloor(target / 4);
+    final ticks = (target / step).floor().clamp(1, 999);
+    return (max: step * ticks, step: step);
+  }
+
+  /// Largest "tidy" value (1, 2, 2.5, or 5 times a power of ten) that is <=
+  /// [value].
+  static double _niceFloor(double value) {
     final magnitude = math
-        .pow(10, (math.log(range) / math.ln10).floor())
+        .pow(10, (math.log(value) / math.ln10).floor())
         .toDouble();
-    final normalized = range / magnitude;
+    final normalized = value / magnitude;
     double nice;
-    if (normalized <= 1.5) {
-      nice = 1;
-    } else if (normalized <= 3.5) {
-      nice = 2;
-    } else if (normalized <= 7.5) {
+    if (normalized >= 5) {
       nice = 5;
+    } else if (normalized >= 2.5) {
+      nice = 2.5;
+    } else if (normalized >= 2) {
+      nice = 2;
     } else {
-      nice = 10;
+      nice = 1;
     }
     return nice * magnitude;
   }
