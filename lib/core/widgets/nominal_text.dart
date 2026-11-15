@@ -3,8 +3,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 
 /// Renders a currency amount with a smaller "Rp" prefix (in the theme's primary
-/// colour) followed by the figure in the nominal font. The sign precedes "Rp"
-/// (e.g. "-Rp 9.274.500"), matching Indonesian convention.
+/// colour) followed by the figure in the nominal font. The sign sits after "Rp"
+/// (e.g. "Rp -9.274.500") as part of the figure.
 class NominalText extends StatelessWidget {
   final double amount;
   final TextStyle? style;
@@ -56,11 +56,9 @@ class NominalText extends StatelessWidget {
       text: TextSpan(
         style: base,
         children: [
-          // Sign shares the small, primary-coloured "Rp" style so the prefix
-          // reads as one light unit instead of two heavy blocks.
-          TextSpan(text: sign, style: symbol),
           TextSpan(text: 'Rp ', style: symbol),
-          TextSpan(text: digits),
+          // Sign belongs with the figure, so it keeps the numeric style.
+          TextSpan(text: '$sign$digits'),
         ],
       ),
     );

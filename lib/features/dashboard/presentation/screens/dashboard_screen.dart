@@ -59,21 +59,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
       ),
       floatingActionButton: _selectedIndex <= 1
-          ? FloatingActionButton(
-              tooltip: t.addTransaction,
-              onPressed: () async {
-                final saved = await Navigator.push(
-                  context,
-                  fadeSlideRoute(const AddTransactionScreen()),
-                );
-                // Refresh once so every tab shows the new data without a manual
-                // pull-to-refresh.
-                if (saved == true && mounted) {
-                  await _homeKey.currentState?.refresh();
-                  if (mounted) _historyKey.currentState?.reload();
-                }
-              },
-              child: const Icon(Icons.add),
+          ? Theme(
+              data: Theme.of(context).copyWith(
+                floatingActionButtonTheme: Theme.of(context)
+                    .floatingActionButtonTheme
+                    .copyWith(
+                      sizeConstraints: const BoxConstraints.tightFor(
+                        width: 76,
+                        height: 76,
+                      ),
+                    ),
+              ),
+              child: FloatingActionButton(
+                tooltip: t.addTransaction,
+                onPressed: () async {
+                  final saved = await Navigator.push(
+                    context,
+                    fadeSlideRoute(const AddTransactionScreen()),
+                  );
+                  // Refresh once so every tab shows the new data without a manual
+                  // pull-to-refresh.
+                  if (saved == true && mounted) {
+                    await _homeKey.currentState?.refresh();
+                    if (mounted) _historyKey.currentState?.reload();
+                  }
+                },
+                child: const Icon(Icons.add, size: 32),
+              ),
             )
           : null,
     );
@@ -357,71 +369,83 @@ class _WelcomeHeader extends StatelessWidget {
 
     return SliverToBoxAdapter(
       child: ColoredBox(
+        // Paint the complete sliver explicitly so the batik layer always
+        // fades onto the exact same surface color used by the content below.
         color: scheme.surface,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            SizedBox(
-              height: topInset + 72,
-              child: ClipRect(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Batik pattern recolored to the active theme's primary hue
-                    // (BlendMode.color keeps the swirls' light/dark shading).
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: const AssetImage('public/batik_pattern.png'),
-                          // Square pattern; cover fills the wide, short banner.
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0, 0.6),
-                          colorFilter: ColorFilter.mode(
-                            scheme.primary,
-                            BlendMode.color,
-                          ),
+          // Banner painted as the background of the whole header so there is no
+          // Column boundary where a hairline seam could show while scrolling.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset + 72,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Batik pattern recolored to the active theme's primary hue
+                // (BlendMode.color keeps the swirls' light/dark shading).
+                ShaderMask(
+                  // Fade the image all the way to transparent so its clipped
+                  // lower edge cannot leave a line against the page surface.
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (bounds) => LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white,
+                        Colors.white.withValues(alpha: 0.85),
+                        Colors.white.withValues(alpha: 0.45),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.42, 0.76, 1.0],
+                    ).createShader(bounds),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: const AssetImage('public/batik_pattern.png'),
+                        // Square pattern; cover fills the wide, short banner.
+                        fit: BoxFit.cover,
+                        alignment: const Alignment(0, 0.6),
+                        colorFilter: ColorFilter.mode(
+                          scheme.primary,
+                          BlendMode.color,
                         ),
                       ),
                     ),
-                    // Fade the bottom into the page background.
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            scheme.surface.withValues(alpha: 0),
-                            scheme.surface,
-                          ],
-                          stops: const [0.2, 1.0],
-                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+            Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: topInset + 72),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.welcomeSubtitle,
+                      style: text.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    greeting,
-                    style: text.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    t.welcomeSubtitle,
-                    style: text.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+            ],
             ),
           ],
         ),
@@ -442,8 +466,7 @@ class _BalanceHeroCard extends StatelessWidget {
     final t = L.of(context);
     final onColor = scheme.onPrimaryContainer;
     // Nominal figures are plain black/white, not the dark primary tint.
-    final amountColor =
-        Theme.of(context).brightness == Brightness.dark
+    final amountColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : Colors.black;
     return RepaintBoundary(
@@ -532,12 +555,7 @@ class _WalletBreakdown extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return Row(
       children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: scheme.surface,
-          foregroundColor: scheme.primary,
-          child: Icon(icon, size: 20),
-        ),
+        Icon(icon, size: 20, color: scheme.onPrimaryContainer),
         const SizedBox(width: 8),
         Expanded(
           child: Column(

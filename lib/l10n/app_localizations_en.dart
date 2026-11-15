@@ -126,10 +126,10 @@ class LEn extends L {
   String get titipan => 'Deposit';
 
   @override
-  String get titipanSaya => 'My Deposit';
+  String get titipanSaya => 'Others\' Deposit';
 
   @override
-  String get titipanOrang => 'Others\' Deposit';
+  String get titipanOrang => 'My Deposit';
 
   @override
   String get totalBalance => 'Total Balance';
@@ -413,10 +413,10 @@ class LEn extends L {
   String get filter => 'Filter';
 
   @override
-  String get detailTitipan => 'Deposit Detail';
+  String get detailTitipan => 'Others\' Deposit Detail';
 
   @override
-  String get detailTitipanOrang => 'Others\' Deposit Detail';
+  String get detailTitipanOrang => 'Deposit Detail';
 
   @override
   String get detailPengembalian => 'Return Detail';
@@ -535,10 +535,10 @@ class LEn extends L {
   String get addTitipan => 'Add deposit';
 
   @override
-  String get remainingTitipanSaya => 'My remaining deposit';
+  String get remainingTitipanSaya => 'Others\' remaining deposit';
 
   @override
-  String get remainingTitipanOrang => 'Others\' remaining deposit';
+  String get remainingTitipanOrang => 'My remaining deposit';
 
   @override
   String get noActiveTitipan => 'No unpaid deposits';
@@ -564,10 +564,10 @@ class LEn extends L {
   String get resetFilter => 'Reset Filter';
 
   @override
-  String get noTitipan => 'No deposits yet';
+  String get noTitipan => 'No others\' deposits yet';
 
   @override
-  String get noTitipanOrang => 'No others\' deposits yet';
+  String get noTitipanOrang => 'No deposits yet';
 
   @override
   String get noTitipanHint => 'Record money you deposit to others';
@@ -576,7 +576,7 @@ class LEn extends L {
   String get noTitipanOrangHint => 'Record money others entrusted to you';
 
   @override
-  String get addTitipanOrang => 'Add Others\' Deposit';
+  String get addTitipanOrang => 'Add Deposit';
 
   @override
   String get paid => 'paid';
@@ -601,10 +601,10 @@ class LEn extends L {
   String get remaining => 'Remaining';
 
   @override
-  String get totalTitipan => 'Total Deposit';
+  String get totalTitipan => 'Total Others\' Deposit';
 
   @override
-  String get totalTitipanOrang => 'Total Others\' Deposit';
+  String get totalTitipanOrang => 'Total Deposit';
 
   @override
   String get hasPaid => 'Paid';
@@ -1088,7 +1088,7 @@ class LEn extends L {
   }
 
   @override
-  String get addTitipanTitle => 'Add Deposit';
+  String get addTitipanTitle => 'Add Others\' Deposit';
 
   @override
   String get personName => 'Person Name';

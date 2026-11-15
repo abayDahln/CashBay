@@ -126,10 +126,10 @@ class LId extends L {
   String get titipan => 'Titipan';
 
   @override
-  String get titipanSaya => 'Titipan Saya';
+  String get titipanSaya => 'Titipan Orang';
 
   @override
-  String get titipanOrang => 'Titipan Orang';
+  String get titipanOrang => 'Titipan Saya';
 
   @override
   String get totalBalance => 'Total Saldo';
@@ -415,10 +415,10 @@ class LId extends L {
   String get filter => 'Filter';
 
   @override
-  String get detailTitipan => 'Detail Titipan';
+  String get detailTitipan => 'Detail Titipan Orang';
 
   @override
-  String get detailTitipanOrang => 'Detail Titipan Orang';
+  String get detailTitipanOrang => 'Detail Titipan';
 
   @override
   String get detailPengembalian => 'Detail Pengembalian';
@@ -536,10 +536,10 @@ class LId extends L {
   String get addTitipan => 'Tambah titipan';
 
   @override
-  String get remainingTitipanSaya => 'Sisa titipan saya';
+  String get remainingTitipanSaya => 'Sisa titipan orang';
 
   @override
-  String get remainingTitipanOrang => 'Sisa titipan orang';
+  String get remainingTitipanOrang => 'Sisa titipan saya';
 
   @override
   String get noActiveTitipan => 'Tidak ada titipan belum lunas';
@@ -565,10 +565,10 @@ class LId extends L {
   String get resetFilter => 'Reset Filter';
 
   @override
-  String get noTitipan => 'Belum ada titipan';
+  String get noTitipan => 'Belum ada titipan orang';
 
   @override
-  String get noTitipanOrang => 'Belum ada titipan orang';
+  String get noTitipanOrang => 'Belum ada titipan';
 
   @override
   String get noTitipanHint => 'Catat uang yang Anda titipkan ke orang lain';
@@ -577,7 +577,7 @@ class LId extends L {
   String get noTitipanOrangHint => 'Catat uang orang lain yang Anda pegang';
 
   @override
-  String get addTitipanOrang => 'Tambah Titipan Orang';
+  String get addTitipanOrang => 'Tambah Titipan';
 
   @override
   String get paid => 'dibayar';
@@ -602,10 +602,10 @@ class LId extends L {
   String get remaining => 'Sisa';
 
   @override
-  String get totalTitipan => 'Total Titipan';
+  String get totalTitipan => 'Total Titipan Orang';
 
   @override
-  String get totalTitipanOrang => 'Total Titipan Orang';
+  String get totalTitipanOrang => 'Total Titipan';
 
   @override
   String get hasPaid => 'Telah Dibayar';
@@ -1088,7 +1088,7 @@ class LId extends L {
   }
 
   @override
-  String get addTitipanTitle => 'Tambah Titipan';
+  String get addTitipanTitle => 'Tambah Titipan Orang';
 
   @override
   String get personName => 'Nama Orang';

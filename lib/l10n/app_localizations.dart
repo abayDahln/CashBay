@@ -322,13 +322,13 @@ abstract class L {
   /// No description provided for @titipanSaya.
   ///
   /// In id, this message translates to:
-  /// **'Titipan Saya'**
+  /// **'Titipan Orang'**
   String get titipanSaya;
 
   /// No description provided for @titipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Titipan Orang'**
+  /// **'Titipan Saya'**
   String get titipanOrang;
 
   /// No description provided for @totalBalance.
@@ -868,13 +868,13 @@ abstract class L {
   /// No description provided for @detailTitipan.
   ///
   /// In id, this message translates to:
-  /// **'Detail Titipan'**
+  /// **'Detail Titipan Orang'**
   String get detailTitipan;
 
   /// No description provided for @detailTitipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Detail Titipan Orang'**
+  /// **'Detail Titipan'**
   String get detailTitipanOrang;
 
   /// No description provided for @detailPengembalian.
@@ -1108,13 +1108,13 @@ abstract class L {
   /// No description provided for @remainingTitipanSaya.
   ///
   /// In id, this message translates to:
-  /// **'Sisa titipan saya'**
+  /// **'Sisa titipan orang'**
   String get remainingTitipanSaya;
 
   /// No description provided for @remainingTitipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Sisa titipan orang'**
+  /// **'Sisa titipan saya'**
   String get remainingTitipanOrang;
 
   /// No description provided for @noActiveTitipan.
@@ -1162,13 +1162,13 @@ abstract class L {
   /// No description provided for @noTitipan.
   ///
   /// In id, this message translates to:
-  /// **'Belum ada titipan'**
+  /// **'Belum ada titipan orang'**
   String get noTitipan;
 
   /// No description provided for @noTitipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Belum ada titipan orang'**
+  /// **'Belum ada titipan'**
   String get noTitipanOrang;
 
   /// No description provided for @noTitipanHint.
@@ -1186,7 +1186,7 @@ abstract class L {
   /// No description provided for @addTitipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Tambah Titipan Orang'**
+  /// **'Tambah Titipan'**
   String get addTitipanOrang;
 
   /// No description provided for @paid.
@@ -1228,13 +1228,13 @@ abstract class L {
   /// No description provided for @totalTitipan.
   ///
   /// In id, this message translates to:
-  /// **'Total Titipan'**
+  /// **'Total Titipan Orang'**
   String get totalTitipan;
 
   /// No description provided for @totalTitipanOrang.
   ///
   /// In id, this message translates to:
-  /// **'Total Titipan Orang'**
+  /// **'Total Titipan'**
   String get totalTitipanOrang;
 
   /// No description provided for @hasPaid.
@@ -2104,7 +2104,7 @@ abstract class L {
   /// No description provided for @addTitipanTitle.
   ///
   /// In id, this message translates to:
-  /// **'Tambah Titipan'**
+  /// **'Tambah Titipan Orang'**
   String get addTitipanTitle;
 
   /// No description provided for @personName.
