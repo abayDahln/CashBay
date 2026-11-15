@@ -202,13 +202,16 @@ class _ReportScreenState extends State<ReportScreen> {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    CurrencyFormatter.formatMedium(report.total),
-                    maxLines: 1,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isIncome ? finance.income : finance.expense,
+                  child: NominalText(
+                    amount: report.total,
+                    symbolColor: Theme.of(context).colorScheme.primary,
+                    style: AppTheme.nominal(
+                      Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isIncome ? finance.income : finance.expense,
+                      ),
                     ),
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -236,8 +239,17 @@ class _ReportScreenState extends State<ReportScreen> {
               Expanded(
                 child: _MetricTile(
                   label: t.burnRate,
-                  value: CurrencyFormatter.formatMedium(report.burnRate),
-                  color: finance.expense,
+                  value: NominalText(
+                    amount: report.burnRate,
+                    short: true,
+                    symbolColor: scheme.primary,
+                    style: AppTheme.nominal(
+                      Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: finance.expense,
+                      ),
+                    ),
+                  ),
                   onTap: () => _showMetricInfo(
                     title: t.burnRate,
                     formula: t.burnRateFormula,
@@ -249,11 +261,18 @@ class _ReportScreenState extends State<ReportScreen> {
               Expanded(
                 child: _MetricTile(
                   label: t.netCashFlow,
-                  value: CurrencyFormatter.formatWithSign(
-                    net,
+                  value: NominalText(
+                    amount: net,
+                    short: true,
                     showPlus: positive,
+                    symbolColor: scheme.primary,
+                    style: AppTheme.nominal(
+                      Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: positive ? finance.income : finance.expense,
+                      ),
+                    ),
                   ),
-                  color: positive ? finance.income : finance.expense,
                   onTap: () => _showMetricInfo(
                     title: t.netCashFlow,
                     formula: t.netCashFlowFormula,
@@ -272,8 +291,16 @@ class _ReportScreenState extends State<ReportScreen> {
               Expanded(
                 child: _MetricTile(
                   label: t.savingsRate,
-                  value: '${report.savingsRate.toStringAsFixed(1)}%',
-                  color: scheme.primary,
+                  value: Text(
+                    '${report.savingsRate.toStringAsFixed(1)}%',
+                    maxLines: 1,
+                    style: AppTheme.nominal(
+                      Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.primary,
+                      ),
+                    ),
+                  ),
                   onTap: () => _showMetricInfo(
                     title: t.savingsRate,
                     formula: t.savingsRateFormula,
@@ -285,8 +312,16 @@ class _ReportScreenState extends State<ReportScreen> {
               Expanded(
                 child: _MetricTile(
                   label: t.expenseRatio,
-                  value: '${report.expenseRatio.toStringAsFixed(1)}%',
-                  color: finance.expense,
+                  value: Text(
+                    '${report.expenseRatio.toStringAsFixed(1)}%',
+                    maxLines: 1,
+                    style: AppTheme.nominal(
+                      Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: finance.expense,
+                      ),
+                    ),
+                  ),
                   onTap: () => _showMetricInfo(
                     title: t.expenseRatio,
                     formula: t.expenseRatioFormula,
@@ -595,13 +630,11 @@ class _ReportScreenState extends State<ReportScreen> {
 
 class _MetricTile extends StatelessWidget {
   final String label;
-  final String value;
-  final Color color;
+  final Widget value;
   final VoidCallback onTap;
   const _MetricTile({
     required this.label,
     required this.value,
-    required this.color,
     required this.onTap,
   });
 
@@ -627,14 +660,7 @@ class _MetricTile extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: text.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
+            child: value,
           ),
         ],
       ),

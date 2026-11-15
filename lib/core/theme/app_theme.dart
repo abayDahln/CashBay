@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'app_colors.dart';
-
 /// Material 3 theme generated from a single seed colour.
 ///
 /// Every colour role comes from [ColorScheme.fromSeed]; finance-specific
@@ -23,6 +22,22 @@ class AppTheme {
   static const double radiusMd = 12;
   static const double radiusLg = 16;
   static const double radiusXl = 28;
+
+  /// Font family used for currency figures (Plus Jakarta Sans).
+  static const String nominalFont = 'PlusJakartaSans';
+
+  /// Applies the nominal font with tabular figures so digits line up, plus an
+  /// optional [size] [letterSpacing] tightening for large hero amounts.
+  static TextStyle nominal(
+    TextStyle? base, {
+    double? letterSpacing,
+  }) {
+    return (base ?? const TextStyle()).copyWith(
+      fontFamily: nominalFont,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      letterSpacing: letterSpacing ?? (base?.letterSpacing),
+    );
+  }
 
   static ThemeData _theme(Color seedColor, Brightness brightness) {
     final scheme = ColorScheme.fromSeed(

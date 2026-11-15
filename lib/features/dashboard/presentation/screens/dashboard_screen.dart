@@ -441,6 +441,11 @@ class _BalanceHeroCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final t = L.of(context);
     final onColor = scheme.onPrimaryContainer;
+    // Nominal figures are plain black/white, not the dark primary tint.
+    final amountColor =
+        Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     return RepaintBoundary(
       child: AppCard(
         color: scheme.primaryContainer,
@@ -467,13 +472,16 @@ class _BalanceHeroCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: AnimatedBalance(
-                value: provider.totalBalance,
-                style: text.displaySmall?.copyWith(
-                  color: onColor,
-                  fontWeight: FontWeight.w600,
+              child: NominalText(
+                amount: provider.totalBalance,
+                style: AppTheme.nominal(
+                  text.displaySmall?.copyWith(
+                    color: amountColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  letterSpacing: -0.5,
                 ),
-                formatter: CurrencyFormatter.format,
+                symbolColor: scheme.primary,
                 maxLines: 1,
               ),
             ),
@@ -485,6 +493,7 @@ class _BalanceHeroCard extends StatelessWidget {
                     label: t.cash,
                     icon: Icons.payments_outlined,
                     balance: provider.cashWallet?.balance ?? 0,
+                    amountColor: amountColor,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -493,6 +502,7 @@ class _BalanceHeroCard extends StatelessWidget {
                     label: t.ewallet,
                     icon: Icons.smartphone_outlined,
                     balance: provider.ewalletWallet?.balance ?? 0,
+                    amountColor: amountColor,
                   ),
                 ),
               ],
@@ -508,10 +518,12 @@ class _WalletBreakdown extends StatelessWidget {
   final String label;
   final IconData icon;
   final double balance;
+  final Color amountColor;
   const _WalletBreakdown({
     required this.label,
     required this.icon,
     required this.balance,
+    required this.amountColor,
   });
 
   @override
@@ -539,13 +551,16 @@ class _WalletBreakdown extends StatelessWidget {
                   color: scheme.onPrimaryContainer,
                 ),
               ),
-              AnimatedBalance(
-                value: balance,
-                style: text.titleSmall?.copyWith(
-                  color: scheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
+              NominalText(
+                amount: balance,
+                short: true,
+                symbolColor: scheme.primary,
+                style: AppTheme.nominal(
+                  text.titleSmall?.copyWith(
+                    color: amountColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                formatter: CurrencyFormatter.formatMedium,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

@@ -3,6 +3,7 @@ export 'animated_list_item.dart';
 export 'app_bottom_nav.dart';
 export 'cashbay_app_bar.dart';
 export 'empty_state.dart';
+export 'nominal_text.dart';
 export 'app_card.dart';
 export 'page_transition.dart';
 export 'press_card.dart';
