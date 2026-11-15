@@ -126,8 +126,16 @@ class DashboardHomeState extends State<_DashboardHome> {
       now.month + 1,
     ).subtract(const Duration(microseconds: 1));
     final results = await Future.wait([
-      _txRepository.getTotalIncome(startDate: start, endDate: end, excludeTitipan: true),
-      _txRepository.getTotalExpense(startDate: start, endDate: end, excludeTitipan: true),
+      _txRepository.getTotalIncome(
+        startDate: start,
+        endDate: end,
+        excludeTitipan: true,
+      ),
+      _txRepository.getTotalExpense(
+        startDate: start,
+        endDate: end,
+        excludeTitipan: true,
+      ),
     ]);
     if (!mounted) return;
     setState(() {
@@ -154,16 +162,11 @@ class DashboardHomeState extends State<_DashboardHome> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
-                child: SizedBox(height: MediaQuery.paddingOf(context).top),
-              ),
+              _WelcomeHeader(topInset: MediaQuery.paddingOf(context).top),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 sliver: SliverList.list(
                   children: [
-                    const SizedBox(height: 16),
-                    _welcome(context, t, scheme, text),
-                    const SizedBox(height: 16),
                     _BalanceHeroCard(provider: walletProvider),
                     const SizedBox(height: 16),
                     _SectionHeader(
@@ -187,38 +190,6 @@ class DashboardHomeState extends State<_DashboardHome> {
           ),
         );
       },
-    );
-  }
-
-  Widget _welcome(
-    BuildContext context,
-    L t,
-    ColorScheme scheme,
-    TextTheme text,
-  ) {
-    final name = context.watch<ProfileProvider>().name;
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? t.goodMorning(name)
-        : hour < 18
-        ? t.goodAfternoon(name)
-        : t.goodEvening(name);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          greeting,
-          style: text.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: scheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          t.welcomeSubtitle,
-          style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-      ],
     );
   }
 
@@ -306,7 +277,7 @@ class DashboardHomeState extends State<_DashboardHome> {
       ])
         if (c.id != null) c.id!: c.name,
     };
-    
+
     final Widget content;
     if (recentTransactions.isEmpty && provider.isLoading) {
       content = const _TransactionSkeleton();
@@ -363,6 +334,100 @@ class DashboardHomeState extends State<_DashboardHome> {
 String? _joinCategoryNames(List<int> ids, Map<int, String> names) {
   final resolved = ids.map((id) => names[id]).whereType<String>().toList();
   return resolved.isEmpty ? null : resolved.join(', ');
+}
+
+/// Full-bleed greeting header: a wave banner on top, then the time-based
+/// greeting and subtitle on the page background.
+class _WelcomeHeader extends StatelessWidget {
+  final double topInset;
+  const _WelcomeHeader({required this.topInset});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final name = context.watch<ProfileProvider>().name;
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? t.goodMorning(name)
+        : hour < 18
+        ? t.goodAfternoon(name)
+        : t.goodEvening(name);
+
+    return SliverToBoxAdapter(
+      child: ColoredBox(
+        color: scheme.surface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: topInset + 72,
+              child: ClipRect(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Batik pattern recolored to the active theme's primary hue
+                    // (BlendMode.color keeps the swirls' light/dark shading).
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: const AssetImage('public/batik_pattern.png'),
+                          // Square pattern; cover fills the wide, short banner.
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0, 0.6),
+                          colorFilter: ColorFilter.mode(
+                            scheme.primary,
+                            BlendMode.color,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Fade the bottom into the page background.
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            scheme.surface.withValues(alpha: 0),
+                            scheme.surface,
+                          ],
+                          stops: const [0.2, 1.0],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    greeting,
+                    style: text.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    t.welcomeSubtitle,
+                    style: text.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Hero "Total Saldo" card with the Cash / E-Wallet breakdown.
@@ -515,9 +580,7 @@ class _SummaryTile extends StatelessWidget {
           const SizedBox(height: 8),
           AnimatedBalance(
             value: amount,
-            style: text.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             formatter: CurrencyFormatter.formatMedium,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
