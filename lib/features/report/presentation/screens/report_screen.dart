@@ -18,9 +18,6 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  /// Month (1-12) under the pointer, or null. Drives the hover highlight.
-  int? _hoveredMonth;
-
   /// Month (1-12) tapped, or null. Pins its tooltip open.
   int? _pinnedMonth;
 
@@ -423,35 +420,12 @@ class _ReportScreenState extends State<ReportScreen> {
                   barGroups: barGroups,
                   maxY: actualMax,
                   minY: 0,
-                  rangeAnnotations: RangeAnnotations(
-                    verticalRangeAnnotations: [
-                      if (_hoveredMonth != null)
-                        for (var i = 0; i < n; i++)
-                          if (data[i].date.month == _hoveredMonth)
-                            VerticalRangeAnnotation(
-                              x1: i - 0.5,
-                              x2: i + 0.5,
-                              color: scheme.onSurface.withValues(alpha: 0.06),
-                            ),
-                    ],
-                  ),
                   barTouchData: BarTouchData(
                     enabled: true,
                     // No hover/tap tooltip bubble; the tooltip is pinned
                     // manually via showingTooltipIndicators (tapped month).
                     handleBuiltInTouches: false,
                     touchCallback: (event, response) {
-                      if (event is FlPointerHoverEvent ||
-                          event is FlPointerExitEvent) {
-                        final spot = response?.spot;
-                        final month = spot == null
-                            ? null
-                            : data[spot.touchedBarGroupIndex].date.month;
-                        if (month != _hoveredMonth) {
-                          setState(() => _hoveredMonth = month);
-                        }
-                        return;
-                      }
                       if (event is! FlTapUpEvent) return;
                       final spot = response?.spot;
                       if (spot == null) return;
