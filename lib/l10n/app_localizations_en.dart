@@ -135,6 +135,64 @@ class LEn extends L {
   String get transactionsLabel => 'Transactions';
 
   @override
+  String get metricsTitle => 'Financial Summary';
+
+  @override
+  String get formula => 'Formula';
+
+  @override
+  String get burnRate => 'Average Expense';
+
+  @override
+  String get burnRateDesc => 'Average monthly spending';
+
+  @override
+  String get burnRateFormula => 'Total expense ÷ months with spending';
+
+  @override
+  String get burnRateExplain =>
+      'Shows how fast your money goes out each month. A smaller number means leaner spending.';
+
+  @override
+  String get netCashFlow => 'Net Cash';
+
+  @override
+  String get netCashFlowDesc => 'Income − Expense';
+
+  @override
+  String get netCashFlowFormula => 'Income − Expense';
+
+  @override
+  String get netCashFlowExplain =>
+      'Shows whether your finances are in surplus (positive) or deficit (negative) over this period.';
+
+  @override
+  String get savingsRate => 'Savings Rate';
+
+  @override
+  String get savingsRateDesc => 'Share of income saved';
+
+  @override
+  String get savingsRateFormula => '(Net Cash ÷ Income) × 100%';
+
+  @override
+  String get savingsRateExplain =>
+      'The percentage of income you managed to save. Higher is better. It is 0% when there is no income.';
+
+  @override
+  String get expenseRatio => 'Expense Ratio';
+
+  @override
+  String get expenseRatioDesc => 'Share of income spent';
+
+  @override
+  String get expenseRatioFormula => '(Expense ÷ Income) × 100%';
+
+  @override
+  String get expenseRatioExplain =>
+      'The percentage of income spent. Lower is better. It is 0% when there is no income.';
+
+  @override
   String get viewAll => 'View All';
 
   @override

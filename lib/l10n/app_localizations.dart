@@ -349,6 +349,114 @@ abstract class L {
   /// **'Transaksi'**
   String get transactionsLabel;
 
+  /// No description provided for @metricsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Ringkasan Keuangan'**
+  String get metricsTitle;
+
+  /// No description provided for @formula.
+  ///
+  /// In id, this message translates to:
+  /// **'Rumus'**
+  String get formula;
+
+  /// No description provided for @burnRate.
+  ///
+  /// In id, this message translates to:
+  /// **'Rata-rata Pengeluaran'**
+  String get burnRate;
+
+  /// No description provided for @burnRateDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Rata-rata pengeluaran per bulan'**
+  String get burnRateDesc;
+
+  /// No description provided for @burnRateFormula.
+  ///
+  /// In id, this message translates to:
+  /// **'Total pengeluaran ÷ jumlah bulan berisi pengeluaran'**
+  String get burnRateFormula;
+
+  /// No description provided for @burnRateExplain.
+  ///
+  /// In id, this message translates to:
+  /// **'Mengukur seberapa cepat uang kamu keluar setiap bulan. Angka lebih kecil berarti pengeluaran lebih hemat.'**
+  String get burnRateExplain;
+
+  /// No description provided for @netCashFlow.
+  ///
+  /// In id, this message translates to:
+  /// **'Kas Bersih'**
+  String get netCashFlow;
+
+  /// No description provided for @netCashFlowDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendapatan − Pengeluaran'**
+  String get netCashFlowDesc;
+
+  /// No description provided for @netCashFlowFormula.
+  ///
+  /// In id, this message translates to:
+  /// **'Pendapatan − Pengeluaran'**
+  String get netCashFlowFormula;
+
+  /// No description provided for @netCashFlowExplain.
+  ///
+  /// In id, this message translates to:
+  /// **'Menunjukkan apakah keuanganmu surplus (positif) atau defisit (negatif) selama periode ini.'**
+  String get netCashFlowExplain;
+
+  /// No description provided for @savingsRate.
+  ///
+  /// In id, this message translates to:
+  /// **'Rasio Tabungan'**
+  String get savingsRate;
+
+  /// No description provided for @savingsRateDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Porsi pendapatan yang disimpan'**
+  String get savingsRateDesc;
+
+  /// No description provided for @savingsRateFormula.
+  ///
+  /// In id, this message translates to:
+  /// **'(Kas Bersih ÷ Pendapatan) × 100%'**
+  String get savingsRateFormula;
+
+  /// No description provided for @savingsRateExplain.
+  ///
+  /// In id, this message translates to:
+  /// **'Persentase pendapatan yang berhasil kamu simpan. Semakin tinggi semakin baik. Bernilai 0% jika tidak ada pendapatan.'**
+  String get savingsRateExplain;
+
+  /// No description provided for @expenseRatio.
+  ///
+  /// In id, this message translates to:
+  /// **'Rasio Pengeluaran'**
+  String get expenseRatio;
+
+  /// No description provided for @expenseRatioDesc.
+  ///
+  /// In id, this message translates to:
+  /// **'Porsi pendapatan yang terpakai'**
+  String get expenseRatioDesc;
+
+  /// No description provided for @expenseRatioFormula.
+  ///
+  /// In id, this message translates to:
+  /// **'(Pengeluaran ÷ Pendapatan) × 100%'**
+  String get expenseRatioFormula;
+
+  /// No description provided for @expenseRatioExplain.
+  ///
+  /// In id, this message translates to:
+  /// **'Persentase pendapatan yang habis terpakai. Semakin rendah semakin baik. Bernilai 0% jika tidak ada pendapatan.'**
+  String get expenseRatioExplain;
+
   /// No description provided for @viewAll.
   ///
   /// In id, this message translates to:

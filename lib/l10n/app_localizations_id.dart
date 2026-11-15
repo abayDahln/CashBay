@@ -135,6 +135,65 @@ class LId extends L {
   String get transactionsLabel => 'Transaksi';
 
   @override
+  String get metricsTitle => 'Ringkasan Keuangan';
+
+  @override
+  String get formula => 'Rumus';
+
+  @override
+  String get burnRate => 'Rata-rata Pengeluaran';
+
+  @override
+  String get burnRateDesc => 'Rata-rata pengeluaran per bulan';
+
+  @override
+  String get burnRateFormula =>
+      'Total pengeluaran ÷ jumlah bulan berisi pengeluaran';
+
+  @override
+  String get burnRateExplain =>
+      'Mengukur seberapa cepat uang kamu keluar setiap bulan. Angka lebih kecil berarti pengeluaran lebih hemat.';
+
+  @override
+  String get netCashFlow => 'Kas Bersih';
+
+  @override
+  String get netCashFlowDesc => 'Pendapatan − Pengeluaran';
+
+  @override
+  String get netCashFlowFormula => 'Pendapatan − Pengeluaran';
+
+  @override
+  String get netCashFlowExplain =>
+      'Menunjukkan apakah keuanganmu surplus (positif) atau defisit (negatif) selama periode ini.';
+
+  @override
+  String get savingsRate => 'Rasio Tabungan';
+
+  @override
+  String get savingsRateDesc => 'Porsi pendapatan yang disimpan';
+
+  @override
+  String get savingsRateFormula => '(Kas Bersih ÷ Pendapatan) × 100%';
+
+  @override
+  String get savingsRateExplain =>
+      'Persentase pendapatan yang berhasil kamu simpan. Semakin tinggi semakin baik. Bernilai 0% jika tidak ada pendapatan.';
+
+  @override
+  String get expenseRatio => 'Rasio Pengeluaran';
+
+  @override
+  String get expenseRatioDesc => 'Porsi pendapatan yang terpakai';
+
+  @override
+  String get expenseRatioFormula => '(Pengeluaran ÷ Pendapatan) × 100%';
+
+  @override
+  String get expenseRatioExplain =>
+      'Persentase pendapatan yang habis terpakai. Semakin rendah semakin baik. Bernilai 0% jika tidak ada pendapatan.';
+
+  @override
   String get viewAll => 'Lihat Semua';
 
   @override

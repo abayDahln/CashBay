@@ -18,6 +18,12 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
+  /// Month (1-12) under the pointer, or null. Drives the hover highlight.
+  int? _hoveredMonth;
+
+  /// Month (1-12) tapped, or null. Pins its tooltip open.
+  int? _pinnedMonth;
+
   @override
   void initState() {
     super.initState();
@@ -95,30 +101,10 @@ class _ReportScreenState extends State<ReportScreen> {
                             subtitle: t.noDataPeriod,
                           ),
                         ),
-                      if (report.selectedMonthTransactions.isNotEmpty) ...[
+                      if (report.chartData.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        _SectionHeader(t.transactionsLabel),
-                        AppCard(
-                          variant: AppCardVariant.outlined,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Column(
-                            children: [
-                              for (
-                                var i = 0;
-                                i < report.selectedMonthTransactions.length;
-                                i++
-                              ) ...[
-                                if (i > 0)
-                                  const Divider(height: 1, indent: 72),
-                                TransactionTile(
-                                  transaction:
-                                      report.selectedMonthTransactions[i],
-                                  showChevron: false,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                        _SectionHeader(t.metricsTitle),
+                        _metrics(report),
                       ],
                     ],
                   ],
@@ -234,15 +220,137 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  /// Four year-level metrics: average expense, net cash, savings rate, and
+  /// expense ratio. Tapping a card opens a dialog with its formula.
+  Widget _metrics(ReportProvider report) {
+    final t = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final finance = FinanceColors.of(context);
+    final net = report.netCashFlow;
+    final positive = net >= 0;
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  label: t.burnRate,
+                  value: CurrencyFormatter.formatMedium(report.burnRate),
+                  color: finance.expense,
+                  onTap: () => _showMetricInfo(
+                    title: t.burnRate,
+                    formula: t.burnRateFormula,
+                    explain: t.burnRateExplain,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: t.netCashFlow,
+                  value: CurrencyFormatter.formatWithSign(
+                    net,
+                    showPlus: positive,
+                  ),
+                  color: positive ? finance.income : finance.expense,
+                  onTap: () => _showMetricInfo(
+                    title: t.netCashFlow,
+                    formula: t.netCashFlowFormula,
+                    explain: t.netCashFlowExplain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  label: t.savingsRate,
+                  value: '${report.savingsRate.toStringAsFixed(1)}%',
+                  color: scheme.primary,
+                  onTap: () => _showMetricInfo(
+                    title: t.savingsRate,
+                    formula: t.savingsRateFormula,
+                    explain: t.savingsRateExplain,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: t.expenseRatio,
+                  value: '${report.expenseRatio.toStringAsFixed(1)}%',
+                  color: finance.expense,
+                  onTap: () => _showMetricInfo(
+                    title: t.expenseRatio,
+                    formula: t.expenseRatioFormula,
+                    explain: t.expenseRatioExplain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMetricInfo({
+    required String title,
+    required String formula,
+    required String explain,
+  }) {
+    final t = L.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
+        final text = Theme.of(context).textTheme;
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.formula,
+                style: text.labelLarge?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(formula, style: text.titleSmall),
+              const SizedBox(height: 16),
+              Text(explain, style: text.bodyMedium),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(t.close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _tooltipLabel(ChartBarData d) {
-    if (d.date == null) return d.label;
     return DateFormat(
       'MMMM yyyy',
       Localizations.localeOf(context).toLanguageTag(),
-    ).format(d.date!);
+    ).format(d.date);
   }
 
   Widget _barChart(ReportProvider report) {
+    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
@@ -252,16 +360,15 @@ class _ReportScreenState extends State<ReportScreen> {
         ? finance.income
         : finance.expense;
 
-    double maxVal = 0;
-    for (final d in data) {
-      if (d.value > maxVal) maxVal = d.value;
-    }
-    // Aim for twice the tallest bar so there's headroom, then round that down
-    // to a tidy value and pick a step that lands on ~3-4 gridlines (e.g. peak
-    // 4.2m -> target 8.4m -> axis 8m, step 2m: 0/2/4/6/8m).
-    final axis = _axisPlan(maxVal);
+    // Y axis spans both series (report.maxValue) so the gridlines stay put when
+    // switching tabs. Aim for twice the tallest bar so there's headroom, then
+    // round down to a tidy value (e.g. peak 4.2m -> 8m, step 2m: 0/2/4/6/8m).
+    final axis = _axisPlan(report.maxValue);
     final step = axis.step;
     final actualMax = axis.max;
+    final shadowColor =
+        (report.series == ChartSeries.income ? finance.expense : finance.income)
+            .withValues(alpha: 0.35);
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -284,16 +391,24 @@ class _ReportScreenState extends State<ReportScreen> {
               for (var i = 0; i < n; i++)
                 BarChartGroupData(
                   x: i,
+                  // Selection is shown by the tooltip only (see below), so the
+                  // tapped month gets its indicator pinned open.
+                  showingTooltipIndicators:
+                      data[i].date.month == _pinnedMonth ? [0] : null,
                   barRods: [
                     BarChartRodData(
                       toY: data[i].value,
-                      color: report.selectedMonth == null ||
-                              data[i].date?.month == report.selectedMonth
-                          ? barColor
-                          : barColor.withValues(alpha: 0.35),
+                      color: barColor,
                       width: barWidth,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(AppTheme.radiusXs),
+                      ),
+                      // Shadow = the opposing series in the same month:
+                      // drawn behind, so only peeks out when it's taller.
+                      backDrawRodData: BackgroundBarChartRodData(
+                        show: data[i].shadowValue > 0,
+                        toY: data[i].shadowValue,
+                        color: shadowColor,
                       ),
                     ),
                   ],
@@ -308,14 +423,42 @@ class _ReportScreenState extends State<ReportScreen> {
                   barGroups: barGroups,
                   maxY: actualMax,
                   minY: 0,
+                  rangeAnnotations: RangeAnnotations(
+                    verticalRangeAnnotations: [
+                      if (_hoveredMonth != null)
+                        for (var i = 0; i < n; i++)
+                          if (data[i].date.month == _hoveredMonth)
+                            VerticalRangeAnnotation(
+                              x1: i - 0.5,
+                              x2: i + 0.5,
+                              color: scheme.onSurface.withValues(alpha: 0.06),
+                            ),
+                    ],
+                  ),
                   barTouchData: BarTouchData(
                     enabled: true,
+                    // No hover/tap tooltip bubble; the tooltip is pinned
+                    // manually via showingTooltipIndicators (tapped month).
+                    handleBuiltInTouches: false,
                     touchCallback: (event, response) {
+                      if (event is FlPointerHoverEvent ||
+                          event is FlPointerExitEvent) {
+                        final spot = response?.spot;
+                        final month = spot == null
+                            ? null
+                            : data[spot.touchedBarGroupIndex].date.month;
+                        if (month != _hoveredMonth) {
+                          setState(() => _hoveredMonth = month);
+                        }
+                        return;
+                      }
                       if (event is! FlTapUpEvent) return;
                       final spot = response?.spot;
                       if (spot == null) return;
-                      final d = data[spot.touchedBarGroupIndex].date;
-                      if (d != null) report.selectMonth(d);
+                      final month = data[spot.touchedBarGroupIndex].date.month;
+                      setState(() {
+                        _pinnedMonth = month == _pinnedMonth ? null : month;
+                      });
                     },
                     touchTooltipData: BarTouchTooltipData(
                       tooltipRoundedRadius: AppTheme.radiusSm,
@@ -328,6 +471,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       getTooltipColor: (_) => scheme.inverseSurface,
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final d = data[group.x];
+                        final showShadow = d.shadowValue > d.value;
+                        final shadowLabel = report.series == ChartSeries.income
+                            ? t.expenseLabel
+                            : t.incomeLabel;
                         return BarTooltipItem(
                           '${_tooltipLabel(d)}\n',
                           text.labelSmall!.copyWith(
@@ -341,6 +488,19 @@ class _ReportScreenState extends State<ReportScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            // Shadow only peeks out when taller than the bar,
+                            // so only then does it get its own tooltip line.
+                            if (showShadow)
+                              TextSpan(
+                                text:
+                                    '\n$shadowLabel '
+                                    '${CurrencyFormatter.formatMedium(d.shadowValue)}',
+                                style: text.labelSmall?.copyWith(
+                                  color: scheme.onInverseSurface.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
+                              ),
                           ],
                         );
                       },
@@ -363,7 +523,13 @@ class _ReportScreenState extends State<ReportScreen> {
                           }
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Text(data[i].label, style: axisStyle),
+                            child: Text(
+                              DateFormat(
+                                'MMM',
+                                Localizations.localeOf(context).toLanguageTag(),
+                              ).format(data[i].date),
+                              style: axisStyle,
+                            ),
                           );
                         },
                       ),
@@ -448,6 +614,55 @@ class _ReportScreenState extends State<ReportScreen> {
       nice = 1;
     }
     return nice * magnitude;
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final VoidCallback onTap;
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: text.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
