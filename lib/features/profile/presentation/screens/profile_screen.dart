@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
               );
             }),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -38,13 +38,13 @@ class ProfileScreen extends StatelessWidget {
                     label: t.profileBio,
                     value: profile.bio.isEmpty ? t.profileNotSet : profile.bio,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   _InfoRow(
                     icon: Icons.wc_outlined,
                     label: t.profileGender,
                     value: _genderLabel(t, profile.gender),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   _InfoRow(
                     icon: Icons.cake_outlined,
                     label: t.profileBirthDate,
@@ -52,8 +52,11 @@ class ProfileScreen extends StatelessWidget {
                         ? t.profileNotSet
                         : DateFormatter.formatDate(profile.birthDate!),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
                     onPressed: () => _showEditSheet(context, profile),
                     icon: const Icon(Icons.edit_outlined),
                     label: Text(t.editProfile),
@@ -104,6 +107,9 @@ class _Banner extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [scheme.primaryContainer, scheme.secondaryContainer],
         ),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(28),
+        ),
       ),
       child: SafeArea(
         bottom: false,
@@ -111,14 +117,17 @@ class _Banner extends StatelessWidget {
           children: [
             Align(
               alignment: Alignment.centerRight,
-              child: IconButton(
-                tooltip: t.settings,
-                onPressed: onSettings,
-                icon: const Icon(Icons.settings_outlined),
-                color: scheme.onPrimaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, right: 8),
+                child: IconButton(
+                  tooltip: t.settings,
+                  onPressed: onSettings,
+                  icon: const Icon(Icons.settings_outlined),
+                  color: scheme.onPrimaryContainer,
+                ),
               ),
             ),
-            _Avatar(profile: profile, radius: 48),
+            _Avatar(profile: profile, radius: 42),
             const SizedBox(height: 12),
             Text(
               profile.name,
@@ -175,9 +184,19 @@ class _InfoRow extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return AppCard(
       variant: AppCardVariant.outlined,
+      radius: BorderRadius.circular(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
