@@ -15,6 +15,7 @@ import '../../../transactions/presentation/screens/history_screen.dart';
 import '../../../transactions/presentation/screens/history_detail_screen.dart';
 import '../../../report/presentation/screens/report_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -153,11 +154,16 @@ class DashboardHomeState extends State<_DashboardHome> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverAppBar.medium(title: Text(t.dashboard)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: MediaQuery.paddingOf(context).top),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 sliver: SliverList.list(
                   children: [
+                    const SizedBox(height: 16),
+                    _welcome(context, t, scheme, text),
+                    const SizedBox(height: 16),
                     _BalanceHeroCard(provider: walletProvider),
                     const SizedBox(height: 16),
                     _SectionHeader(
@@ -181,6 +187,38 @@ class DashboardHomeState extends State<_DashboardHome> {
           ),
         );
       },
+    );
+  }
+
+  Widget _welcome(
+    BuildContext context,
+    L t,
+    ColorScheme scheme,
+    TextTheme text,
+  ) {
+    final name = context.watch<ProfileProvider>().name;
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? t.goodMorning(name)
+        : hour < 18
+        ? t.goodAfternoon(name)
+        : t.goodEvening(name);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          greeting,
+          style: text.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          t.welcomeSubtitle,
+          style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 

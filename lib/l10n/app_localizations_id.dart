@@ -12,6 +12,24 @@ class LId extends L {
   String get appTitle => 'CashBay';
 
   @override
+  String goodMorning(String name) {
+    return 'Selamat pagi, $name!';
+  }
+
+  @override
+  String goodAfternoon(String name) {
+    return 'Selamat siang, $name!';
+  }
+
+  @override
+  String goodEvening(String name) {
+    return 'Selamat malam, $name!';
+  }
+
+  @override
+  String get welcomeSubtitle => 'Yuk pantau keuanganmu hari ini';
+
+  @override
   String get dashboard => 'Dashboard';
 
   @override

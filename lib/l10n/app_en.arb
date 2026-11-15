@@ -2,6 +2,13 @@
   "@@locale": "en",
 
   "appTitle": "CashBay",
+  "goodMorning": "Good morning, {name}!",
+  "@goodMorning": { "placeholders": { "name": { "type": "String" } } },
+  "goodAfternoon": "Good afternoon, {name}!",
+  "@goodAfternoon": { "placeholders": { "name": { "type": "String" } } },
+  "goodEvening": "Good evening, {name}!",
+  "@goodEvening": { "placeholders": { "name": { "type": "String" } } },
+  "welcomeSubtitle": "Let's keep an eye on your finances today",
   "dashboard": "Dashboard",
   "history": "History",
   "analytics": "Analytics",

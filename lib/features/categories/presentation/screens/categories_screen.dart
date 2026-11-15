@@ -1,50 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart' show InputValidation;
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/category.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../providers/category_provider.dart';
-
-const _incomeIcons = ['salary', 'business', 'gift', 'investment', 'other'];
-const _expenseIcons = [
-  'food',
-  'transport',
-  'shopping',
-  'health',
-  'education',
-  'entertainment',
-  'other',
-];
-
-IconData _categoryIcon(String? iconName) => switch (iconName) {
-  'salary' => Icons.work_outline,
-  'business' => Icons.business_center_outlined,
-  'gift' => Icons.card_giftcard,
-  'investment' => Icons.trending_up,
-  'food' => Icons.restaurant,
-  'transport' => Icons.directions_car_outlined,
-  'shopping' => Icons.shopping_bag_outlined,
-  'health' => Icons.local_hospital_outlined,
-  'education' => Icons.school_outlined,
-  'entertainment' => Icons.movie_outlined,
-  _ => Icons.category_outlined,
-};
-
-String _iconLabel(String iconName, L t) => switch (iconName) {
-  'salary' => t.iconSalary,
-  'business' => t.iconBusiness,
-  'gift' => t.iconGift,
-  'investment' => t.iconInvestment,
-  'food' => t.iconFood,
-  'transport' => t.iconTransport,
-  'shopping' => t.iconShopping,
-  'health' => t.iconHealth,
-  'education' => t.iconEducation,
-  'entertainment' => t.iconEntertainment,
-  _ => t.iconOther,
-};
 
 String _typeLabel(String type, L t) =>
     type == 'income' ? t.pendapatanLower : t.pengeluaranLower;
@@ -138,29 +98,18 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         itemCount: categories.length,
         itemBuilder: (context, index) => AnimatedListItem(
           index: index,
-          child: _buildCategoryTile(categories[index], type),
+          child: _buildCategoryTile(categories[index]),
         ),
       ),
     );
   }
 
-  Widget _buildCategoryTile(Category category, String type) {
+  Widget _buildCategoryTile(Category category) {
     final t = L.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final finance = FinanceColors.of(context);
-    final isIncome = type == 'income';
 
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isIncome
-            ? finance.incomeContainer
-            : finance.expenseContainer,
-        foregroundColor: isIncome
-            ? finance.onIncomeContainer
-            : finance.onExpenseContainer,
-        child: Icon(_categoryIcon(category.icon)),
-      ),
       title: Text(category.name, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: category.isDefault
           ? Align(
@@ -231,17 +180,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       builder: (_) => _CategorySheet(
         category: category,
         initialType: category?.type ?? initialType,
-        onSubmit: (name, type, icon) async {
+        onSubmit: (name, type) async {
           if (!isEdit) {
-            final id = await provider.addCategory(
-              name: name,
-              type: type,
-              icon: icon,
-            );
+            final id = await provider.addCategory(name: name, type: type);
             return id != null;
           }
           final ok = await provider.updateCategory(
-            category.copyWith(name: name, type: type, icon: icon),
+            category.copyWith(name: name, type: type),
           );
           // The provider only patches the list matching the new type, so a
           // type change needs a full reload to move the row between tabs.
@@ -322,7 +267,7 @@ class _CategorySheet extends StatefulWidget {
   final String initialType;
 
   /// Persists the category; returns false when the save did not succeed.
-  final Future<bool> Function(String name, String type, String? icon) onSubmit;
+  final Future<bool> Function(String name, String type) onSubmit;
 
   const _CategorySheet({
     required this.category,
@@ -338,7 +283,6 @@ class _CategorySheetState extends State<_CategorySheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late String _selectedType;
-  String? _selectedIcon;
   bool _submitted = false;
   bool _saving = false;
 
@@ -349,7 +293,6 @@ class _CategorySheetState extends State<_CategorySheet> {
     super.initState();
     _nameController = TextEditingController(text: widget.category?.name ?? '');
     _selectedType = widget.initialType;
-    _selectedIcon = widget.category?.icon;
   }
 
   @override
@@ -394,7 +337,6 @@ class _CategorySheetState extends State<_CategorySheet> {
       final ok = await widget.onSubmit(
         _nameController.text.trim(),
         _selectedType,
-        _selectedIcon,
       );
       if (!mounted) return;
       if (ok) {
@@ -413,7 +355,6 @@ class _CategorySheetState extends State<_CategorySheet> {
   Widget build(BuildContext context) {
     final t = L.of(context);
     final textTheme = Theme.of(context).textTheme;
-    final icons = _selectedType == 'income' ? _incomeIcons : _expenseIcons;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -452,15 +393,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                 onSelectionChanged: _saving
                     ? null
                     : (selection) {
-                        setState(() {
-                          _selectedType = selection.first;
-                          final available = _selectedType == 'income'
-                              ? _incomeIcons
-                              : _expenseIcons;
-                          if (!available.contains(_selectedIcon)) {
-                            _selectedIcon = null;
-                          }
-                        });
+                        setState(() => _selectedType = selection.first);
                         // Duplicate check depends on the type.
                         if (_submitted) _formKey.currentState?.validate();
                       },
@@ -480,27 +413,6 @@ class _CategorySheetState extends State<_CategorySheet> {
                 ),
                 validator: _validateName,
                 onFieldSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: 8),
-              Text(t.iconSection, style: textTheme.titleSmall),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final iconName in icons)
-                    ChoiceChip(
-                      avatar: Icon(_categoryIcon(iconName), size: 18),
-                      label: Text(_iconLabel(iconName, t)),
-                      selected: _selectedIcon == iconName,
-                      showCheckmark: false,
-                      onSelected: _saving
-                          ? null
-                          : (selected) => setState(
-                              () => _selectedIcon = selected ? iconName : null,
-                            ),
-                    ),
-                ],
               ),
               const SizedBox(height: 24),
               Row(

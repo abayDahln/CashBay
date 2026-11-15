@@ -41,7 +41,9 @@ class _ReportScreenState extends State<ReportScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverAppBar.medium(title: Text(t.analytics)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: MediaQuery.paddingOf(context).top),
+              ),
               // Year bar + tabs span the full width (no side padding).
               SliverToBoxAdapter(
                 child: Padding(

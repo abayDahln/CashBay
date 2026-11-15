@@ -12,6 +12,24 @@ class LEn extends L {
   String get appTitle => 'CashBay';
 
   @override
+  String goodMorning(String name) {
+    return 'Good morning, $name!';
+  }
+
+  @override
+  String goodAfternoon(String name) {
+    return 'Good afternoon, $name!';
+  }
+
+  @override
+  String goodEvening(String name) {
+    return 'Good evening, $name!';
+  }
+
+  @override
+  String get welcomeSubtitle => 'Let\'s keep an eye on your finances today';
+
+  @override
   String get dashboard => 'Dashboard';
 
   @override

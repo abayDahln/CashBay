@@ -2,6 +2,13 @@
   "@@locale": "id",
 
   "appTitle": "CashBay",
+  "goodMorning": "Selamat pagi, {name}!",
+  "@goodMorning": { "placeholders": { "name": { "type": "String" } } },
+  "goodAfternoon": "Selamat siang, {name}!",
+  "@goodAfternoon": { "placeholders": { "name": { "type": "String" } } },
+  "goodEvening": "Selamat malam, {name}!",
+  "@goodEvening": { "placeholders": { "name": { "type": "String" } } },
+  "welcomeSubtitle": "Yuk pantau keuanganmu hari ini",
   "dashboard": "Dashboard",
   "history": "Riwayat",
   "analytics": "Analitik",

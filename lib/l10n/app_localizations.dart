@@ -103,6 +103,30 @@ abstract class L {
   /// **'CashBay'**
   String get appTitle;
 
+  /// No description provided for @goodMorning.
+  ///
+  /// In id, this message translates to:
+  /// **'Selamat pagi, {name}!'**
+  String goodMorning(String name);
+
+  /// No description provided for @goodAfternoon.
+  ///
+  /// In id, this message translates to:
+  /// **'Selamat siang, {name}!'**
+  String goodAfternoon(String name);
+
+  /// No description provided for @goodEvening.
+  ///
+  /// In id, this message translates to:
+  /// **'Selamat malam, {name}!'**
+  String goodEvening(String name);
+
+  /// No description provided for @welcomeSubtitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Yuk pantau keuanganmu hari ini'**
+  String get welcomeSubtitle;
+
   /// No description provided for @dashboard.
   ///
   /// In id, this message translates to:
