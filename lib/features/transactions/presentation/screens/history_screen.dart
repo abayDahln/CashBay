@@ -36,6 +36,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   final _searchController = TextEditingController();
   final _filterScrollController = ScrollController();
   String _searchQuery = '';
+  DateTime? _filterDate;
 
   @override
   void initState() {
@@ -117,6 +118,32 @@ class HistoryScreenState extends State<HistoryScreen> {
     }).toList();
   }
 
+  List<Transaction> _applyDateRange(List<Transaction> transactions) {
+    final picked = _filterDate;
+    if (picked == null) return transactions;
+    return transactions
+        .where(
+          (t) =>
+              t.date.year == picked.year &&
+              t.date.month == picked.month &&
+              t.date.day == picked.day,
+        )
+        .toList();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _filterDate ?? now,
+      firstDate: DateTime(2010),
+      lastDate: now,
+    );
+    if (picked != null) setState(() => _filterDate = picked);
+  }
+
+  void _clearDateRange() => setState(() => _filterDate = null);
+
   void _clearSearch() {
     _searchController.clear();
     setState(() => _searchQuery = '');
@@ -157,6 +184,16 @@ class HistoryScreenState extends State<HistoryScreen> {
                     onPressed: _clearSearch,
                     icon: const Icon(Icons.close),
                   ),
+                IconButton(
+                  tooltip: t.filterDate,
+                  onPressed: _filterDate != null ? _clearDateRange : _pickDate,
+                  icon: Icon(
+                    _filterDate != null
+                        ? Icons.event_busy
+                        : Icons.calendar_today_outlined,
+                  ),
+                  color: _filterDate != null ? scheme.primary : null,
+                ),
               ],
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
@@ -168,12 +205,13 @@ class HistoryScreenState extends State<HistoryScreen> {
                 if (provider.isLoading && provider.transactions.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final transactions = _applySearch(
-                  _filtered(provider.transactions),
+                final transactions = _applyDateRange(
+                  _applySearch(_filtered(provider.transactions)),
                 );
                 if (transactions.isEmpty) {
                   final noData = provider.transactions.isEmpty;
-                  final hasQuery = _searchQuery.trim().isNotEmpty;
+                  final hasQuery =
+                      _searchQuery.trim().isNotEmpty || _filterDate != null;
                   return RefreshIndicator(
                     onRefresh: _loadTransactions,
                     child: CustomScrollView(
@@ -303,6 +341,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                       child: FilterChip(
                         label: Text(_filterLabel(value, t)),
                         selected: _typeFilter == value,
+                        showCheckmark: false,
                         onSelected: (_) => setState(() => _typeFilter = value),
                       ),
                     ),

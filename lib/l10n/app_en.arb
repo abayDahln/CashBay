@@ -129,6 +129,7 @@
 
   "searchTransaction": "Search transactions...",
   "clearSearch": "Clear search",
+  "filterDate": "Filter date",
   "notFound": "Not found",
   "tryOtherKeyword": "Try another keyword",
   "noTxForFilter": "No transactions for this filter",

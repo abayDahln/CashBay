@@ -374,6 +374,9 @@ class LEn extends L {
   String get clearSearch => 'Clear search';
 
   @override
+  String get filterDate => 'Filter date';
+
+  @override
   String get notFound => 'Not found';
 
   @override

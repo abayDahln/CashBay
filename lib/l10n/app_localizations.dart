@@ -799,6 +799,12 @@ abstract class L {
   /// **'Hapus pencarian'**
   String get clearSearch;
 
+  /// No description provided for @filterDate.
+  ///
+  /// In id, this message translates to:
+  /// **'Filter tanggal'**
+  String get filterDate;
+
   /// No description provided for @notFound.
   ///
   /// In id, this message translates to:

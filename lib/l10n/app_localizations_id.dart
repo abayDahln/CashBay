@@ -376,6 +376,9 @@ class LId extends L {
   String get clearSearch => 'Hapus pencarian';
 
   @override
+  String get filterDate => 'Filter tanggal';
+
+  @override
   String get notFound => 'Tidak ditemukan';
 
   @override

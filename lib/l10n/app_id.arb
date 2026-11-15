@@ -129,6 +129,7 @@
 
   "searchTransaction": "Cari transaksi...",
   "clearSearch": "Hapus pencarian",
+  "filterDate": "Filter tanggal",
   "notFound": "Tidak ditemukan",
   "tryOtherKeyword": "Coba kata kunci lain",
   "noTxForFilter": "Tidak ada transaksi untuk filter ini",
