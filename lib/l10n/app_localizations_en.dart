@@ -132,6 +132,12 @@ class LEn extends L {
   String get titipanOrang => 'My Deposit';
 
   @override
+  String get titipanOut => 'Deposit Out';
+
+  @override
+  String get titipanIn => 'Deposit In';
+
+  @override
   String get totalBalance => 'Total Balance';
 
   @override

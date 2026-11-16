@@ -839,22 +839,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildDatePicker() {
     return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: _selectedDate,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-        );
-        if (picked != null && mounted) {
-          setState(() {
-            _selectedDate = picked;
-            if (_isTagihan && _duePreset != DueDatePreset.custom) {
-              _dueDate = _calculateDueDate(picked, _duePreset);
-            }
-          });
-        }
-      },
+      onTap: _pickDateTime,
       borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
         decoration: InputDecoration(
@@ -863,11 +848,41 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
         child: Text(
-          DateFormatter.formatDate(_selectedDate),
+          DateFormatter.formatDateTime(_selectedDate),
           style: Theme.of(context).textTheme.bodyLarge,
         ),
       ),
     );
+  }
+
+  /// Picks the date, then the time, defaulting to now.
+  Future<void> _pickDateTime() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+    );
+    if (!mounted) return;
+    setState(() {
+      _selectedDate = time == null
+          ? DateTime(picked.year, picked.month, picked.day)
+          : DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              time.hour,
+              time.minute,
+            );
+      if (_isTagihan && _duePreset != DueDatePreset.custom) {
+        _dueDate = _calculateDueDate(_selectedDate, _duePreset);
+      }
+    });
   }
 
   Widget _buildNoteField() {

@@ -13,6 +13,8 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
   final Color transfer;
   final Color transferContainer;
   final Color onTransferContainer;
+  /// Titipan (deposit) accent — amber, distinct from income/expense.
+  final Color titipan;
 
   const FinanceColors({
     required this.income,
@@ -24,6 +26,7 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
     required this.transfer,
     required this.transferContainer,
     required this.onTransferContainer,
+    required this.titipan,
   });
 
   static const light = FinanceColors(
@@ -36,6 +39,7 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
     transfer: Color(0xFF00629E),
     transferContainer: Color(0xFFCFE5FF),
     onTransferContainer: Color(0xFF001D34),
+    titipan: Color(0xFFB26A00),
   );
 
   static const dark = FinanceColors(
@@ -48,6 +52,7 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
     transfer: Color(0xFF99CBFF),
     transferContainer: Color(0xFF004A78),
     onTransferContainer: Color(0xFFCFE5FF),
+    titipan: Color(0xFFFFB95C),
   );
 
   static FinanceColors forBrightness(Brightness b) =>
@@ -86,6 +91,7 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
           Color.lerp(transferContainer, other.transferContainer, t)!,
       onTransferContainer:
           Color.lerp(onTransferContainer, other.onTransferContainer, t)!,
+      titipan: Color.lerp(titipan, other.titipan, t)!,
     );
   }
 }

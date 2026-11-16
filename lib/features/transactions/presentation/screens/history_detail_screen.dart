@@ -4,14 +4,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart'
-    show InputValidation, RupiahInputFormatter;
+    show DateFormatter, InputValidation, RupiahInputFormatter;
 import '../../../../core/widgets/widgets.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/models/transaction.dart';
 import '../providers/transaction_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../debts/data/models/debt.dart';
+import '../../../debts/data/repositories/debt_repository.dart';
+import '../../../debts/presentation/providers/debt_provider.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final Transaction transaction;
@@ -25,10 +29,20 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   late Transaction _transaction;
   bool _isDeleting = false;
 
+  /// Titipan linked to this transaction, for the person name and due date.
+  Debt? _debt;
+
   @override
   void initState() {
     super.initState();
     _transaction = widget.transaction;
+    _loadDebt();
+  }
+
+  Future<void> _loadDebt() async {
+    if (!_transaction.isTagihanRelated || _transaction.id == null) return;
+    final debt = await DebtRepository().getDebtByOpenTxnId(_transaction.id!);
+    if (mounted && debt != null) setState(() => _debt = debt);
   }
 
   bool get _isTransfer => _transaction.type == 'transfer';
@@ -81,13 +95,16 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return t.detailExpense;
   }
 
-  /// Plain type name used when a transaction has no description.
-  String _typeLabelFallback(L t) {
-    if (_transaction.isTagihan ||
-        _transaction.isPembayaranTagihan ||
-        _transaction.isPenerimaanTagihan) {
-      return t.titipan;
+  /// The hero shows the plain transaction type; the description (source of
+  /// income, expense name, deposit person) lives in the info card instead.
+  String _heroTitle(L t) {
+    if (_transaction.isTagihan) {
+      return _transaction.description?.startsWith('Titip masuk') == true
+          ? t.titipanIn
+          : t.titipanOut;
     }
+    if (_transaction.isPembayaranTagihan) return t.detailPengembalian;
+    if (_transaction.isPenerimaanTagihan) return t.detailPenerimaan;
     if (_isTransfer) return t.transfer;
     if (_isIncome) return t.incomeLabel;
     return t.expenseLabel;
@@ -141,29 +158,43 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   Widget _buildHero() {
     final t = L.of(context);
-    final title = _transaction.description?.trim() ?? '';
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
-    final (container, onContainer) = switch (_colorType) {
-      'income' => (finance.incomeContainer, finance.onIncomeContainer),
-      'transfer' => (finance.transferContainer, finance.onTransferContainer),
-      _ => (finance.expenseContainer, finance.onExpenseContainer),
-    };
+    // Matches the list tiles: titipan amber, its return legs green, else the
+    // finance role of the amount.
+    final iconColor =
+        _transaction.isPembayaranTagihan ||
+            _transaction.isPenerimaanTagihan
+        ? finance.income
+        : _transaction.isTagihan
+        ? finance.titipan
+        : finance.forType(_colorType);
+    // Titipan and its return legs all read in the titipan accent.
+    final amountColor = _transaction.isTagihanRelated
+        ? finance.titipan
+        : finance.forType(_colorType);
     return AppCard(
       variant: AppCardVariant.outlined,
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: container,
-            foregroundColor: onContainer,
-            child: Icon(_typeIcon, size: 28),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconColor.withValues(alpha: 0.06),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(_typeIcon, size: 28, color: iconColor),
           ),
           const SizedBox(height: 16),
           Text(
-            title.isNotEmpty ? title : _typeLabelFallback(t),
+            _heroTitle(t),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -177,9 +208,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               showPlus:
                   !_isTransfer &&
                   (_isIncome || _transaction.isPenerimaanTagihan),
-              symbolColor: finance.forType(_colorType),
+              symbolColor: amountColor,
               style: text.headlineMedium?.copyWith(
-                color: finance.forType(_colorType),
+                color: amountColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -226,18 +257,33 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final tagNames = _tagNames();
     final note = _transaction.note?.trim() ?? '';
     final isEwallet = _transaction.paymentMethod == 'ewallet';
+    final description = _transaction.description?.trim() ?? '';
 
     final rows = <Widget>[
+      // Titipan legs show the person and due date from the linked Debt; plain
+      // income/expense show the description under its own label.
+      if (isMainTagihan && _debt != null) ...[
+        _detailRow(
+          Icons.person_outline,
+          t.personName,
+          Text(_debt!.personName, style: _valueStyle),
+        ),
+        if (_debt!.dueDate != null)
+          _detailRow(
+            Icons.event_outlined,
+            t.dueDateLabel,
+            Text(_formatDate(_debt!.dueDate!), style: _valueStyle),
+          ),
+      ] else if (!isMainTagihan && !_transaction.isTagihanRelated && description.isNotEmpty)
+        _detailRow(
+          _isIncome ? Icons.savings_outlined : Icons.notes_outlined,
+          _isIncome ? t.descriptionIncome : t.description,
+          Text(description, style: _valueStyle),
+        ),
       _detailRow(
         Icons.calendar_today_outlined,
         t.date,
-        Text(
-          DateFormat(
-            'dd MMM yyyy HH:mm',
-            Localizations.localeOf(context).toLanguageTag(),
-          ).format(_transaction.date),
-          style: _valueStyle,
-        ),
+        Text(_formatDate(_transaction.date), style: _valueStyle),
       ),
       _detailRow(
         Icons.credit_card_outlined,
@@ -261,12 +307,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           t.wallet,
           Text(sourceWallet, style: _valueStyle),
         ),
-      // The description is already the hero title, so it is never repeated as a
-      // row. Only the note (and, for titipan, the receiver name) adds anything.
       if (note.isNotEmpty)
         _detailRow(
-          isMainTagihan ? Icons.person_outline : Icons.sticky_note_2_outlined,
-          isMainTagihan ? t.personName : t.note,
+          isMainTagihan ? Icons.notes_outlined : Icons.sticky_note_2_outlined,
+          isMainTagihan ? t.titipanName : t.note,
           Text(note, style: _valueStyle),
         ),
       if (tagNames.isNotEmpty)
@@ -299,6 +343,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return text.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface);
   }
 
+  /// "16 Nov 2026 22:24" in the active locale.
+  String _formatDate(DateTime date) => DateFormat(
+    'dd MMM yyyy HH:mm',
+    Localizations.localeOf(context).toLanguageTag(),
+  ).format(date);
+
   /// Mini chips so a tag reads as an attribute, not body text.
   Widget _tagChips(List<String> names) => Padding(
     padding: const EdgeInsets.only(top: 4),
@@ -330,8 +380,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+            padding: const EdgeInsets.only(top: 6),
+            child: Icon(icon, size: 24, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -447,7 +497,11 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _noteController;
   late final TextEditingController _amountController;
+  late final TextEditingController _personNameController;
   int? _walletId;
+  late DateTime _date;
+  DateTime? _dueDate;
+  Debt? _debt;
   String? _newAttachmentPath;
   bool _isSaving = false;
   bool _submitted = false;
@@ -455,8 +509,11 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
 
   Transaction get _transaction => widget.transaction;
 
-  /// Titipan legs are edited from the titipan detail screen, not here.
+  /// Titipan amount/wallet are edited from the titipan detail screen, but the
+  /// person, due date and date are editable here.
   bool get _canEditAmount => !_transaction.isTagihanRelated;
+
+  bool get _isTitipan => _transaction.isTagihan;
 
   @override
   void initState() {
@@ -468,8 +525,22 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
     _amountController = TextEditingController(
       text: RupiahInputFormatter.formatValue(_transaction.amount),
     );
+    _personNameController = TextEditingController();
     _walletId = _transaction.walletId;
+    _date = _transaction.date;
     _selectedCategoryIds = {..._transaction.categoryIds};
+    _loadDebt();
+  }
+
+  Future<void> _loadDebt() async {
+    if (!_transaction.isTagihanRelated || _transaction.id == null) return;
+    final debt = await DebtRepository().getDebtByOpenTxnId(_transaction.id!);
+    if (!mounted || debt == null) return;
+    setState(() {
+      _debt = debt;
+      _personNameController.text = debt.personName;
+      _dueDate = debt.dueDate;
+    });
   }
 
   @override
@@ -477,6 +548,7 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
     _descriptionController.dispose();
     _noteController.dispose();
     _amountController.dispose();
+    _personNameController.dispose();
     super.dispose();
   }
 
@@ -618,10 +690,12 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
         newAmount != _transaction.amount;
     final walletChanged = _canEditAmount && _walletId != _transaction.walletId;
     final tagsChanged = !_sameIds(_selectedCategoryIds, _transaction.categoryIds);
+    final dateChanged = !_date.isAtSameMomentAs(_transaction.date);
     final metaChanged =
         (description != null && description != _transaction.description) ||
         (note != null && note != _transaction.note) ||
-        _newAttachmentPath != null;
+        _newAttachmentPath != null ||
+        dateChanged;
     final provider = context.read<TransactionProvider>();
     setState(() => _isSaving = true);
 
@@ -629,15 +703,16 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
     bool success;
     if (amountChanged || walletChanged || tagsChanged) {
       // Full-row update: a moved amount/wallet also carries description, note,
-      // photo and tags (updateTransaction replaces the tag rows). A tags-only
-      // edit must leave amount/wallet untouched, so only forward them when they
-      // are editable for this transaction.
+      // photo, date and tags (updateTransaction replaces the tag rows). A
+      // tags-only edit must leave amount/wallet untouched, so only forward them
+      // when they are editable for this transaction.
       updated = _transaction.copyWith(
         amount: _canEditAmount ? newAmount : _transaction.amount,
         walletId: _canEditAmount ? _walletId : _transaction.walletId,
         description: description,
         note: note,
         attachmentPath: _newAttachmentPath,
+        date: _date,
         categoryIds: _selectedCategoryIds.toList(),
       );
       success = await provider.updateTransaction(updated);
@@ -646,12 +721,14 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
         description: description,
         note: note,
         attachmentPath: _newAttachmentPath,
+        date: _date,
       );
       success = await provider.updateTransactionMetadata(
         _transaction.id!,
         description: description,
         note: note,
         attachmentPath: _newAttachmentPath,
+        date: _date,
       );
     } else {
       Navigator.pop(context);
@@ -659,6 +736,10 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
     }
 
     if (!mounted) return;
+    if (success && _debt != null) {
+      await _saveDebt();
+      if (!mounted) return;
+    }
     if (success) {
       // Keep the dashboard totals in sync with the new amount/wallet.
       await context.read<WalletProvider>().refreshBalances();
@@ -669,6 +750,91 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
       setState(() => _isSaving = false);
       ToastWidget.error(context, L.of(context).saveFailed);
     }
+  }
+
+  Future<void> _saveDebt() async {
+    final name = _personNameController.text.trim();
+    if (name.isEmpty && _dueDate == null) return;
+    final debt = _debt!;
+    final provider = context.read<DebtProvider>();
+    await provider.updateDebt(
+      debt.copyWith(
+        personName: name.isEmpty ? debt.personName : name,
+        dueDate: _dueDate,
+      ),
+    );
+  }
+
+  Widget _buildDateField() {
+    final t = L.of(context);
+    return InkWell(
+      onTap: _pickDate,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: t.transactionDate,
+          prefixIcon: const Icon(Icons.calendar_today_outlined),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          DateFormatter.formatDateTime(_date),
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDueDateField() {
+    final t = L.of(context);
+    return InkWell(
+      onTap: _pickDueDate,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: t.dueDateLabel,
+          prefixIcon: const Icon(Icons.event_outlined),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          _dueDate == null ? '-' : DateFormatter.formatDate(_dueDate!),
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_date),
+    );
+    if (!mounted) return;
+    setState(() {
+      _date = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        time?.hour ?? _date.hour,
+        time?.minute ?? _date.minute,
+      );
+    });
+  }
+
+  Future<void> _pickDueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (picked != null && mounted) setState(() => _dueDate = picked);
   }
 
   Widget _buildInsetGroup(String label, List<Widget> children) {
@@ -760,22 +926,46 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLength: InputValidation.maxDescription,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: t.description,
-                    prefixIcon: const Icon(Icons.edit_note),
+                // Titipan descriptions are generated; the person is the field
+                // worth editing.
+                if (_isTitipan) ...[
+                  TextFormField(
+                    controller: _personNameController,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: t.personName,
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
                   ),
-                  validator: (v) => InputValidation.maxLength(
-                    v,
-                    t.description,
-                    InputValidation.maxDescription,
-                    l10n: t,
+                  const SizedBox(height: 16),
+                ] else
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLength: InputValidation.maxDescription,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: _transaction.type == 'income'
+                        ? t.descriptionIncome
+                        : t.description,
+                      prefixIcon: const Icon(Icons.edit_note),
+                    ),
+                    validator: (v) => InputValidation.maxLength(
+                      v,
+                      t.description,
+                      InputValidation.maxDescription,
+                      l10n: t,
+                    ),
                   ),
-                ),
+              ]),
+              const SizedBox(height: 24),
+              _buildInsetGroup(t.fundAndTime, [
+                _buildDateField(),
+                if (_isTitipan && _debt != null) ...[
+                  const SizedBox(height: 16),
+                  _buildDueDateField(),
+                ],
               ]),
               const SizedBox(height: 24),
               _buildInsetGroup(t.notesAndAttachment, [

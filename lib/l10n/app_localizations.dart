@@ -331,6 +331,18 @@ abstract class L {
   /// **'Titipan Saya'**
   String get titipanOrang;
 
+  /// No description provided for @titipanOut.
+  ///
+  /// In id, this message translates to:
+  /// **'Titipan Keluar'**
+  String get titipanOut;
+
+  /// No description provided for @titipanIn.
+  ///
+  /// In id, this message translates to:
+  /// **'Titipan Masuk'**
+  String get titipanIn;
+
   /// No description provided for @totalBalance.
   ///
   /// In id, this message translates to:

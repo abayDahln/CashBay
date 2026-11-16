@@ -253,9 +253,14 @@ class DateFormatter {
   static final DateFormat _dateTimeFormat = DateFormat('dd MMM yyyy HH:mm', 'id_ID');
   static final DateFormat _monthYearFormat = DateFormat('MMMM yyyy', 'id_ID');
   static final DateFormat _shortDateFormat = DateFormat('dd/MM/yyyy');
+  static final DateFormat _timeFormat = DateFormat('HH:mm');
 
   static String formatDate(DateTime date) {
     return _dateFormat.format(date);
+  }
+
+  static String formatTime(DateTime date) {
+    return _timeFormat.format(date);
   }
 
   static String formatDateTime(DateTime date) {

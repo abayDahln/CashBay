@@ -141,6 +141,7 @@ class TransactionProvider extends ChangeNotifier {
     String? description,
     String? note,
     String? attachmentPath,
+    DateTime? date,
   }) async {
     _isLoading = true;
     _error = null;
@@ -150,6 +151,7 @@ class TransactionProvider extends ChangeNotifier {
         description: description,
         note: note,
         attachmentPath: attachmentPath,
+        date: date,
       );
       if (result > 0) {
         final index = _transactions.indexWhere((t) => t.id == id);
@@ -158,6 +160,7 @@ class TransactionProvider extends ChangeNotifier {
             description: description,
             note: note,
             attachmentPath: attachmentPath,
+            date: date,
           );
         }
         return true;

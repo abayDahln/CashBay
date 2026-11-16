@@ -154,12 +154,14 @@ class TransactionRepository {
     String? description,
     String? note,
     String? attachmentPath,
+    DateTime? date,
   }) async {
     final db = await _db.database;
     final values = <String, dynamic>{};
     if (description != null) values['description'] = description;
     if (note != null) values['note'] = note;
     if (attachmentPath != null) values['attachment_path'] = attachmentPath;
+    if (date != null) values['date'] = date.toIso8601String();
     if (values.isEmpty) return 0;
     return await db.update(
       'transactions',

@@ -40,6 +40,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   String _typeFilter = 'all';
   final _searchController = TextEditingController();
   final _filterScrollController = ScrollController();
+  bool _showRightFade = false;
   String _searchQuery = '';
   DateTime? _filterDate;
 
@@ -324,8 +325,15 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _tile(Transaction transaction) {
+    final t = L.of(context);
+    // The group header already carries the date, so the row shows the time and
+    // how it was paid instead.
+    final method = transaction.paymentMethod == 'ewallet' ? t.ewallet : t.cash;
+    final subtitle =
+        '${DateFormatter.formatTime(transaction.date)} • $method';
     return TransactionTile(
       transaction: transaction,
+      subtitleOverride: subtitle,
       onTap: () => Navigator.push(
         context,
         fadeSlideRoute(HistoryDetailScreen(transaction: transaction)),
@@ -344,27 +352,46 @@ class HistoryScreenState extends State<HistoryScreen> {
             ? _filterScrollController.position
             : null;
         final showLeft = position != null && position.pixels > 0;
-        final showRight =
-            position != null && position.pixels < position.maxScrollExtent;
+        final showRight = position != null
+            ? position.pixels < position.maxScrollExtent
+            : _showRightFade;
         return Stack(
           children: [
-            SingleChildScrollView(
-              controller: _filterScrollController,
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-              child: Row(
-                children: [
-                  for (final value in _filterValues)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(_filterLabel(value, t)),
-                        selected: _typeFilter == value,
-                        showCheckmark: false,
-                        onSelected: (_) => setState(() => _typeFilter = value),
+            NotificationListener<ScrollMetricsNotification>(
+              // Fires when the content size is first measured, so the right
+              // fade appears without requiring a scroll first.
+              onNotification: (_) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  final p = _filterScrollController.hasClients
+                      ? _filterScrollController.position
+                      : null;
+                  final showRight =
+                      p != null && p.pixels < p.maxScrollExtent;
+                  if (showRight != _showRightFade) {
+                    setState(() => _showRightFade = showRight);
+                  }
+                });
+                return false;
+              },
+              child: SingleChildScrollView(
+                controller: _filterScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                child: Row(
+                  children: [
+                    for (final value in _filterValues)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(_filterLabel(value, t)),
+                          selected: _typeFilter == value,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => _typeFilter = value),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
             _edgeFade(scheme.surface, Alignment.centerLeft, showLeft),

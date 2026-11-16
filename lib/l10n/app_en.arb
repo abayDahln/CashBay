@@ -46,6 +46,8 @@
   "titipan": "Deposit",
   "titipanSaya": "Others' Deposit",
   "titipanOrang": "My Deposit",
+  "titipanOut": "Deposit Out",
+  "titipanIn": "Deposit In",
 
   "totalBalance": "Total Balance",
   "thisMonth": "This Month",

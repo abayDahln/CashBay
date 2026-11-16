@@ -60,6 +60,18 @@ class DebtRepository {
     return Debt.fromMap(maps.first);
   }
 
+  /// The titipan whose opening leg is the given transaction, if any.
+  Future<Debt?> getDebtByOpenTxnId(int txnId) async {
+    final db = await _db.database;
+    final maps = await db.query(
+      'debts',
+      where: 'open_txn_id = ?',
+      whereArgs: [txnId],
+    );
+    if (maps.isEmpty) return null;
+    return Debt.fromMap(maps.first);
+  }
+
   Future<int> insertDebt(Debt debt) async {
     final db = await _db.database;
     return await db.insert('debts', debt.toMap());

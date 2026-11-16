@@ -132,6 +132,12 @@ class LId extends L {
   String get titipanOrang => 'Titipan Saya';
 
   @override
+  String get titipanOut => 'Titipan Keluar';
+
+  @override
+  String get titipanIn => 'Titipan Masuk';
+
+  @override
   String get totalBalance => 'Total Saldo';
 
   @override

@@ -12,11 +12,16 @@ class TransactionTile extends StatelessWidget {
   final VoidCallback? onTap;
   final bool showChevron;
 
+  /// Overrides the default subtitle (the transaction date). History passes the
+  /// time and payment method, since the group header already shows the date.
+  final String? subtitleOverride;
+
   const TransactionTile({
     super.key,
     required this.transaction,
     this.onTap,
     this.showChevron = true,
+    this.subtitleOverride,
   });
 
   @override
@@ -49,26 +54,42 @@ class TransactionTile extends StatelessWidget {
                 : (note.isNotEmpty ? note : t.expenseLabel),
           );
     final dateText = DateFormatter.formatDate(transaction.date);
-    final subtitle = isTagihan && note.isNotEmpty
-        ? '$note • $dateText'
-        : dateText;
+    final subtitle =
+        subtitleOverride ??
+        (isTagihan && note.isNotEmpty ? '$note • $dateText' : dateText);
 
     final finance = FinanceColors.of(context);
     final text = Theme.of(context).textTheme;
-    final nominalColor = isTransfer
+    final nominalColor = transaction.isTagihanRelated
+        ? finance.titipan
+        : isTransfer
         ? finance.transfer
         : isIncome
         ? finance.income
         : finance.expense;
+    // Icon accent per case: titipan amber, its return legs green.
+    final iconColor = transaction.isPembayaranTagihan ||
+            transaction.isPenerimaanTagihan
+        ? finance.income
+        : transaction.isTagihan
+        ? finance.titipan
+        : nominalColor;
 
     return ListTile(
       onTap: onTap,
       minTileHeight: 72,
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
-        child: Icon(icon, size: 20),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: iconColor.withValues(alpha: 0.06),
+          border: Border.all(
+            color: iconColor.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(icon, size: 20, color: iconColor),
       ),
       title: Text(
         label,
