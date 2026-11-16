@@ -43,6 +43,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               setState(() => _selectedIndex = 1);
               _historyKey.currentState?.reload();
             },
+            onSelectType: (type) {
+              setState(() => _selectedIndex = 1);
+              _historyKey.currentState?.setTypeFilter(type);
+            },
           ),
           HistoryScreen(key: _historyKey),
           const ReportScreen(),
@@ -94,7 +98,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class _DashboardHome extends StatefulWidget {
   final VoidCallback? onLihatSemua;
-  const _DashboardHome({super.key, this.onLihatSemua});
+  final ValueChanged<String>? onSelectType;
+  const _DashboardHome({super.key, this.onLihatSemua, this.onSelectType});
 
   @override
   State<_DashboardHome> createState() => DashboardHomeState();
@@ -212,6 +217,8 @@ class DashboardHomeState extends State<_DashboardHome> {
           child: _SummaryTile(
             label: L.of(context).incomeLabel,
             amount: _monthIncome,
+            icon: Icons.trending_up,
+            onTap: () => widget.onSelectType?.call('income'),
           ),
         ),
         const SizedBox(width: 8),
@@ -219,6 +226,8 @@ class DashboardHomeState extends State<_DashboardHome> {
           child: _SummaryTile(
             label: L.of(context).expenseLabel,
             amount: _monthExpense,
+            icon: Icons.trending_down,
+            onTap: () => widget.onSelectType?.call('expense'),
           ),
         ),
       ],
@@ -246,9 +255,6 @@ class DashboardHomeState extends State<_DashboardHome> {
               child: _TagihanCard(
                 title: t.titipanSaya,
                 amount: provider.totalActiveDebt,
-                icon: Icons.north,
-                container: scheme.primaryContainer,
-                onContainer: scheme.onPrimaryContainer,
                 onTap: () => Navigator.push(
                   context,
                   fadeSlideRoute(const DebtsScreen(initialTab: 0)),
@@ -260,9 +266,6 @@ class DashboardHomeState extends State<_DashboardHome> {
               child: _TagihanCard(
                 title: t.titipanOrang,
                 amount: provider.totalActiveReceivable,
-                icon: Icons.south,
-                container: scheme.primaryContainer,
-                onContainer: scheme.onPrimaryContainer,
                 onTap: () => Navigator.push(
                   context,
                   fadeSlideRoute(const DebtsScreen(initialTab: 1)),
@@ -348,6 +351,39 @@ String? _joinCategoryNames(List<int> ids, Map<int, String> names) {
   return resolved.isEmpty ? null : resolved.join(', ');
 }
 
+/// Recolors the batik by its luminance while preserving the PNG's alpha.
+ColorFilter _batikTintFilter(Color tint) {
+  const redWeight = 0.2126;
+  const greenWeight = 0.7152;
+  const blueWeight = 0.0722;
+  final r = tint.r;
+  final g = tint.g;
+  final b = tint.b;
+
+  return ColorFilter.matrix([
+    r * redWeight,
+    r * greenWeight,
+    r * blueWeight,
+    0,
+    0,
+    g * redWeight,
+    g * greenWeight,
+    g * blueWeight,
+    0,
+    0,
+    b * redWeight,
+    b * greenWeight,
+    b * blueWeight,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ]);
+}
+
 /// Full-bleed greeting header: a wave banner on top, then the time-based
 /// greeting and subtitle on the page background.
 class _WelcomeHeader extends StatelessWidget {
@@ -384,35 +420,18 @@ class _WelcomeHeader extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Batik pattern recolored to the active theme's primary hue
-                // (BlendMode.color keeps the swirls' light/dark shading).
-                ShaderMask(
-                  // Fade the image all the way to transparent so its clipped
-                  // lower edge cannot leave a line against the page surface.
-                  blendMode: BlendMode.dstIn,
-                  shaderCallback: (bounds) => LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white,
-                        Colors.white.withValues(alpha: 0.85),
-                        Colors.white.withValues(alpha: 0.45),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.42, 0.76, 1.0],
-                    ).createShader(bounds),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: const AssetImage('public/batik_pattern.png'),
-                        // Square pattern; cover fills the wide, short banner.
-                        fit: BoxFit.cover,
-                        alignment: const Alignment(0, 0.6),
-                        colorFilter: ColorFilter.mode(
-                          scheme.primary,
-                          BlendMode.color,
-                        ),
+                // The asset's alpha fades its lower edge into the surface.
+                // BlendMode.color preserves the pattern shading while tinting
+                // it to the active theme.
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: const AssetImage(
+                        'public/batik_pattern_transparent.png',
                       ),
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0, 0.6),
+                      colorFilter: _batikTintFilter(scheme.primary),
                     ),
                   ),
                 ),
@@ -593,7 +612,14 @@ class _WalletBreakdown extends StatelessWidget {
 class _SummaryTile extends StatelessWidget {
   final String label;
   final double amount;
-  const _SummaryTile({required this.label, required this.amount});
+  final IconData icon;
+  final VoidCallback? onTap;
+  const _SummaryTile({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -601,14 +627,25 @@ class _SummaryTile extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return AppCard(
       variant: AppCardVariant.outlined,
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: scheme.primary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           AnimatedBalance(
@@ -627,16 +664,10 @@ class _SummaryTile extends StatelessWidget {
 class _TagihanCard extends StatelessWidget {
   final String title;
   final double amount;
-  final IconData icon;
-  final Color container;
-  final Color onContainer;
   final VoidCallback onTap;
   const _TagihanCard({
     required this.title,
     required this.amount,
-    required this.icon,
-    required this.container,
-    required this.onContainer,
     required this.onTap,
   });
 
@@ -652,13 +683,18 @@ class _TagihanCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: container,
-                foregroundColor: onContainer,
-                child: Icon(icon, size: 18),
+              Icon(Icons.receipt_long, size: 16, color: scheme.primary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
-              const Spacer(),
               Icon(
                 Icons.chevron_right,
                 size: 20,
@@ -666,14 +702,7 @@ class _TagihanCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           AnimatedBalance(
             value: amount,
             style: text.titleMedium?.copyWith(

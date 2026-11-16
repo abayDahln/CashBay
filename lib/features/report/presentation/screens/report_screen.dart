@@ -204,7 +204,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   alignment: Alignment.centerLeft,
                   child: NominalText(
                     amount: report.total,
-                    symbolColor: Theme.of(context).colorScheme.primary,
+                    symbolColor: Theme.of(context).colorScheme.onSurface,
                     style: AppTheme.nominal(
                       Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
@@ -227,7 +227,6 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _metrics(ReportProvider report) {
     final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final finance = FinanceColors.of(context);
     final net = report.netCashFlow;
     final positive = net >= 0;
     return Column(
@@ -242,11 +241,11 @@ class _ReportScreenState extends State<ReportScreen> {
                   value: NominalText(
                     amount: report.burnRate,
                     short: true,
-                    symbolColor: scheme.primary,
+                    symbolColor: scheme.onSurface,
                     style: AppTheme.nominal(
                       Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: finance.expense,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ),
@@ -265,11 +264,11 @@ class _ReportScreenState extends State<ReportScreen> {
                     amount: net,
                     short: true,
                     showPlus: positive,
-                    symbolColor: scheme.primary,
+                    symbolColor: scheme.onSurface,
                     style: AppTheme.nominal(
                       Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: positive ? finance.income : finance.expense,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ),
@@ -297,7 +296,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     style: AppTheme.nominal(
                       Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: scheme.primary,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ),
@@ -318,7 +317,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     style: AppTheme.nominal(
                       Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: finance.expense,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ),

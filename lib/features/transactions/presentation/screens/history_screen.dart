@@ -59,6 +59,13 @@ class HistoryScreenState extends State<HistoryScreen> {
   /// it never shows a list truncated by the dashboard's limited load.
   Future<void> reload() => _loadTransactions();
 
+  /// Applies a type filter (e.g. from the dashboard's income/expense cards) and
+  /// reloads the full list.
+  Future<void> setTypeFilter(String type) async {
+    setState(() => _typeFilter = type);
+    await _loadTransactions();
+  }
+
   List<Transaction> _filtered(List<Transaction> transactions) {
     if (_typeFilter == 'all') return transactions;
     if (_typeFilter == 'tagihan') {

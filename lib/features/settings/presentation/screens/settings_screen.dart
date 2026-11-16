@@ -20,7 +20,7 @@ import '../../../transactions/presentation/providers/transaction_provider.dart';
 const _seedSwatches = <({Color color, String label})>[
   (color: Color(0xFF2196F3), label: 'Biru'),
   (color: Color(0xFF2E7D32), label: 'Hijau'),
-  (color: Color(0xFFD32F2F), label: 'Merah'),
+  (color: Color(0xFFD81B60), label: 'Pink'),
   (color: Color(0xFF6750A4), label: 'Ungu'),
   (color: Color(0xFFEF6C00), label: 'Oranye'),
   (color: Color(0xFF00897B), label: 'Teal'),
@@ -459,7 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static String _seedSwatchLabel(L t, String raw) => switch (raw) {
     'Biru' => t.colorBlue,
     'Hijau' => t.colorGreen,
-    'Merah' => t.colorRed,
+    'Pink' => t.colorRed,
     'Ungu' => t.colorPurple,
     'Oranye' => t.colorOrange,
     'Teal' => t.colorTeal,

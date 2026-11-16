@@ -975,7 +975,7 @@ class LId extends L {
   String get colorGreen => 'Hijau';
 
   @override
-  String get colorRed => 'Merah';
+  String get colorRed => 'Pink';
 
   @override
   String get colorPurple => 'Ungu';

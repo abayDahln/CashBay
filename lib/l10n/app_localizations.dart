@@ -1918,7 +1918,7 @@ abstract class L {
   /// No description provided for @colorRed.
   ///
   /// In id, this message translates to:
-  /// **'Merah'**
+  /// **'Pink'**
   String get colorRed;
 
   /// No description provided for @colorPurple.

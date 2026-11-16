@@ -975,7 +975,7 @@ class LEn extends L {
   String get colorGreen => 'Green';
 
   @override
-  String get colorRed => 'Red';
+  String get colorRed => 'Pink';
 
   @override
   String get colorPurple => 'Purple';

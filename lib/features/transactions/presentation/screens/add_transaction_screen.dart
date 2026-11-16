@@ -376,6 +376,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ],
             selected: {_debtDirection},
             showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              minimumSize: const Size.fromHeight(60),
+              maximumSize: const Size.fromHeight(60),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
             onSelectionChanged: (s) => setState(() => _debtDirection = s.first),
           ),
         ),
@@ -682,6 +689,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ],
             selected: {_paymentMethod},
             showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              minimumSize: const Size.fromHeight(60),
+              maximumSize: const Size.fromHeight(60),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
             onSelectionChanged: (s) => setState(() => _paymentMethod = s.first),
           ),
         ),
