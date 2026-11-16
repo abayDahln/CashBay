@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_preferences_provider.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../providers/wallet_provider.dart';
@@ -27,6 +28,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  /// Type filter to hand to [HistoryScreen] when it first builds (the state
+  /// does not exist yet, so [HistoryScreenState.setTypeFilter] cannot be used).
+  String? _historyFilter;
   final _historyKey = GlobalKey<HistoryScreenState>();
   final _homeKey = GlobalKey<DashboardHomeState>();
 
@@ -34,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final t = L.of(context);
     return Scaffold(
-      body: IndexedStack(
+      body: SlideIndexedStack(
         index: _selectedIndex,
         children: [
           _DashboardHome(
@@ -44,11 +48,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _historyKey.currentState?.reload();
             },
             onSelectType: (type) {
-              setState(() => _selectedIndex = 1);
+              setState(() {
+                _selectedIndex = 1;
+                _historyFilter = type;
+              });
               _historyKey.currentState?.setTypeFilter(type);
             },
           ),
-          HistoryScreen(key: _historyKey),
+          HistoryScreen(key: _historyKey, initialTypeFilter: _historyFilter),
           const ReportScreen(),
           const ProfileScreen(),
         ],
@@ -421,8 +428,10 @@ class _WelcomeHeader extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 // The asset's alpha fades its lower edge into the surface.
-                // BlendMode.color preserves the pattern shading while tinting
-                // it to the active theme.
+                // The PNG is a light, low-saturation texture, so the muted M3
+                // light `primary` reads as a washed-out grey on the pale
+                // surface; the light theme tints with the saturated user seed
+                // instead. The dark theme keeps the scheme's light primary.
                 DecoratedBox(
                   decoration: BoxDecoration(
                     image: DecorationImage(
@@ -431,7 +440,13 @@ class _WelcomeHeader extends StatelessWidget {
                       ),
                       fit: BoxFit.cover,
                       alignment: const Alignment(0, 0.6),
-                      colorFilter: _batikTintFilter(scheme.primary),
+                      colorFilter: _batikTintFilter(
+                        Theme.of(context).brightness == Brightness.light
+                            ? context
+                                  .watch<ThemePreferencesProvider>()
+                                  .seedColor
+                            : scheme.primary,
+                      ),
                     ),
                   ),
                 ),

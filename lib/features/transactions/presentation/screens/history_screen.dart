@@ -10,7 +10,11 @@ import '../providers/transaction_provider.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  /// Type filter applied on first build, before the list loads. Used when the
+  /// dashboard jumps here from an income/expense card.
+  final String? initialTypeFilter;
+
+  const HistoryScreen({super.key, this.initialTypeFilter});
 
   @override
   State<HistoryScreen> createState() => HistoryScreenState();
@@ -42,6 +46,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _typeFilter = widget.initialTypeFilter ?? _typeFilter;
     _loadTransactions();
   }
 
