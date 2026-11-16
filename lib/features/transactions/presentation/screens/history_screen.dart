@@ -200,32 +200,19 @@ class HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: _filterDate == null
-                      ? OutlinedButton(
-                          onPressed: _pickDate,
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(48, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Icon(Icons.calendar_today_outlined),
-                        )
-                      : FilledButton.tonal(
-                          onPressed: _pickDate,
-                          style: FilledButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(48, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Icon(Icons.calendar_today_outlined),
-                        ),
+                IconButton(
+                  onPressed: _pickDate,
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(56, 56),
+                    backgroundColor: _filterDate == null
+                        ? scheme.surfaceContainerHigh
+                        : scheme.secondaryContainer,
+                    foregroundColor: _filterDate == null
+                        ? scheme.onSurfaceVariant
+                        : scheme.onSecondaryContainer,
+                    shape: const CircleBorder(),
+                  ),
+                  icon: const Icon(Icons.calendar_today_outlined),
                 ),
               ],
             ),
@@ -281,14 +268,6 @@ class HistoryScreenState extends State<HistoryScreen> {
                     ),
                   );
                 }
-                final categoryProvider = context.read<CategoryProvider>();
-                final categoryNames = <int, String>{
-                  for (final category in [
-                    ...categoryProvider.incomeCategories,
-                    ...categoryProvider.expenseCategories,
-                  ])
-                    if (category.id != null) category.id!: category.name,
-                };
                 final sections = _buildSections(transactions, t);
                 return RefreshIndicator(
                   onRefresh: _loadTransactions,
@@ -325,7 +304,6 @@ class HistoryScreenState extends State<HistoryScreen> {
                                       ),
                                     _tile(
                                       section.transactions[i],
-                                      categoryNames,
                                     ),
                                   ],
                                 ],
@@ -345,14 +323,9 @@ class HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _tile(Transaction transaction, Map<int, String> categoryNames) {
-    final names = transaction.categoryIds
-        .map((id) => categoryNames[id])
-        .whereType<String>()
-        .toList();
+  Widget _tile(Transaction transaction) {
     return TransactionTile(
       transaction: transaction,
-      categoryName: names.isEmpty ? null : names.join(', '),
       onTap: () => Navigator.push(
         context,
         fadeSlideRoute(HistoryDetailScreen(transaction: transaction)),

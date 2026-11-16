@@ -5,12 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart'
-    show CurrencyFormatter, InputValidation, RupiahInputFormatter;
+    show InputValidation, RupiahInputFormatter;
 import '../../../../core/widgets/widgets.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/models/transaction.dart';
 import '../providers/transaction_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
+import '../../../categories/presentation/providers/category_provider.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final Transaction transaction;
@@ -35,8 +36,19 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: CashBayAppBar(title: _typeLabel),
+      appBar: CashBayAppBar(
+        title: _typeLabel,
+        actions: [
+          IconButton(
+            tooltip: t.deleteTransaction,
+            onPressed: _isDeleting ? null : _confirmDelete,
+            icon: Icon(Icons.delete_outline, color: scheme.error),
+          ),
+        ],
+      ),
       body: _isDeleting
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -44,12 +56,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildHero(),
-                  const SizedBox(height: 24),
-                  if (_transaction.attachmentPath != null) ...[
+                  if (_transaction.attachmentPath?.isNotEmpty ?? false) ...[
                     _buildPhotoSection(_transaction.attachmentPath!),
                     const SizedBox(height: 24),
                   ],
+                  _buildHero(),
+                  const SizedBox(height: 24),
                   _buildDetailCard(),
                   const SizedBox(height: 24),
                   _buildActions(),
@@ -111,6 +123,22 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return L.of(context).idLabel(id);
   }
 
+  /// Names of the tags attached to this transaction, in tag order.
+  ///
+  /// Watches [CategoryProvider] so the row appears as soon as categories finish
+  /// loading — the provider is filled asynchronously at startup, so on a cold
+  /// first visit the names may not be in memory yet.
+  List<String> _tagNames() {
+    final ids = _transaction.categoryIds;
+    if (ids.isEmpty) return const [];
+    final provider = context.watch<CategoryProvider>();
+    final names = {
+      for (final c in [...provider.incomeCategories, ...provider.expenseCategories])
+        c.id: c.name,
+    };
+    return ids.map((id) => names[id]).whereType<String>().toList();
+  }
+
   Widget _buildHero() {
     final t = L.of(context);
     final title = _transaction.description?.trim() ?? '';
@@ -144,19 +172,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: AnimatedBalance(
-              value: _transaction.amount,
-              maxLines: 1,
+            child: NominalText(
+              amount: _transaction.amount,
+              showPlus:
+                  !_isTransfer &&
+                  (_isIncome || _transaction.isPenerimaanTagihan),
+              symbolColor: finance.forType(_colorType),
               style: text.headlineMedium?.copyWith(
                 color: finance.forType(_colorType),
                 fontWeight: FontWeight.w600,
-              ),
-              formatter: (v) => CurrencyFormatter.formatWithSign(
-                v,
-                // Transfers neither add nor subtract: show the plain nominal.
-                showPlus:
-                    !_isTransfer &&
-                    (_isIncome || _transaction.isPenerimaanTagihan),
               ),
             ),
           ),
@@ -184,8 +208,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           variant: AppCardVariant.outlined,
           padding: EdgeInsets.zero,
           onTap: () => _openImageViewer(path),
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
+          child: SizedBox(
+            height: 170,
+            width: double.infinity,
             child: _AttachmentImage(path: path),
           ),
         ),
@@ -198,37 +223,54 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final sourceWallet = _walletName(_transaction.walletId);
     final isMainTagihan = _transaction.isTagihan;
     final scheme = Theme.of(context).colorScheme;
+    final tagNames = _tagNames();
+    final note = _transaction.note?.trim() ?? '';
+    final isEwallet = _transaction.paymentMethod == 'ewallet';
 
     final rows = <Widget>[
       _detailRow(
         Icons.calendar_today_outlined,
         t.date,
-        DateFormat(
-          'dd MMM yyyy HH:mm',
-          Localizations.localeOf(context).toLanguageTag(),
-        ).format(_transaction.date),
+        Text(
+          DateFormat(
+            'dd MMM yyyy HH:mm',
+            Localizations.localeOf(context).toLanguageTag(),
+          ).format(_transaction.date),
+          style: _valueStyle,
+        ),
       ),
-      _detailRow(Icons.credit_card_outlined, t.method, _paymentMethodLabel),
+      _detailRow(
+        Icons.credit_card_outlined,
+        t.method,
+        Text(_paymentMethodLabel, style: _valueStyle),
+      ),
       if (_isTransfer) ...[
-        _detailRow(Icons.wallet_outlined, t.sourceWallet, sourceWallet),
+        _detailRow(
+          Icons.wallet_outlined,
+          t.sourceWallet,
+          Text(sourceWallet, style: _valueStyle),
+        ),
         _detailRow(
           Icons.wallet_outlined,
           t.destinationWallet,
-          _walletName(_transaction.toWalletId),
+          Text(_walletName(_transaction.toWalletId), style: _valueStyle),
         ),
-      ] else
-        _detailRow(Icons.wallet_outlined, t.wallet, sourceWallet),
-      if (_transaction.description?.trim().isNotEmpty == true)
+      ] else if (isEwallet)
         _detailRow(
-          Icons.notes_outlined,
-          isMainTagihan ? t.titipanName : t.description,
-          _transaction.description!,
+          Icons.wallet_outlined,
+          t.wallet,
+          Text(sourceWallet, style: _valueStyle),
         ),
-      if (_transaction.note?.trim().isNotEmpty == true)
+      // The description is already the hero title, so it is never repeated as a
+      // row. Only the note (and, for titipan, the receiver name) adds anything.
+      if (note.isNotEmpty)
         _detailRow(
           isMainTagihan ? Icons.person_outline : Icons.sticky_note_2_outlined,
-          isMainTagihan ? t.personName : t.note,          _transaction.note!,
+          isMainTagihan ? t.personName : t.note,
+          Text(note, style: _valueStyle),
         ),
+      if (tagNames.isNotEmpty)
+        _detailRow(Icons.sell_outlined, t.tag, _tagChips(tagNames)),
     ];
 
     return Column(
@@ -252,47 +294,73 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  Widget _detailRow(IconData icon, String label, String value) {
+  TextStyle get _valueStyle {
+    final text = Theme.of(context).textTheme;
+    return text.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface);
+  }
+
+  /// Mini chips so a tag reads as an attribute, not body text.
+  Widget _tagChips(List<String> names) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final name in names)
+          Chip(
+            label: Text(name),
+            labelStyle: Theme.of(context).textTheme.labelMedium,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  Widget _detailRow(IconData icon, String label, Widget value) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    return ListTile(
-      leading: Icon(icon, color: scheme.onSurfaceVariant),
-      title: Text(
-        label,
-        style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
-      ),
-      subtitle: Text(
-        value,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-        style: text.bodyLarge?.copyWith(color: scheme.onSurface),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: text.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                value,
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildActions() {
     final t = L.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FilledButton.tonalIcon(
-          onPressed: _openEditSheet,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          icon: const Icon(Icons.edit_outlined),
-          label: Text(t.editTransaction),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _confirmDelete,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            foregroundColor: scheme.error,
-          ),
-          icon: const Icon(Icons.delete_outline),
-          label: Text(t.deleteTransaction),
-        ),
-      ],
+    return FilledButton.tonalIcon(
+      onPressed: _openEditScreen,
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+      icon: const Icon(Icons.edit_outlined),
+      label: Text(t.editTransaction),
     );
   }
 
@@ -306,13 +374,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  Future<void> _openEditSheet() async {
-    final updated = await showModalBottomSheet<Transaction>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (_) => _EditTransactionSheet(transaction: _transaction),
+  Future<void> _openEditScreen() async {
+    final updated = await Navigator.push<Transaction>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _EditTransactionScreen(transaction: _transaction),
+      ),
     );
     if (updated != null && mounted) {
       setState(() => _transaction = updated);
@@ -364,17 +431,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 }
 
-/// M3 bottom-sheet form for editing description, note and photo.
+/// Full-screen form for editing description, note, amount, wallet, tags and
+/// photo. Mirrors the add-transaction layout, without the type selector.
 /// Pops with the updated [Transaction] on success.
-class _EditTransactionSheet extends StatefulWidget {
+class _EditTransactionScreen extends StatefulWidget {
   final Transaction transaction;
-  const _EditTransactionSheet({required this.transaction});
+  const _EditTransactionScreen({required this.transaction});
 
   @override
-  State<_EditTransactionSheet> createState() => _EditTransactionSheetState();
+  State<_EditTransactionScreen> createState() => _EditTransactionScreenState();
 }
 
-class _EditTransactionSheetState extends State<_EditTransactionSheet> {
+class _EditTransactionScreenState extends State<_EditTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _descriptionController;
   late final TextEditingController _noteController;
@@ -383,6 +451,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
   String? _newAttachmentPath;
   bool _isSaving = false;
   bool _submitted = false;
+  late final Set<int> _selectedCategoryIds;
 
   Transaction get _transaction => widget.transaction;
 
@@ -400,6 +469,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
       text: RupiahInputFormatter.formatValue(_transaction.amount),
     );
     _walletId = _transaction.walletId;
+    _selectedCategoryIds = {..._transaction.categoryIds};
   }
 
   @override
@@ -413,9 +483,15 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
   String? _trimmedOrNull(TextEditingController c) =>
       c.text.trim().isEmpty ? null : c.text.trim();
 
-  Future<void> _pickImage() async {
+  /// Order-insensitive comparison of two id collections.
+  bool _sameIds(Set<int> a, List<int> b) =>
+      a.length == b.length && b.every(a.contains);
+
+  Future<void> _pickImage(AttachmentSource source) async {
     final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+      source: source == AttachmentSource.camera
+          ? ImageSource.camera
+          : ImageSource.gallery,
       maxWidth: 1024,
       imageQuality: 80,
     );
@@ -426,6 +502,105 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
       return;
     }
     setState(() => _newAttachmentPath = picked.path);
+  }
+
+  Widget _buildTagPicker() {
+    final t = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final provider = context.watch<CategoryProvider>();
+    final categories = _transaction.type == 'income'
+        ? provider.incomeCategories
+        : provider.expenseCategories;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          t.tagOptional,
+          style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final category in categories)
+              FilterChip(
+                label: Text(category.name),
+                selected: _selectedCategoryIds.contains(category.id),
+                onSelected: _isSaving
+                    ? null
+                    : (selected) => setState(() {
+                        if (selected) {
+                          _selectedCategoryIds.add(category.id!);
+                        } else {
+                          _selectedCategoryIds.remove(category.id);
+                        }
+                      }),
+              ),
+            ActionChip(
+              avatar: const Icon(Icons.add, size: 18),
+              label: Text(t.newTag),
+              onPressed: _isSaving ? null : _addCustomTag,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addCustomTag() async {
+    final t = L.of(context);
+    final provider = context.read<CategoryProvider>();
+    final type = _transaction.type == 'income' ? 'income' : 'expense';
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.newTag),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          maxLength: InputValidation.maxCategory,
+          decoration: InputDecoration(
+            labelText: t.tagName,
+            hintText: t.tagNameHint,
+          ),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(t.save),
+          ),
+        ],
+      ),
+    );
+    if (name == null || !mounted) return;
+
+    final trimmed = name.trim();
+    final err =
+        InputValidation.name(
+          trimmed,
+          t.tagName,
+          max: InputValidation.maxCategory,
+          l10n: t,
+        ) ??
+        provider.hasCategoryNamed(trimmed, type, l10n: t);
+    if (err != null) {
+      ToastWidget.error(context, err);
+      return;
+    }
+
+    final id = await provider.addCategory(name: trimmed, type: type);
+    if (id != null && mounted) {
+      setState(() => _selectedCategoryIds.add(id));
+    }
   }
 
   Future<void> _save() async {
@@ -442,24 +617,28 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
         newAmount != null &&
         newAmount != _transaction.amount;
     final walletChanged = _canEditAmount && _walletId != _transaction.walletId;
+    final tagsChanged = !_sameIds(_selectedCategoryIds, _transaction.categoryIds);
     final metaChanged =
         (description != null && description != _transaction.description) ||
         (note != null && note != _transaction.note) ||
         _newAttachmentPath != null;
-
     final provider = context.read<TransactionProvider>();
     setState(() => _isSaving = true);
 
     final Transaction updated;
     bool success;
-    if (amountChanged || walletChanged) {
-      // Full-row update: amount and/or wallet moved with description/note/photo.
+    if (amountChanged || walletChanged || tagsChanged) {
+      // Full-row update: a moved amount/wallet also carries description, note,
+      // photo and tags (updateTransaction replaces the tag rows). A tags-only
+      // edit must leave amount/wallet untouched, so only forward them when they
+      // are editable for this transaction.
       updated = _transaction.copyWith(
-        amount: newAmount,
-        walletId: _walletId,
+        amount: _canEditAmount ? newAmount : _transaction.amount,
+        walletId: _canEditAmount ? _walletId : _transaction.walletId,
         description: description,
         note: note,
         attachmentPath: _newAttachmentPath,
+        categoryIds: _selectedCategoryIds.toList(),
       );
       success = await provider.updateTransaction(updated);
     } else if (metaChanged) {
@@ -492,166 +671,172 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
     }
   }
 
+  Widget _buildInsetGroup(String label, List<Widget> children) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: scheme.primary),
+          ),
+        ),
+        AppCard(
+          variant: AppCardVariant.outlined,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = L.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
     final photo = _newAttachmentPath ?? _transaction.attachmentPath;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Form(
-          key: _formKey,
-          autovalidateMode: _submitted
-              ? AutovalidateMode.onUserInteraction
-              : AutovalidateMode.disabled,
+    return Scaffold(
+      appBar: CashBayAppBar(title: t.editTransaction),
+      body: Form(
+        key: _formKey,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(t.editTransaction, style: text.titleLarge),
-              const SizedBox(height: 4),
-              Text(
-                _canEditAmount ? t.kindNotEditable : t.titipanEditHint,
-                style: text.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_canEditAmount) ...[
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  inputFormatters: [RupiahInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: t.amount,
-                    prefixText: 'Rp ',
-                    prefixIcon: const Icon(Icons.payments_outlined),
-                    errorMaxLines: 2,
+              _buildInsetGroup(t.detailMain, [
+                if (_canEditAmount) ...[
+                  TextFormField(
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [RupiahInputFormatter()],
+                    decoration: InputDecoration(
+                      labelText: t.amount,
+                      prefixText: 'Rp ',
+                      prefixIcon: const Icon(Icons.payments_outlined),
+                      errorMaxLines: 2,
+                    ),
+                    validator: (v) =>
+                        InputValidation.amountInRange(v, l10n: L.of(context)),
                   ),
-                  validator: (v) =>
-                      InputValidation.amountInRange(v, l10n: L.of(context)),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<int>(
-                  initialValue: _walletId,
-                  isExpanded: true,
-                  items: [
-                    for (final w in context.watch<WalletProvider>().wallets)
-                      DropdownMenuItem(
-                        value: w.id,
-                        child: Text(
-                          w.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    initialValue: _walletId,
+                    isExpanded: true,
+                    items: [
+                      for (final w in context.watch<WalletProvider>().wallets)
+                        DropdownMenuItem(
+                          value: w.id,
+                          child: Text(
+                            w.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                    ],
+                    onChanged: _isSaving
+                        ? null
+                        : (v) => setState(() => _walletId = v),
+                    decoration: InputDecoration(
+                      labelText: _transaction.type == 'transfer'
+                          ? t.sourceWallet
+                          : t.wallet,
+                      prefixIcon: const Icon(
+                        Icons.account_balance_wallet_outlined,
                       ),
-                  ],
-                  onChanged: _isSaving
-                      ? null
-                      : (v) => setState(() => _walletId = v),
-                  decoration: InputDecoration(
-                    labelText: _transaction.type == 'transfer'
-                        ? t.sourceWallet
-                        : t.wallet,
-                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                    ),
+                    validator: (v) => v == null ? t.chooseWallet : null,
                   ),
-                  validator: (v) => v == null ? t.chooseWallet : null,
+                  const SizedBox(height: 16),
+                ],
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLength: InputValidation.maxDescription,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: t.description,
+                    prefixIcon: const Icon(Icons.edit_note),
+                  ),
+                  validator: (v) => InputValidation.maxLength(
+                    v,
+                    t.description,
+                    InputValidation.maxDescription,
+                    l10n: t,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 24),
+              _buildInsetGroup(t.notesAndAttachment, [
+                TextFormField(
+                  controller: _noteController,
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: InputValidation.maxNote,
+                  keyboardType: TextInputType.multiline,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: t.note,
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (v) => InputValidation.maxLength(
+                    v,
+                    t.note,
+                    InputValidation.maxNote,
+                    l10n: t,
+                  ),
                 ),
                 const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: _descriptionController,
-                maxLength: InputValidation.maxDescription,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: t.description,
-                  prefixIcon: const Icon(Icons.edit_note),
-                ),
-                validator: (v) => InputValidation.maxLength(
-                  v,
-                  t.description,
-                  InputValidation.maxDescription,
-                  l10n: t,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _noteController,
-                minLines: 2,
-                maxLines: 4,
-                maxLength: InputValidation.maxNote,
-                keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: t.note,
-                  alignLabelWithHint: true,
-                ),
-                validator: (v) => InputValidation.maxLength(
-                  v,
-                  t.note,
-                  InputValidation.maxNote,
-                  l10n: t,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(t.attachment, style: text.labelLarge),
-              const SizedBox(height: 8),
-              if (photo != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: 160,
-                    child: _AttachmentImage(path: photo),
-                  ),
+                _buildTagPicker(),
+                const SizedBox(height: 16),
+                Text(
+                  t.attachment,
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
-              ],
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _isSaving ? null : _pickImage,
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(photo == null ? t.addPhoto : t.changePhoto),
-                  ),
-                  if (_newAttachmentPath != null)
-                    TextButton.icon(
-                      onPressed: _isSaving
-                          ? null
-                          : () => setState(() => _newAttachmentPath = null),
-                      icon: const Icon(Icons.undo),
-                      label: Text(t.undoNewPhoto),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _isSaving ? null : _save,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                AttachmentPicker(
+                  path: photo,
+                  isNew: _newAttachmentPath?.isNotEmpty ?? false,
+                  onPick: _pickImage,
+                  onRemove: () => setState(() {
+                    // A new pick is discarded (null); a saved photo is marked
+                    // for removal with an empty path.
+                    _newAttachmentPath = _newAttachmentPath == null
+                        ? ''
+                        : null;
+                  }),
                 ),
-                child: _isSaving
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(t.save),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: Text(t.cancel),
-              ),
+              ]),
             ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton(
+            onPressed: _isSaving ? null : _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: _isSaving
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(t.save),
           ),
         ),
       ),

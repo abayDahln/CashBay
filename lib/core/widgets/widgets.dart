@@ -1,6 +1,7 @@
 export 'animated_balance.dart';
 export 'animated_list_item.dart';
 export 'app_bottom_nav.dart';
+export 'attachment_picker.dart';
 export 'cashbay_app_bar.dart';
 export 'empty_state.dart';
 export 'nominal_text.dart';

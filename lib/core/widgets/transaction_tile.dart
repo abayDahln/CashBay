@@ -10,14 +10,12 @@ import 'animated_balance.dart';
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
-  final String? categoryName;
   final bool showChevron;
 
   const TransactionTile({
     super.key,
     required this.transaction,
     this.onTap,
-    this.categoryName,
     this.showChevron = true,
   });
 
@@ -28,7 +26,6 @@ class TransactionTile extends StatelessWidget {
     final isIncome = transaction.type == 'income';
     final isTransfer = transaction.type == 'transfer';
     final isTagihan = transaction.isTagihanRelated;
-    final isPlainExpense = transaction.type == 'expense' && !isTagihan;
     final description = transaction.description?.trim() ?? '';
     final note = transaction.note?.trim() ?? '';
     final (icon, label) = transaction.isTagihanRelated
@@ -54,8 +51,6 @@ class TransactionTile extends StatelessWidget {
     final dateText = DateFormatter.formatDate(transaction.date);
     final subtitle = isTagihan && note.isNotEmpty
         ? '$note • $dateText'
-        : (isIncome || isPlainExpense) && (categoryName?.isNotEmpty ?? false)
-        ? '$categoryName • $dateText'
         : dateText;
 
     final finance = FinanceColors.of(context);

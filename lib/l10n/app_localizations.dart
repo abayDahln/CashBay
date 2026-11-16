@@ -571,6 +571,12 @@ abstract class L {
   /// **'Contoh: Liburan'**
   String get tagNameHint;
 
+  /// No description provided for @tag.
+  ///
+  /// In id, this message translates to:
+  /// **'Tag'**
+  String get tag;
+
   /// No description provided for @descriptionTransfer.
   ///
   /// In id, this message translates to:
@@ -1003,12 +1009,6 @@ abstract class L {
   /// **'Gagal menghapus'**
   String get deleteFailed;
 
-  /// No description provided for @kindNotEditable.
-  ///
-  /// In id, this message translates to:
-  /// **'Jenis transaksi tidak dapat diubah.'**
-  String get kindNotEditable;
-
   /// No description provided for @titipanEditHint.
   ///
   /// In id, this message translates to:
@@ -1032,6 +1032,18 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Tambah Foto'**
   String get addPhoto;
+
+  /// No description provided for @addPhotoHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Lampirkan Foto'**
+  String get addPhotoHint;
+
+  /// No description provided for @change.
+  ///
+  /// In id, this message translates to:
+  /// **'Ganti'**
+  String get change;
 
   /// No description provided for @changePhoto.
   ///

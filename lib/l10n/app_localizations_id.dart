@@ -260,6 +260,9 @@ class LId extends L {
   String get tagNameHint => 'Contoh: Liburan';
 
   @override
+  String get tag => 'Tag';
+
+  @override
   String get descriptionTransfer => 'Keterangan (opsional)';
 
   @override
@@ -485,9 +488,6 @@ class LId extends L {
   String get deleteFailed => 'Gagal menghapus';
 
   @override
-  String get kindNotEditable => 'Jenis transaksi tidak dapat diubah.';
-
-  @override
   String get titipanEditHint => 'Titipan diubah dari layar detail titipan.';
 
   @override
@@ -498,6 +498,12 @@ class LId extends L {
 
   @override
   String get addPhoto => 'Tambah Foto';
+
+  @override
+  String get addPhotoHint => 'Lampirkan Foto';
+
+  @override
+  String get change => 'Ganti';
 
   @override
   String get changePhoto => 'Ganti Foto';

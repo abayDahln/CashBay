@@ -17,7 +17,6 @@ import '../../../transactions/presentation/screens/history_detail_screen.dart';
 import '../../../report/presentation/screens/report_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
-import '../../../categories/presentation/providers/category_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -291,14 +290,6 @@ class DashboardHomeState extends State<_DashboardHome> {
   ) {
     final recentTransactions = provider.transactions.take(10).toList();
     final t = L.of(context);
-    final catProvider = context.watch<CategoryProvider>();
-    final categoryOf = <int, String>{
-      for (final c in [
-        ...catProvider.incomeCategories,
-        ...catProvider.expenseCategories,
-      ])
-        if (c.id != null) c.id!: c.name,
-    };
 
     final Widget content;
     if (recentTransactions.isEmpty && provider.isLoading) {
@@ -315,10 +306,6 @@ class DashboardHomeState extends State<_DashboardHome> {
             if (i > 0) const Divider(height: 1, indent: 72),
             TransactionTile(
               transaction: recentTransactions[i],
-              categoryName: _joinCategoryNames(
-                recentTransactions[i].categoryIds,
-                categoryOf,
-              ),
               showChevron: false,
               onTap: () => Navigator.push(
                 context,
@@ -350,12 +337,6 @@ class DashboardHomeState extends State<_DashboardHome> {
       ],
     );
   }
-}
-
-/// Comma-joined category names for a transaction's tag ids.
-String? _joinCategoryNames(List<int> ids, Map<int, String> names) {
-  final resolved = ids.map((id) => names[id]).whereType<String>().toList();
-  return resolved.isEmpty ? null : resolved.join(', ');
 }
 
 /// Recolors the batik by its luminance while preserving the PNG's alpha.

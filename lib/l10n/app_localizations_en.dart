@@ -258,6 +258,9 @@ class LEn extends L {
   String get tagNameHint => 'Example: Vacation';
 
   @override
+  String get tag => 'Tag';
+
+  @override
   String get descriptionTransfer => 'Note (optional)';
 
   @override
@@ -483,9 +486,6 @@ class LEn extends L {
   String get deleteFailed => 'Failed to delete';
 
   @override
-  String get kindNotEditable => 'Transaction type cannot be changed.';
-
-  @override
   String get titipanEditHint =>
       'Deposits are edited from the deposit detail screen.';
 
@@ -497,6 +497,12 @@ class LEn extends L {
 
   @override
   String get addPhoto => 'Add Photo';
+
+  @override
+  String get addPhotoHint => 'Attach Photo';
+
+  @override
+  String get change => 'Change';
 
   @override
   String get changePhoto => 'Change Photo';

@@ -914,56 +914,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
               ),
             ),
-            if (_attachmentPath != null)
-              IconButton(
-                tooltip: t.removePhoto,
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _attachmentPath = null),
-              ),
           ],
         ),
         const SizedBox(height: 8),
-        if (_attachmentPath != null)
-          GestureDetector(
-            onTap: () => _openImageViewer(_attachmentPath!),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.file(
-                  File(_attachmentPath!),
-                  fit: BoxFit.cover,
-                  semanticLabel: t.attachmentPhoto,
-                ),
-              ),
-            ),
-          )
-        else
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                  label: Text(t.camera),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  onPressed: () => _pickImage(ImageSource.camera),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.photo_library_outlined, size: 18),
-                  label: Text(t.gallery),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                ),
-              ),
-            ],
-          ),
+        AttachmentPicker(
+          path: _attachmentPath,
+          onPick: _pickImage,
+          onRemove: () => setState(() => _attachmentPath = null),
+          onView: _attachmentPath == null
+              ? null
+              : () => _openImageViewer(_attachmentPath!),
+        ),
       ],
     );
   }
@@ -978,9 +939,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(AttachmentSource source) async {
     final file = await _picker.pickImage(
-      source: source,
+      source: source == AttachmentSource.camera
+          ? ImageSource.camera
+          : ImageSource.gallery,
       maxWidth: 1024,
       imageQuality: 80,
     );
