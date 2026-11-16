@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/utils/formatters.dart' show DateFormatter;
 import '../../../../core/widgets/widgets.dart';
 import 'history_detail_screen.dart';
 import '../../data/models/transaction.dart';
@@ -166,38 +167,79 @@ class HistoryScreenState extends State<HistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: SearchBar(
-              controller: _searchController,
-              hintText: t.searchTransaction,
-              elevation: const WidgetStatePropertyAll(0),
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 16),
-              ),
-              textInputAction: TextInputAction.search,
-              leading: Icon(Icons.search, color: scheme.onSurfaceVariant),
-              trailing: [
-                if (_searchQuery.isNotEmpty)
-                  IconButton(
-                    tooltip: t.clearSearch,
-                    onPressed: _clearSearch,
-                    icon: const Icon(Icons.close),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchBar(
+                    controller: _searchController,
+                    hintText: t.searchTransaction,
+                    elevation: const WidgetStatePropertyAll(0),
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    textInputAction: TextInputAction.search,
+                    leading: Icon(
+                      Icons.search,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    trailing: [
+                      if (_searchQuery.isNotEmpty)
+                        IconButton(
+                          tooltip: t.clearSearch,
+                          onPressed: _clearSearch,
+                          icon: const Icon(Icons.close),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _searchQuery = value),
                   ),
-                IconButton(
-                  tooltip: t.filterDate,
-                  onPressed: _filterDate != null ? _clearDateRange : _pickDate,
-                  icon: Icon(
-                    _filterDate != null
-                        ? Icons.event_busy
-                        : Icons.calendar_today_outlined,
-                  ),
-                  color: _filterDate != null ? scheme.primary : null,
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: _filterDate == null
+                      ? OutlinedButton(
+                          onPressed: _pickDate,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(48, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Icon(Icons.calendar_today_outlined),
+                        )
+                      : FilledButton.tonal(
+                          onPressed: _pickDate,
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(48, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Icon(Icons.calendar_today_outlined),
+                        ),
                 ),
               ],
-              onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+          if (_filterDate != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: InputChip(
+                  label: Text(DateFormatter.formatShortDate(_filterDate!)),
+                  onDeleted: _clearDateRange,
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
           _buildFilterChips(t),
+          const SizedBox(height: 8),
           Expanded(
             child: Consumer<TransactionProvider>(
               builder: (context, provider, _) {
@@ -247,7 +289,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                   onRefresh: _loadTransactions,
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                     itemCount: sections.length,
                     itemBuilder: (context, index) {
                       final section = sections[index];
@@ -331,7 +373,7 @@ class HistoryScreenState extends State<HistoryScreen> {
             SingleChildScrollView(
               controller: _filterScrollController,
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
                 children: [
                   for (final value in _filterValues)
@@ -361,7 +403,7 @@ class HistoryScreenState extends State<HistoryScreen> {
       left: isLeft ? 0 : null,
       right: isLeft ? null : 0,
       top: 0,
-      bottom: 8,
+      bottom: 0,
       width: 32,
       child: IgnorePointer(
         child: AnimatedOpacity(
