@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -276,6 +277,8 @@ class _DebtsScreenState extends State<DebtsScreen>
     final isDebt = type == 'debt';
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final finance = FinanceColors.of(context);
+    final accent = finance.titipan;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -285,12 +288,11 @@ class _DebtsScreenState extends State<DebtsScreen>
         children: [
           Row(
             children: [
-              Icon(
+              _accentIcon(
                 isDebt ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 20,
-                color: scheme.primary,
+                accent,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   isDebt ? t.remainingTitipanSaya : t.remainingTitipanOrang,
@@ -303,13 +305,15 @@ class _DebtsScreenState extends State<DebtsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              CurrencyFormatter.format(total),
+            child: NominalText(
+              amount: total,
+              symbolColor: accent,
               style: textTheme.headlineMedium?.copyWith(
+                color: accent,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -327,6 +331,18 @@ class _DebtsScreenState extends State<DebtsScreen>
       ),
     );
   }
+
+  /// 40dp ringed avatar matching the transaction tiles.
+  Widget _accentIcon(IconData icon, Color accent) => Container(
+    width: 40,
+    height: 40,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: accent.withValues(alpha: 0.06),
+      border: Border.all(color: accent.withValues(alpha: 0.3), width: 1.5),
+    ),
+    child: Icon(icon, size: 20, color: accent),
+  );
 
   List<_DateGroup> _groupByDate(List<Debt> debts) {
     final t = L.of(context);
@@ -391,23 +407,26 @@ class _DebtsScreenState extends State<DebtsScreen>
 
   Widget _buildSectionHeader(String title, int count) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Flexible(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.titleSmall?.copyWith(color: scheme.primary),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Badge(
-          label: Text('$count'),
-          backgroundColor: scheme.secondaryContainer,
-          textColor: scheme.onSecondaryContainer,
-        ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            '$count',
+            style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
@@ -417,6 +436,8 @@ class _DebtsScreenState extends State<DebtsScreen>
     final isPaid = debt.status == 'paid';
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final finance = FinanceColors.of(context);
+    final accent = finance.titipan;
     final dateFormat = DateFormat(
       'dd MMM yyyy',
       Localizations.localeOf(context).toLanguageTag(),
@@ -441,62 +462,47 @@ class _DebtsScreenState extends State<DebtsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.center,
-                  child: CircleAvatar(
-                    backgroundColor: scheme.primaryContainer,
-                    foregroundColor: scheme.onPrimaryContainer,
-                    child: const Icon(Icons.receipt_long),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        debt.personName,
-                        style: textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: isOverdue
-                              ? scheme.error
-                              : scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      CurrencyFormatter.format(debt.remainingAmount),
-                      textAlign: TextAlign.right,
+          Row(
+            children: [
+              _accentIcon(
+                isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                accent,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      debt.personName,
+                      style: textTheme.titleMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isOverdue
+                            ? scheme.error
+                            : scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              NominalText(
+                amount: debt.remainingAmount,
+                symbolColor: scheme.onSurfaceVariant,
+                style: textTheme.titleSmall?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           if (debt.amount > 0) ...[
             const SizedBox(height: 12),
@@ -505,6 +511,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                 Expanded(
                   child: LinearProgressIndicator(
                     value: paidRatio,
+                    color: accent,
                     borderRadius: BorderRadius.circular(4),
                     semanticsLabel: t.progressPayment,
                     semanticsValue: '${(paidRatio * 100).round()}%',
@@ -546,16 +553,12 @@ class _DebtsScreenState extends State<DebtsScreen>
                 ),
                 if (isPaid) ...[
                   const SizedBox(width: 8),
-                  const Icon(
-                    Icons.check_circle,
-                    size: 14,
-                    color: Color(0xFF2E7D32),
-                  ),
+                  Icon(Icons.check_circle, size: 14, color: finance.income),
                   const SizedBox(width: 4),
                   Text(
                     t.lunas,
                     style: textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF2E7D32),
+                      color: finance.income,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

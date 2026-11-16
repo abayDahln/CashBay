@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../data/models/debt.dart';
@@ -85,6 +86,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     final paid = _debt.amount - _debt.remainingAmount;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final accent = FinanceColors.of(context).titipan;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -94,10 +96,22 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: scheme.primaryContainer,
-                foregroundColor: scheme.onPrimaryContainer,
-                child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 20,
+                  color: accent,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -123,9 +137,11 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              CurrencyFormatter.format(_debt.remainingAmount),
+            child: NominalText(
+              amount: _debt.remainingAmount,
+              symbolColor: accent,
               style: textTheme.headlineMedium?.copyWith(
+                color: accent,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -141,6 +157,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
                 LinearProgressIndicator(
                   value: value,
                   minHeight: 8,
+                  color: accent,
                   borderRadius: BorderRadius.circular(4),
                   semanticsLabel: t.progressPayment,
                   semanticsValue: '${(value * 100).round()}%',
@@ -206,61 +223,95 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
 
   Widget _buildInfoCard() {
     final t = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final wallet = context
         .watch<WalletProvider>()
         .wallets
         .where((w) => w.id == _debt.walletId)
         .firstOrNull;
 
-    return AppCard(
-      variant: AppCardVariant.outlined,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              t.information,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+    final rows = <Widget>[
+      _buildInfoRow(Icons.calendar_today_outlined, t.date, DateFormatter.formatDate(_debt.date)),
+      if (_debt.dueDate != null)
+        _buildInfoRow(
+          Icons.event_outlined,
+          t.dueDateLabel,
+          DateFormatter.formatDate(_debt.dueDate!),
+        ),
+      if (wallet != null)
+        _buildInfoRow(
+          Icons.account_balance_wallet_outlined,
+          t.wallet,
+          wallet.name,
+        ),
+      if (_debt.note?.isNotEmpty == true)
+        _buildInfoRow(Icons.notes_outlined, t.note, _debt.note!),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionLabel(t.information),
+        AppCard(
+          variant: AppCardVariant.outlined,
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: 56, color: scheme.outlineVariant),
+                rows[i],
+              ],
+            ],
           ),
-          _buildInfoRow(
-            Icons.calendar_today_outlined,
-            t.date,
-            DateFormatter.formatDate(_debt.date),
-          ),
-          if (_debt.dueDate != null)
-            _buildInfoRow(
-              Icons.event_outlined,
-              t.dueDateLabel,
-              DateFormatter.formatDate(_debt.dueDate!),
-            ),
-          if (wallet != null)
-            _buildInfoRow(
-              Icons.account_balance_wallet_outlined,
-              t.wallet,
-              wallet.name,
-            ),
-          if (_debt.note?.isNotEmpty == true)
-            _buildInfoRow(Icons.notes, t.note, _debt.note!),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
+  Widget _sectionLabel(String label) => Padding(
+    padding: const EdgeInsets.only(left: 4, bottom: 8),
+    child: Text(
+      label,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
+
   Widget _buildInfoRow(IconData icon, String label, String value) {
     final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: scheme.onSurfaceVariant),
-      title: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Icon(icon, size: 24, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: text.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: text.bodyMedium?.copyWith(color: scheme.onSurface),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      subtitle: Text(value, style: Theme.of(context).textTheme.bodyLarge),
     );
   }
 
@@ -270,72 +321,63 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     if (_payments.isEmpty) {
-      return AppCard(
-        variant: AppCardVariant.outlined,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Icon(Icons.history, size: 40, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 8),
-            Text(
-              t.noReturnHistory,
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return AppCard(
-      variant: AppCardVariant.outlined,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
+          _sectionLabel(t.returnHistory),
+          AppCard(
+            variant: AppCardVariant.outlined,
+            padding: const EdgeInsets.all(24),
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    t.returnHistory,
-                    style: textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
+                Icon(Icons.history, size: 40, color: scheme.onSurfaceVariant),
+                const SizedBox(height: 8),
                 Text(
-                  t.transactionCount(_payments.length),
-                  style: textTheme.bodySmall?.copyWith(
+                  t.noReturnHistory,
+                  style: textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          for (final entry in _payments.asMap().entries) ...[
-            if (entry.key > 0)
-              Divider(
-                height: 1,
-                indent: 72,
-                endIndent: 16,
-                color: scheme.outlineVariant,
-              ),
-            AnimatedListItem(
-              index: entry.key,
-              child: _buildPaymentTile(entry.value),
-            ),
-          ],
         ],
-      ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionLabel(t.returnHistory),
+        AppCard(
+          variant: AppCardVariant.outlined,
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final entry in _payments.asMap().entries) ...[
+                if (entry.key > 0)
+                  Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 16,
+                    color: scheme.outlineVariant,
+                  ),
+                AnimatedListItem(
+                  index: entry.key,
+                  child: _buildPaymentTile(entry.value),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildPaymentTile(DebtPayment payment) {
     final scheme = Theme.of(context).colorScheme;
+    final finance = FinanceColors.of(context);
     final wallet = context
         .read<WalletProvider>()
         .wallets
@@ -344,10 +386,22 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
 
     return ListTile(
       onTap: () => _editReturnLeg(payment),
-      leading: CircleAvatar(
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
-        child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: finance.income.withValues(alpha: 0.06),
+          border: Border.all(
+            color: finance.income.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(
+          isDebt ? Icons.arrow_downward : Icons.arrow_upward,
+          size: 20,
+          color: finance.income,
+        ),
       ),
       title: Text(
         CurrencyFormatter.format(payment.amount),
@@ -361,6 +415,9 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
         ].join(' • '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
       trailing: const Icon(Icons.edit_outlined, size: 18),
     );
@@ -740,11 +797,25 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: scheme.primaryContainer,
-                    foregroundColor: scheme.onPrimaryContainer,
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: FinanceColors.of(
+                        context,
+                      ).income.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: FinanceColors.of(
+                          context,
+                        ).income.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
                     child: Icon(
-                      _isDebt ? Icons.arrow_upward : Icons.arrow_downward,
+                      _isDebt ? Icons.arrow_downward : Icons.arrow_upward,
+                      size: 20,
+                      color: FinanceColors.of(context).income,
                     ),
                   ),
                   const SizedBox(width: 16),

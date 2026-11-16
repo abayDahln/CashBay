@@ -824,14 +824,18 @@ class _EditTransactionScreenState extends State<_EditTransactionScreen> {
         time?.hour ?? _date.hour,
         time?.minute ?? _date.minute,
       );
+      // Keep the due date on or after the (possibly moved) transaction date.
+      if (_dueDate != null && _dueDate!.isBefore(_date)) _dueDate = _date;
     });
   }
 
   Future<void> _pickDueDate() async {
+    // Bounded by the transaction date: moving that forward pushes this with it.
+    final first = DateTime(_date.year, _date.month, _date.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dueDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
+      initialDate: (_dueDate ?? first).isBefore(first) ? first : _dueDate!,
+      firstDate: first,
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
     if (picked != null && mounted) setState(() => _dueDate = picked);

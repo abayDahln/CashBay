@@ -782,12 +782,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         // Exact date: full-width trigger, or the chosen date once picked.
         InkWell(
           onTap: () async {
+            // The due date may not fall before the transaction date, so moving
+            // the transaction date forward pushes this bound with it.
+            final first = DateTime(
+              _selectedDate.year,
+              _selectedDate.month,
+              _selectedDate.day,
+            );
             final picked = await showDatePicker(
               context: context,
-              initialDate: _dueDate.isBefore(DateTime.now())
-                  ? DateTime.now()
-                  : _dueDate,
-              firstDate: DateTime.now(),
+              initialDate: _dueDate.isBefore(first) ? first : _dueDate,
+              firstDate: first,
               lastDate: DateTime(2100),
             );
             if (picked != null && mounted) {
@@ -879,8 +884,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               time.hour,
               time.minute,
             );
-      if (_isTagihan && _duePreset != DueDatePreset.custom) {
-        _dueDate = _calculateDueDate(_selectedDate, _duePreset);
+      if (_isTagihan) {
+        if (_duePreset != DueDatePreset.custom) {
+          _dueDate = _calculateDueDate(_selectedDate, _duePreset);
+        } else if (_dueDate.isBefore(_selectedDate)) {
+          // A custom due date may not fall before the transaction either.
+          _dueDate = _selectedDate;
+        }
       }
     });
   }
