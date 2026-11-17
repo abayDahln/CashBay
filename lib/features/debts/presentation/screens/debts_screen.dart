@@ -204,12 +204,32 @@ class _DebtsScreenState extends State<DebtsScreen>
             onPressed: _showFilterDialog,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(icon: const Icon(Icons.arrow_upward), text: t.titipanSaya),
-            Tab(icon: const Icon(Icons.arrow_downward), text: t.titipanOrang),
-          ],
+        bottom: PreferredSize(
+          // M3 tab with an icon stacked above its label: 72dp.
+          preferredSize: const Size.fromHeight(72),
+          child: Consumer<DebtProvider>(
+            builder: (context, provider, _) {
+              final debtActive = provider.debts
+                  .where((d) => d.status == 'active')
+                  .length;
+              final receivableActive = provider.receivables
+                  .where((d) => d.status == 'active')
+                  .length;
+              return TabBar(
+                controller: _tabController,
+                tabs: [
+                  Tab(
+                    icon: _tabIcon(Icons.arrow_upward, debtActive),
+                    text: t.titipanSaya,
+                  ),
+                  Tab(
+                    icon: _tabIcon(Icons.arrow_downward, receivableActive),
+                    text: t.titipanOrang,
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
       body: Consumer<DebtProvider>(
@@ -332,6 +352,20 @@ class _DebtsScreenState extends State<DebtsScreen>
     );
   }
 
+  /// Tab icon badged with the number of still-unpaid titipan, so a pending
+  /// titipan is visible even while the other tab is selected. Follows the M3
+  /// badge spec: error-role container, top-end offset over the anchor icon.
+  Widget _tabIcon(IconData icon, int activeCount) => Badge.count(
+    count: activeCount,
+    isLabelVisible: activeCount > 0,
+    smallSize: 16,
+    largeSize: 16,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    offset: const Offset(6, -6),
+    textStyle: Theme.of(context).textTheme.labelSmall,
+    child: Icon(icon),
+  );
+
   /// 40dp ringed avatar matching the transaction tiles.
   Widget _accentIcon(IconData icon, Color accent) => Container(
     width: 40,
@@ -438,21 +472,37 @@ class _DebtsScreenState extends State<DebtsScreen>
     final textTheme = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
     final accent = finance.titipan;
+    final paidRatio = debt.amount > 0
+        ? ((debt.amount - debt.remainingAmount) / debt.amount).clamp(0.0, 1.0)
+        : 0.0;
+    // Progress colour by how far along the titipan is: red when barely any is
+    // paid, amber in the middle, green near/at completion.
+    final progressColor = titipanProgressColor(paidRatio, finance, scheme);
     final dateFormat = DateFormat(
       'dd MMM yyyy',
       Localizations.localeOf(context).toLanguageTag(),
     );
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final isOverdue =
+    final due = debt.dueDate;
+    final dueDay = due == null
+        ? null
+        : DateTime(due.year, due.month, due.day);
+    final isOverdue = !isPaid && dueDay != null && dueDay.isBefore(today);
+    // Warn a week out, so the deadline is not a surprise.
+    final isDueSoon =
         !isPaid &&
-        debt.dueDate != null &&
-        DateTime(debt.dueDate!.year, debt.dueDate!.month, debt.dueDate!.day)
-            .isBefore(today);
-    final subtitle = dateFormat.format(debt.dueDate ?? debt.date);
-    final paidRatio = debt.amount > 0
-        ? ((debt.amount - debt.remainingAmount) / debt.amount).clamp(0.0, 1.0)
-        : 0.0;
+        !isOverdue &&
+        dueDay != null &&
+        dueDay.difference(today).inDays <= 7;
+    final subtitle = due == null
+        ? dateFormat.format(debt.date)
+        : '${t.dueDateLabel}: ${dateFormat.format(due)}';
+    final subtitleColor = isOverdue
+        ? scheme.error
+        : isDueSoon
+        ? finance.titipan
+        : scheme.onSurfaceVariant;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -483,9 +533,10 @@ class _DebtsScreenState extends State<DebtsScreen>
                     Text(
                       subtitle,
                       style: textTheme.bodySmall?.copyWith(
-                        color: isOverdue
-                            ? scheme.error
-                            : scheme.onSurfaceVariant,
+                        color: subtitleColor,
+                        fontWeight: isOverdue || isDueSoon
+                            ? FontWeight.w600
+                            : null,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -494,14 +545,29 @@ class _DebtsScreenState extends State<DebtsScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              NominalText(
-                amount: debt.remainingAmount,
-                symbolColor: scheme.onSurfaceVariant,
-                style: textTheme.titleSmall?.copyWith(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w600,
+              // A paid card carries its own check icon, so the "Sisa Rp 0"
+              // column is left out entirely.
+              if (!isPaid)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      t.remaining,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    NominalText(
+                      amount: debt.remainingAmount,
+                      symbolColor: scheme.onSurfaceVariant,
+                      style: textTheme.titleSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
           if (debt.amount > 0) ...[
@@ -511,7 +577,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                 Expanded(
                   child: LinearProgressIndicator(
                     value: paidRatio,
-                    color: accent,
+                    color: progressColor,
                     borderRadius: BorderRadius.circular(4),
                     semanticsLabel: t.progressPayment,
                     semanticsValue: '${(paidRatio * 100).round()}%',
@@ -553,15 +619,7 @@ class _DebtsScreenState extends State<DebtsScreen>
                 ),
                 if (isPaid) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.check_circle, size: 14, color: finance.income),
-                  const SizedBox(width: 4),
-                  Text(
-                    t.lunas,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: finance.income,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Icon(Icons.check_circle, size: 16, color: finance.income),
                 ],
               ],
             ),
@@ -590,6 +648,15 @@ class _DebtsScreenState extends State<DebtsScreen>
     }
   }
 }
+
+/// Progress colour for a titipan: red when barely paid, amber in the middle,
+/// green near/at completion.
+Color titipanProgressColor(double ratio, FinanceColors finance, ColorScheme scheme) =>
+    ratio >= 0.75
+    ? finance.income
+    : ratio >= 0.34
+    ? finance.titipan
+    : scheme.error;
 
 /// Tonal status label ("Lunas" / "Belum Lunas") shared by the debt list and detail.
 class DebtStatusBadge extends StatelessWidget {

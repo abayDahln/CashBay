@@ -479,51 +479,60 @@ class _BalanceHeroCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final t = L.of(context);
-    final onColor = scheme.onPrimaryContainer;
-    // Nominal figures are plain black/white, not the dark primary tint.
-    final amountColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
     return RepaintBoundary(
       child: AppCard(
-        color: scheme.primaryContainer,
-        radius: BorderRadius.circular(AppTheme.radiusXl),
-        padding: const EdgeInsets.all(20),
+        variant: AppCardVariant.outlined,
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 20,
-                  color: onColor,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scheme.primary.withValues(alpha: 0.06),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 20,
+                    color: scheme.primary,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  t.totalBalance,
-                  style: text.titleSmall?.copyWith(color: onColor),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    t.totalBalance,
+                    style: text.titleSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: NominalText(
                 amount: provider.totalBalance,
-                style: AppTheme.nominal(
-                  text.displaySmall?.copyWith(
-                    color: amountColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  letterSpacing: -0.5,
+                style: text.headlineMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
                 ),
                 symbolColor: scheme.primary,
                 maxLines: 1,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -531,7 +540,7 @@ class _BalanceHeroCard extends StatelessWidget {
                     label: t.cash,
                     icon: Icons.payments_outlined,
                     balance: provider.cashWallet?.balance ?? 0,
-                    amountColor: amountColor,
+                    amountColor: scheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -540,7 +549,7 @@ class _BalanceHeroCard extends StatelessWidget {
                     label: t.ewallet,
                     icon: Icons.smartphone_outlined,
                     balance: provider.ewalletWallet?.balance ?? 0,
-                    amountColor: amountColor,
+                    amountColor: scheme.onSurface,
                   ),
                 ),
               ],
@@ -570,7 +579,7 @@ class _WalletBreakdown extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return Row(
       children: [
-        Icon(icon, size: 20, color: scheme.onPrimaryContainer),
+        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -581,7 +590,7 @@ class _WalletBreakdown extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: text.labelMedium?.copyWith(
-                  color: scheme.onPrimaryContainer,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               NominalText(

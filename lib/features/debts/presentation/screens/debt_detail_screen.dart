@@ -7,7 +7,7 @@ import '../../data/models/debt.dart';
 import '../../data/models/debt_payment.dart';
 import '../providers/debt_provider.dart';
 import '../../../dashboard/presentation/providers/wallet_provider.dart';
-import 'debts_screen.dart' show DebtStatusBadge;
+import 'debts_screen.dart' show DebtStatusBadge, titipanProgressColor;
 import '../../../../l10n/app_localizations.dart';
 
 class DebtDetailScreen extends StatefulWidget {
@@ -86,7 +86,8 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
     final paid = _debt.amount - _debt.remainingAmount;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final accent = FinanceColors.of(context).titipan;
+    final finance = FinanceColors.of(context);
+    final accent = finance.titipan;
 
     return AppCard(
       variant: AppCardVariant.outlined,
@@ -157,7 +158,7 @@ class _DebtDetailScreenState extends State<DebtDetailScreen> {
                 LinearProgressIndicator(
                   value: value,
                   minHeight: 8,
-                  color: accent,
+                  color: titipanProgressColor(value, finance, scheme),
                   borderRadius: BorderRadius.circular(4),
                   semanticsLabel: t.progressPayment,
                   semanticsValue: '${(value * 100).round()}%',
