@@ -173,10 +173,8 @@
   "titipanEditHint": "Titipan diubah dari layar detail titipan.",
   "amount": "Nominal",
   "chooseWallet": "Pilih dompet",
-  "addPhoto": "Tambah Foto",
   "addPhotoHint": "Lampirkan Foto",
   "change": "Ganti",
-  "changePhoto": "Ganti Foto",
   "undoNewPhoto": "Batalkan Foto Baru",
   "noPhoto": "Tidak ada foto",
 
@@ -374,10 +372,6 @@
   "languageEnglish": "Inggris",
 
   "languagePicked": "Bahasa diubah",
-  "chatGreeting": "Halo! Saya asisten keuangan Anda. Tanyakan apa saja tentang transaksi dan keuangan Anda.",
-  "chatDeveloping": "Fitur chat bot sedang dikembangkan.",
-  "chatHint": "Ketik pesan...",
-  "sendMessage": "Kirim pesan",
   "errorPrefix": "Error: {message}",
   "@errorPrefix": { "placeholders": { "message": { "type": "String" } } },
   "chooseTag": "Tag {type} dengan nama ini sudah ada",

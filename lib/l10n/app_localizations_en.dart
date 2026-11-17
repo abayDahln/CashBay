@@ -502,16 +502,10 @@ class LEn extends L {
   String get chooseWallet => 'Choose wallet';
 
   @override
-  String get addPhoto => 'Add Photo';
-
-  @override
   String get addPhotoHint => 'Attach Photo';
 
   @override
   String get change => 'Change';
-
-  @override
-  String get changePhoto => 'Change Photo';
 
   @override
   String get undoNewPhoto => 'Undo New Photo';
@@ -1065,19 +1059,6 @@ class LEn extends L {
 
   @override
   String get languagePicked => 'Language changed';
-
-  @override
-  String get chatGreeting =>
-      'Hi! I\'m your finance assistant. Ask anything about your transactions and finances.';
-
-  @override
-  String get chatDeveloping => 'The chatbot feature is under development.';
-
-  @override
-  String get chatHint => 'Type a message...';
-
-  @override
-  String get sendMessage => 'Send message';
 
   @override
   String errorPrefix(String message) {

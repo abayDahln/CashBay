@@ -113,7 +113,22 @@ class AppDatabase {
     await _seedInitialData(db);
   }
 
+  /// Upgrades run in ascending order. Each step is idempotent (adds columns only
+  /// when missing, recreates tables with IF NOT EXISTS) so an interrupted
+  /// upgrade can be safely re-run.
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _addColumnIfNotExists(db, 'categories', 'is_default', 'INTEGER NOT NULL DEFAULT 0');
+      await _addColumnIfNotExists(db, 'transactions', 'description', 'TEXT');
+      await _addColumnIfNotExists(db, 'transactions', 'payment_method', "TEXT NOT NULL DEFAULT 'cash'");
+      await _addColumnIfNotExists(db, 'transactions', 'attachment_path', 'TEXT');
+      await _addColumnIfNotExists(db, 'debts', 'bill_name', 'TEXT');
+      await _addColumnIfNotExists(db, 'debts', 'due_date', 'TEXT');
+      await _addColumnIfNotExists(db, 'debts', 'reminder_enabled', 'INTEGER NOT NULL DEFAULT 0');
+      await _addColumnIfNotExists(db, 'debts', 'payment_method', "TEXT NOT NULL DEFAULT 'cash'");
+      await _addColumnIfNotExists(db, 'debts', 'attachment_path', 'TEXT');
+    }
+
     if (oldVersion < 3) {
       await _addColumnIfNotExists(db, 'transactions', 'is_deleted', 'INTEGER NOT NULL DEFAULT 0');
     }
@@ -142,19 +157,6 @@ class AppDatabase {
            OR description LIKE 'Pembayaran %'
            OR description LIKE 'Penerimaan %'
       ''');
-    }
-
-    if (oldVersion < 2) {
-      await _addColumnIfNotExists(db, 'categories', 'is_default', 'INTEGER NOT NULL DEFAULT 0');
-      await _addColumnIfNotExists(db, 'transactions', 'description', 'TEXT');
-      await _addColumnIfNotExists(db, 'transactions', 'payment_method', "TEXT NOT NULL DEFAULT 'cash'");
-      await _addColumnIfNotExists(db, 'transactions', 'is_recurring', 'INTEGER NOT NULL DEFAULT 0');
-      await _addColumnIfNotExists(db, 'transactions', 'attachment_path', 'TEXT');
-      await _addColumnIfNotExists(db, 'debts', 'bill_name', 'TEXT');
-      await _addColumnIfNotExists(db, 'debts', 'due_date', 'TEXT');
-      await _addColumnIfNotExists(db, 'debts', 'reminder_enabled', 'INTEGER NOT NULL DEFAULT 0');
-      await _addColumnIfNotExists(db, 'debts', 'payment_method', "TEXT NOT NULL DEFAULT 'cash'");
-      await _addColumnIfNotExists(db, 'debts', 'attachment_path', 'TEXT');
     }
   }
 

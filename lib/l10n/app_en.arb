@@ -172,10 +172,8 @@
   "titipanEditHint": "Deposits are edited from the deposit detail screen.",
   "amount": "Amount",
   "chooseWallet": "Choose wallet",
-  "addPhoto": "Add Photo",
   "addPhotoHint": "Attach Photo",
   "change": "Change",
-  "changePhoto": "Change Photo",
   "undoNewPhoto": "Undo New Photo",
   "noPhoto": "No photo",
 
@@ -373,10 +371,6 @@
   "languageEnglish": "English",
 
   "languagePicked": "Language changed",
-  "chatGreeting": "Hi! I'm your finance assistant. Ask anything about your transactions and finances.",
-  "chatDeveloping": "The chatbot feature is under development.",
-  "chatHint": "Type a message...",
-  "sendMessage": "Send message",
   "errorPrefix": "Error: {message}",
   "@errorPrefix": { "placeholders": { "message": { "type": "String" } } },
   "chooseTag": "A {type} tag with this name already exists",

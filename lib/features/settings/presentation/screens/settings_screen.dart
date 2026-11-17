@@ -35,10 +35,7 @@ const _backupTables = [
 ];
 
 class SettingsScreen extends StatefulWidget {
-  /// When true the screen renders as a tab body (no Scaffold / AppBar).
-  final bool embedded;
-
-  const SettingsScreen({super.key, this.embedded = false});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -288,8 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final t = L.of(context);
     final prefs = context.watch<ThemePreferencesProvider>();
     final seed = prefs.seedColor.toARGB32();
@@ -298,18 +294,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     final body = ListView(
-      padding: EdgeInsets.only(top: widget.embedded ? 8 : 0, bottom: 24),
+      padding: const EdgeInsets.only(bottom: 24),
       children: [
-        if (widget.embedded)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              t.settings,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: scheme.onSurface,
-              ),
-            ),
-          ),
         _SectionHeader(t.appearanceTheme),
         ListTile(
           leading: const Icon(Icons.brightness_6_outlined),
@@ -447,9 +433,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
 
-    if (widget.embedded) {
-      return SafeArea(bottom: false, child: body);
-    }
     return Scaffold(
       appBar: CashBayAppBar(title: t.settings),
       body: body,

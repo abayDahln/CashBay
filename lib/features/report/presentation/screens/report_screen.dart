@@ -172,19 +172,26 @@ class _ReportScreenState extends State<ReportScreen> {
     final t = L.of(context);
     final finance = FinanceColors.of(context);
     final isIncome = report.series == ChartSeries.income;
+    final accent = isIncome ? finance.income : finance.expense;
     return AppCard(
       variant: AppCardVariant.outlined,
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: isIncome
-                ? finance.income.withValues(alpha: 0.15)
-                : finance.expense.withValues(alpha: 0.15),
-            foregroundColor: isIncome ? finance.income : finance.expense,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withValues(alpha: 0.06),
+              border: Border.all(
+                color: accent.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
             child: Icon(
               isIncome ? Icons.trending_up : Icons.trending_down,
               size: 20,
+              color: accent,
             ),
           ),
           const SizedBox(width: 16),
@@ -204,12 +211,10 @@ class _ReportScreenState extends State<ReportScreen> {
                   alignment: Alignment.centerLeft,
                   child: NominalText(
                     amount: report.total,
-                    symbolColor: Theme.of(context).colorScheme.onSurface,
-                    style: AppTheme.nominal(
-                      Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isIncome ? finance.income : finance.expense,
-                      ),
+                    symbolColor: accent,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: accent,
                     ),
                     maxLines: 1,
                   ),

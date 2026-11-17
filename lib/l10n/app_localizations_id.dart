@@ -503,16 +503,10 @@ class LId extends L {
   String get chooseWallet => 'Pilih dompet';
 
   @override
-  String get addPhoto => 'Tambah Foto';
-
-  @override
   String get addPhotoHint => 'Lampirkan Foto';
 
   @override
   String get change => 'Ganti';
-
-  @override
-  String get changePhoto => 'Ganti Foto';
 
   @override
   String get undoNewPhoto => 'Batalkan Foto Baru';
@@ -1065,19 +1059,6 @@ class LId extends L {
 
   @override
   String get languagePicked => 'Bahasa diubah';
-
-  @override
-  String get chatGreeting =>
-      'Halo! Saya asisten keuangan Anda. Tanyakan apa saja tentang transaksi dan keuangan Anda.';
-
-  @override
-  String get chatDeveloping => 'Fitur chat bot sedang dikembangkan.';
-
-  @override
-  String get chatHint => 'Ketik pesan...';
-
-  @override
-  String get sendMessage => 'Kirim pesan';
 
   @override
   String errorPrefix(String message) {

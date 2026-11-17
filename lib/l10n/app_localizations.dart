@@ -1039,12 +1039,6 @@ abstract class L {
   /// **'Pilih dompet'**
   String get chooseWallet;
 
-  /// No description provided for @addPhoto.
-  ///
-  /// In id, this message translates to:
-  /// **'Tambah Foto'**
-  String get addPhoto;
-
   /// No description provided for @addPhotoHint.
   ///
   /// In id, this message translates to:
@@ -1056,12 +1050,6 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Ganti'**
   String get change;
-
-  /// No description provided for @changePhoto.
-  ///
-  /// In id, this message translates to:
-  /// **'Ganti Foto'**
-  String get changePhoto;
 
   /// No description provided for @undoNewPhoto.
   ///
@@ -2076,30 +2064,6 @@ abstract class L {
   /// In id, this message translates to:
   /// **'Bahasa diubah'**
   String get languagePicked;
-
-  /// No description provided for @chatGreeting.
-  ///
-  /// In id, this message translates to:
-  /// **'Halo! Saya asisten keuangan Anda. Tanyakan apa saja tentang transaksi dan keuangan Anda.'**
-  String get chatGreeting;
-
-  /// No description provided for @chatDeveloping.
-  ///
-  /// In id, this message translates to:
-  /// **'Fitur chat bot sedang dikembangkan.'**
-  String get chatDeveloping;
-
-  /// No description provided for @chatHint.
-  ///
-  /// In id, this message translates to:
-  /// **'Ketik pesan...'**
-  String get chatHint;
-
-  /// No description provided for @sendMessage.
-  ///
-  /// In id, this message translates to:
-  /// **'Kirim pesan'**
-  String get sendMessage;
 
   /// No description provided for @errorPrefix.
   ///

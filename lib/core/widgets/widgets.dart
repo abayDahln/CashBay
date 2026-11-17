@@ -7,8 +7,6 @@ export 'empty_state.dart';
 export 'nominal_text.dart';
 export 'app_card.dart';
 export 'page_transition.dart';
-export 'press_card.dart';
-export 'shimmer_loading.dart';
 export 'slide_indexed_stack.dart';
 export 'transaction_tile.dart';
 export 'toast_widget.dart';
