@@ -88,6 +88,7 @@
   "amountTransaction": "Transaction amount",
   "clearAmount": "Clear amount",
   "tagOptional": "Tag (optional)",
+  "tag": "Tag",
   "newTag": "New tag",
   "tagName": "Tag name",
   "tagNameHint": "Example: Vacation",

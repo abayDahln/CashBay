@@ -1,12 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemePreferencesProvider extends ChangeNotifier {
   static const _seedKey = 'theme_seed_color';
   static const _modeKey = 'theme_mode';
 
-  ThemePreferencesProvider({SharedPreferences? preferences})
-    : _preferences = preferences;
+  ThemePreferencesProvider({this._preferences});
 
   SharedPreferences? _preferences;
   Color _seedColor = const Color(0xFF2196F3);

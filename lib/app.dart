@@ -1,6 +1,5 @@
 import 'dart:io' show Platform;
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/locale_provider.dart';
@@ -58,9 +57,7 @@ class CashBayApp extends StatelessWidget {
             supportedLocales: LocaleProvider.supported,
             localizationsDelegates: const [
               L.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
             ],
             debugShowCheckedModeBanner: false,
             home: const DashboardScreen(),

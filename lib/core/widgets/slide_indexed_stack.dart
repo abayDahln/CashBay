@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Keeps every child alive (like [IndexedStack]) and animates between them in
 /// the direction of travel: the outgoing page slides out to one side while the

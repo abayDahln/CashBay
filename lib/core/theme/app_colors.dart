@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Finance-specific colour roles, following M3 role pairing
 /// (`x` for text/icons, `xContainer` + `onXContainer` for tonal fills).

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'theme_preferences_provider.dart';
 
@@ -10,8 +10,7 @@ class LocaleProvider extends ChangeNotifier {
   static const _key = 'app_locale';
   static const supported = <Locale>[Locale('id'), Locale('en')];
 
-  LocaleProvider({SharedPreferences? preferences})
-    : _preferences = preferences;
+  LocaleProvider({this._preferences});
 
   SharedPreferences? _preferences;
   Locale? _locale;

@@ -17,6 +17,9 @@ void main() {
   setUpAll(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    // Each test file gets its own DB dir so parallel test runs don't share one SQLite file.
+    final dbRoot = await getDatabasesPath();
+    await databaseFactory.setDatabasesPath(join(dbRoot, 'history_income_test'));
     path = join(await getDatabasesPath(), 'cashbay.db');
     if (File(path).existsSync()) File(path).deleteSync();
     await AppDatabase().database;

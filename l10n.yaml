@@ -3,3 +3,4 @@ template-arb-file: app_id.arb
 output-localization-file: app_localizations.dart
 output-class: L
 nullable-getter: false
+header-file: l10n_header.txt
