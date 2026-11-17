@@ -377,13 +377,12 @@ class _ReportScreenState extends State<ReportScreen> {
 
   String _tooltipLabel(ChartBarData d) {
     return DateFormat(
-      'MMMM yyyy',
+      'MMM yyyy',
       Localizations.localeOf(context).toLanguageTag(),
     ).format(d.date);
   }
 
   Widget _barChart(ReportProvider report) {
-    final t = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final finance = FinanceColors.of(context);
@@ -482,9 +481,12 @@ class _ReportScreenState extends State<ReportScreen> {
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final d = data[group.x];
                         final showShadow = d.shadowValue > d.value;
-                        final shadowLabel = report.series == ChartSeries.income
-                            ? t.expenseLabel
-                            : t.incomeLabel;
+                        // Kept untranslated and short ("in"/"out") so the
+                        // tooltip stays compact in both languages.
+                        final shadowLabel =
+                            report.series == ChartSeries.income
+                            ? 'out'
+                            : 'in';
                         return BarTooltipItem(
                           '${_tooltipLabel(d)}\n',
                           text.labelSmall!.copyWith(
