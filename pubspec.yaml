@@ -131,8 +131,6 @@ flutter:
           weight: 600
         - asset: public/font/PlusJakartaSans-Bold.ttf
           weight: 700
-  shaders:
-    - shaders/liquid_glass.frag
 
   # To add assets to your application, add an assets section, like this:
   # assets:
