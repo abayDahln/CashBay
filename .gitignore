@@ -60,3 +60,4 @@ graphify-out/
 requirements/
 ui/
 tool/
+.playwright-mcp/
